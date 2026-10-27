@@ -1,0 +1,1 @@
+{"name":"pace","version":"0.1.0","private":true,"type":"module","scripts":{"check":"find assets/js functions -name '*.js' -print0 | xargs -0 -n1 node --check"}}
