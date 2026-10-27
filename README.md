@@ -1,6 +1,6 @@
 # PACE
 
-[Open PACE](https://pace-90j.pages.dev) · [Try the demo](https://pace-90j.pages.dev/?demo=1)
+[Open PACE](https://pace.ferhatgunes.com.tr) · [Try the demo](https://pace.ferhatgunes.com.tr/?demo=1)
 
 **PACE** is a calm, mobile-first habit tracker. Build several routines, choose the days that fit your life, and keep progress tied to your account across devices.
 
