@@ -62,3 +62,7 @@ The repository is public. A reuse license has not yet been selected; until one i
 ## Language
 
 The product interface is currently Turkish. The code and setup notes are intended to remain approachable to contributors; translations can be added without changing the habit model.
+
+## Preview
+
+![PACE on a phone](docs/pace-mobile.png)
