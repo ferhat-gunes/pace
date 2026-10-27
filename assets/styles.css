@@ -11,3 +11,5 @@
 .auth-screen:not(.hidden){display:flex;align-items:center;justify-content:center;overflow:auto;padding:100px 24px 40px}.auth-panel{width:100%;max-width:480px;margin:auto}.auth-panel form{display:block}.auth-panel form label{margin-top:14px}.auth-panel #auth-email{width:100%;margin-top:7px}.auth-panel .form-message:empty{display:none}@media(max-width:640px){.auth-screen:not(.hidden){padding:90px 18px 24px}.auth-panel{padding:27px 22px}.auth-panel h1{font-size:31px}}
 
 .habit-dialog{overflow:hidden}.habit-dialog form{min-width:0;overflow:hidden}.dialog-header,.dialog-footer{flex-shrink:0}.dialog-body{min-height:0;min-width:0;flex:1 1 auto;overflow-y:auto;overflow-x:hidden}.field-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.field{min-width:0}.field input,.field select{min-width:0;max-width:100%;width:100%}body:has(dialog[open]){overflow:hidden}
+
+.mobile-brand{border:0;background:transparent;padding:0}
