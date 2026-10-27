@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS credentials (
+ user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+ password_hash TEXT NOT NULL,
+ salt TEXT NOT NULL,
+ iterations INTEGER NOT NULL DEFAULT 100000,
+ recovery_hash TEXT NOT NULL,
+ updated_at TEXT NOT NULL
+);

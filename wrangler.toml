@@ -1,5 +1,5 @@
 name = "pace"
-pages_build_output_dir = "."
+pages_build_output_dir = "dist"
 compatibility_date = "2026-10-26"
 
 [[d1_databases]]
