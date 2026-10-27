@@ -4,7 +4,7 @@ on:
     branches: [main]
   pull_request:
 jobs:
-  syntax:
+  checks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -12,5 +12,8 @@ jobs:
         with:
           node-version: 22
       - name: Check JavaScript syntax
-        run: |
-          find assets/js functions -name '*.js' -print0 | xargs -0 -n1 node --check
+        run: npm run check
+      - name: Test habit rules and saving
+        run: npm test
+      - name: Build static app
+        run: npm run build

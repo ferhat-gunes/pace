@@ -9,7 +9,10 @@
 ## What it does
 
 - Track multiple habits with either a one-tap check-in or a numeric amount and unit.
-- Choose every day, selected weekdays, or a number of sessions per week.
+- Add 5, 15, or 30 minutes in one tap, or enter an exact total with automatic saving.
+- Correct earlier days, undo an entry, and retry interrupted saves without duplicate records.
+- Pause, archive, and restore habits while preserving dated history.
+- Choose every day, selected weekdays, or a number of completed days per week.
 - Use fixed goals or increase numeric goals by a chosen step.
 - Optionally carry an unfinished minimum goal to the next planned period.
 - Keep account data in Cloudflare D1 and sign in with an email address and password.
@@ -41,7 +44,7 @@ Email-code endpoints remain optional. To enable that delivery service, configure
 
 ### Local Pages preview
 
-Run `npm run build` and use Wrangler with a local D1 database and a local `.dev.vars` file. Copy `.dev.vars.example` to `.dev.vars` with development-only values. Do not commit the copied file. Run `npm run check` for source syntax checks.
+Run `npm run build` and use Wrangler with a local D1 database and a local `.dev.vars` file. Copy `.dev.vars.example` to `.dev.vars` with development-only values. Do not commit the copied file. Run `npm run check`, `npm test`, and `npm run build` for source, behavior, and build checks.
 
 ## Repository layout
 
