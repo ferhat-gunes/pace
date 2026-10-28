@@ -62,3 +62,11 @@ Primary recording targets are48px with8px gaps; presets have a visible selected 
 Verification:64 core tests passed;32 UI browser checks passed with zero runtime/fixture errors. Startup browser cases sample auth visibility on every animation frame and DOM mutation, including delayed code/session,401,503/network retry, actual12s timeout, malformed user response, demo, module failure, noJavaScript and denied storage. Final counts are recorded after the last startup run.
 
 Final startup rerun:11 passed,0 failed. Source syntax and production build passed after final session-payload validation.
+
+## Calm premium redesign
+
+The owner selected a calm premium mobile direction. The full stylesheet was replaced rather than extended with more overrides. Manrope now covers all typography; cool neutral ground, bordered white recording surfaces, consistent SVGs and an integrated stepper replace the previous ruled-list treatment. Minutes use one editable header value. Near a minimum target only exact completion is emphasized; completed controls settle into confirmation. Saved undo lasts eight seconds in a toast and does not increase card height; session transitions clear it.
+
+Three agents divided stylesheet implementation, interaction debugging and independent visual review. The latter compared stable390/490px and desktop1440px screens, plus auth/progress/long-content320px states. Long repeated stepper units were constrained to one-line ellipsis while retaining their full caption. Functional text below11px was raised. The detector retains only a dialog outer-padding warning; header/body/footer have explicit inner padding and were visually inspected.
+
+Verification:64 core logic tests,33 UI browser scenarios,11 startup scenarios and a targeted toast/one-click completion regression passed. The click regression reproduced a detached span between pointerdown andclick during blur save notification; unchanged button descendants now remain mounted. Final screenshots were captured after notifications expired. No native physical iOS device testing is claimed.

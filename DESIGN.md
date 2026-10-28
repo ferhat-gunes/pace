@@ -1,36 +1,35 @@
-# PACE interface system
+# PACE — calm premium mobile system
 
-## Direction
+## Approved direction
 
-A quiet daily tool with orange for the primary action and selected state. Preserve the chosen warm neutral canvas; it supports the orange brand and a low-glare daily-use surface. White defines controls and dialogs. Green is reserved for completion, red for actionable errors.
+The owner chose a calm, premium mobile application. Replace the former warm ruled-list world with a coherent light consumer-app system. Orange remains the brand and action color. No marketing hero, motivational copy or decorative charts. The memorable interaction is a single editable time total with an exact completion action as the target approaches.
 
 ## Tokens
 
-- Canvas: #fbf8f4. Surface: #ffffff.
-- Primary: #c2410c. Dark orange: #9a3412. Soft orange: #ffedd5.
-- Main text: #1f2937. Secondary text: #645f59.
-- Success: #166534. Error: #b91c1c.
-- System sans-serif, 16px mobile inputs, restrained weights.
-- Interactive controls generally at least 44 px; visible keyboard focus; reduced-motion preference respected.
+- Canvas #f5f6f8; surface #ffffff; ink #18212b; secondary #646f7c; border #e5e9ee.
+- Action #c6491d; dark action #a63914; action surface #fff0e9.
+- Completion #1e6b4a on #edf7f1; error #b42318.
+- Manrope variable400–800, self-hosted with its SIL OFL license. No external font request at runtime.
+- Headings28–30px, habit titles15–16px, body13–15px, numeric inputs16–18px.
+- Primary touch targets48px; week navigation44px minimum height; control gaps8px.
+- Habit surfaces16px radius, single subtle border, no decorative shadows. Mobile gutters20px.
 
-## Layout and copy
+## Today
 
-Today uses a clickable date title, a compact Planlı/Tümü filter alongside Add, a week selector and the routine list. There is no hero or decorative summary card. Entry controls stay in the routine row. Navigation icons are SVG with text labels. The simple creation dialog shows name, tracking and repeat; advanced rules remain collapsed. Dialog header and footer remain in place while its body scrolls.
+A compact toolbar carries the date title, displayed scope and Add. The weekly selector is a separate seven-cell calendar with a solid orange selected state. Each routine is one recording surface: semanticSVG indicator/name, quantity state, slim progress and an aligned action area.
 
-Use short labels and retain explanations only for a meaningful rule, error, recovery credential or destructive action. Stable save confirmation disappears after three seconds. Never replace an error with a transient toast alone.
+Minutes have one editable total in the header beside the target. Far from a minimum target, +5/+15/+30 minute controls are available. Within five minutes, one exact completion action replaces competing increments. Completed minute controls settle into confirmation while the total remains editable. Maximum targets retain recording controls. Other quantities use a cohesive inline stepper; check habits use one labeled action without a redundant progress bar.
 
-## Review notes
+Saved undo is available in a global eight-second toast, so habit height does not grow after saving. Error/conflict recovery stays persistent within the affected routine. Focused input and unchanged button descendants remain mounted during saving.
 
-The mechanical design detector found an avatar contrast issue and a skipped heading level; these were corrected. Its dialog-padding warning referred to the unpadded outer dialog, whose header/body/footer have explicit padding. The warm canvas is an intentional existing brand choice.
+## Other screens
 
-## Mobile refinement — 28 October 2026
+Progress uses the same surfaces and numeric typography, with clear grouped units. Habits use management rows; edits remain there. Forms use filled neutral fields, visible selected states and48px actions. Only the body of a dialog scrolls; header/footer stay reachable. Auth uses a narrow focused form and the shared typography/control system. Startup remains a neutral brand/status surface until session resolution.
 
-Remove Today row overflow/edit actions. Align amount controls to the left on phones. Keep navigation fixed with an opaque surface. Use minimum16px inputs and a fixed viewport scale per the product owner request; touch gestures prioritize scrolling rather than accidental zoom. Progress uses quiet ruled sections and two-column mobile definition lists, not charts without meaningful data.
+## Responsive and accessibility
 
-## Critique resolutions
+Desktop uses a232px sidebar and a max900px work area. Up to767px, navigation stays fixed at the bottom with active icon backplates; content reserves scroll space. Native hidden must override all component display rules. Input text stays at least16px for editable amount and form fields. Keyboard focus is visible, state labels are explicit, decorative SVGs are hidden from accessibility trees, and reduced motion is respected. Fixed viewport scaling remains the owner's earlier request.
 
-Enforce20px mobile gutters with safe-area fallbacks, including the supplied490×779 screenshot dimensions. Use one-column habit rows with left-aligned actions for every tracking type. Quantities pair actual and target on one line and use the available track width. Remove binary progress tracks. Date input stays collapsed behind the heading; save status occupies the existing caption line without causing layout movement. Bottom navigation stays fixed through767px widths and scrolling. Native input spinner chrome is hidden for amount fields; keyboard semantics and16px text remain.
+## Decision trace
 
-## Spacing and startup review loop
-
-Primary recording controls use48px targets with8px gaps; week dates remain44px. Minute controls fit the280px inner width at320px without overflow; safe-area pressure permits wrapping. Rows use16px vertical padding and8px internal gaps. Advanced progression presets form one horizontal row above their fields, with an orange selected state. Startup is centered brand/status, with recovery in a collapsed disclosure; app and login stay hidden until session resolution.
+UI/UX Pro Max's generic landing-page and clay-style suggestions were rejected as off-brief; its mobile target and spacing guidance was used. Frontend Design supplies the coherent identity and restraint; Impeccable supplies component/contrast/render review. Source-specific browser regression checks take precedence over generic recommendations.

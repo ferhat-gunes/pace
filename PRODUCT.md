@@ -5,7 +5,7 @@ PACE is a Turkish habit tracker for ordinary daily routines, quantities and time
 ## Core flows
 
 - Today is the default screen; planned routines and their entry controls share a row.
-- A check habit takes one tap. Quantities save automatically. Minute units expose +5, +15 and +30 and a directly editable total.
+- A check habit takes one tap. Quantities save automatically. Minute units show one directly editable total with contextual quick increments or exact completion.
 - New habits default to daily check tracking. Name is the only required user-entered field. Quantity, repeat schedule and advanced rules are optional decisions.
 - Weekly quotas count completed days, not repeated sessions in one day. Per-day amount remains separate from week completion.
 - The title opens a date chooser for history; the week strip handles nearby days. Future dates are unavailable. A Planlı / Tümü filter names the displayed scope.
@@ -22,8 +22,12 @@ Today contains recording actions only; edit routines in Habits. Progress default
 
 ## Exact completion and daily layout
 
-Daily rows share the same left-aligned recording layout. Quantities display actual/target together and a full-width progress track; binary habits have no redundant track. The smallest increment becomes Tamamla when a minimum target is within one ordinary step (5 minutes or1 unit), saving the exact target. Maximum targets never receive this shortcut. Zero cannot be decremented. Save feedback does not shift the list.
+Daily habit cards share one coherent recording layout. Minutes pair the editable actual with the goal in the header; other quantities use an integrated stepper with their goal caption. Quantities have a slim progress track; binary habits have none. The smallest increment becomes Tamamla when a minimum target is within one ordinary step (5 minutes or1 unit), saving the exact target. Maximum targets never receive this shortcut. Zero cannot be decremented. Save feedback does not shift the list.
 
 ## Session startup
 
 Initial HTML exposes only a neutral branded startup surface. A confirmed session enters Today; only401 opens login. Network/server/timeout/invalid-session responses retain startup and offer retry. An unavailable sessionStorage does not prevent regular account startup. Demo bypasses session validation. Reload guidance and a no-JavaScript fallback remain available when application code cannot load.
+
+## Approved visual direction
+
+The owner explicitly selected a calm premium mobile application. The current system uses self-hosted Manrope, cool neutral ground, cohesive white habit surfaces and orange actions. Saved undo uses a short global notification; error recovery remains local and persistent.

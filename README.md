@@ -9,7 +9,7 @@
 ## What it does
 
 - Track multiple habits with either a one-tap check-in or a numeric amount and unit.
-- Add 5, 15, or 30 minutes in one tap, or enter an exact total with automatic saving.
+- Add 5, 15, or 30 minutes in one tap, or edit the single displayed total with automatic saving. Near the target, complete the exact remaining amount in one tap.
 - Correct earlier days, undo an entry, and retry interrupted saves without duplicate records.
 - Pause, archive, and restore habits while preserving dated history.
 - Choose every day, selected weekdays, or a number of completed days per week.
@@ -72,3 +72,7 @@ The product interface is currently Turkish. The code and setup notes are intende
 ## Preview
 
 ![PACE on a phone](docs/pace-mobile.png)
+
+## Interface assets
+
+The Manrope font is self-hosted under its [SIL Open Font License](assets/fonts/OFL-Manrope.txt). See [the interface skill review](docs/UI-SKILLS-REVIEW.md) for the design and verification workflow.
