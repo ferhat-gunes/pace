@@ -52,3 +52,13 @@ All six critique priorities addressed:20px responsive gutters, collapsed date ac
 Seven new unit checks cover exact completion, decimal values, unit aliases, completed/max/check targets and invalid quantities. Browser coverage includes completion undo, date history/escape/focus, out-of-plan filtering, disabled controls, responsive gutters/navigation and stable save feedback.
 
 Final verification:64 unit/logic tests and31 browser checks passed. Source syntax and static build passed. Final390px and490px demo captures were visually inspected.
+
+## Opening flash and iterative control review
+
+Three specialist agents covered startup diagnosis/repair, spacing/control implementation and independent visual review. Two review cycles resolved the login flash and advanced-form preset alignment. Initial HTML now shows a neutral startup surface; valid sessions never expose the login form,401 opens login, and server/network/timeout/malformed responses retain retry. Native hidden attributes plus explicit CSS protect pre-module visibility. Denied sessionStorage no longer blocks normal startup.
+
+Primary recording targets are48px with8px gaps; presets have a visible selected state and sit above their fields. Small forms, login, startup, Today and Progress were visually reviewed after changes. Remaining blockers: none found in the final review. This is bounded verification, not a claim of faultlessness on all devices.
+
+Verification:64 core tests passed;32 UI browser checks passed with zero runtime/fixture errors. Startup browser cases sample auth visibility on every animation frame and DOM mutation, including delayed code/session,401,503/network retry, actual12s timeout, malformed user response, demo, module failure, noJavaScript and denied storage. Final counts are recorded after the last startup run.
+
+Final startup rerun:11 passed,0 failed. Source syntax and production build passed after final session-payload validation.

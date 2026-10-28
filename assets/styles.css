@@ -29,3 +29,48 @@ html{touch-action:pan-x pan-y;-webkit-text-size-adjust:100%;text-size-adjust:100
 
 /* Save feedback shares the title caption so recording never moves the list. */
 #view-today .page-heading{position:relative}#view-today .today-heading-actions{padding-bottom:12px}#view-today #today-status{position:absolute;bottom:0;right:0;margin:0;max-width:48%;font-size:11px;text-align:right;line-height:1.4}#today-list .amount-control,#today-list .time-control{gap:8px}.amount-input{appearance:textfield;-moz-appearance:textfield}.amount-input::-webkit-inner-spin-button,.amount-input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}.amount-input:focus-visible{outline-offset:2px}
+
+/* Comfortable controls and a shared eight-pixel rhythm. */
+:root{--control-size:48px;--control-gap:8px}
+.button,.log-button,.text-button,.all-filter,.small-action,.habit-filter select,#record-date,#back-today,#reload-state,.period-select select,.settings-row select,.field input,.field select,.segmented span,.schedule-options span,.step-presets button,.advanced-options summary,.archive-section>summary{min-height:var(--control-size)}
+.step-button,.more-button,.icon-button{width:var(--control-size);height:var(--control-size);flex-basis:var(--control-size)}
+.amount-input{height:var(--control-size);border-color:#bdb5ad;caret-color:var(--orange);font-variant-numeric:tabular-nums}
+#today-list .habit-row{padding:16px 0;gap:var(--control-gap)}
+#today-list .habit-actions,#today-list .habit-row.is-check .habit-actions{gap:var(--control-gap)}
+#today-list .amount-control,#today-list .time-control{gap:var(--control-gap);max-width:100%;flex-wrap:wrap}
+#today-list .primary-step{width:var(--control-size);min-width:var(--control-size);height:var(--control-size);min-height:var(--control-size)}
+#today-list .primary-step.is-goal-step{width:84px;min-width:84px;padding:0 8px;white-space:nowrap}
+#today-list .time-control .amount-input{width:52px;flex:0 0 52px}
+#today-list .time-control .amount-unit{width:16px;flex:0 0 16px;max-width:none;white-space:nowrap}
+#today-list .time-control .time-step{width:var(--control-size);min-width:var(--control-size);height:var(--control-size);flex:0 0 var(--control-size)}
+#today-list .entry-feedback{gap:var(--control-gap);line-height:1.4}
+#today-list .entry-feedback button{min-height:var(--control-size);padding:0 4px;text-underline-offset:3px}
+#view-today .page-heading{margin-bottom:16px}
+#view-today .today-heading-actions{gap:var(--control-gap)}
+.week-strip{margin-bottom:8px}
+.settings-section{padding:24px 0}.dialog-body{gap:24px}.field{gap:8px}.field-grid,.dialog-actions{gap:8px}
+::selection{background:var(--orange-soft);color:#9a3412}input,textarea{caret-color:var(--orange)}
+html{scrollbar-color:#c7bdb2 var(--canvas);scrollbar-width:thin}
+
+/* Startup is a quiet holding surface, with recovery kept within reach. */
+.startup-screen{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:32px 24px;background:var(--canvas);color:var(--ink);text-align:center;overflow:auto}
+.startup-brand{display:flex;align-items:center;justify-content:center;gap:12px;font-size:28px;font-weight:750;letter-spacing:-1px}
+#startup-message{margin:0;max-width:30ch;color:var(--muted);font-size:14px;line-height:1.5}
+#startup-retry{min-height:48px;padding:10px 20px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--ink);font-weight:650}
+#startup-fallback{max-width:32ch;color:var(--muted);font-size:13px}
+#startup-fallback summary{min-height:48px;padding:14px 8px;cursor:pointer}
+#startup-fallback p{margin:0 0 8px}#startup-fallback a{display:inline-flex;align-items:center;min-height:48px;padding:8px;color:var(--orange);text-underline-offset:3px}
+.startup-screen noscript{max-width:32ch;color:var(--muted);font-size:14px}
+@media(max-width:767px){.content-wrap{padding-top:24px}#today-list .habit-row{padding:16px 0;gap:8px}.page-heading .button{min-height:48px}.dialog-body{gap:24px}.today-heading-actions{gap:8px}}
+
+/* Native visibility must win over the startup surface's flex layout. */
+[hidden]{display:none!important}
+/* Progression shortcuts belong above their fields, never in a side rail. */
+.rule-option{display:block;min-width:0}
+.rule-option .step-presets{display:flex;flex-direction:row;flex-wrap:wrap;gap:8px;margin:0 0 16px}
+.step-presets button{min-width:48px;min-height:48px;justify-content:center;font-weight:650}
+.step-presets button[aria-pressed=true]{background:var(--orange);border-color:var(--orange);color:var(--surface)}
+.step-presets button[aria-pressed=false]:hover{background:var(--orange-pale);border-color:#d7a488;color:var(--orange)}
+@media(max-width:360px){.rule-option .field-grid{grid-template-columns:minmax(0,1fr);gap:16px}}
+
+.startup-brand{margin:0}

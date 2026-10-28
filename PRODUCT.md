@@ -23,3 +23,7 @@ Today contains recording actions only; edit routines in Habits. Progress default
 ## Exact completion and daily layout
 
 Daily rows share the same left-aligned recording layout. Quantities display actual/target together and a full-width progress track; binary habits have no redundant track. The smallest increment becomes Tamamla when a minimum target is within one ordinary step (5 minutes or1 unit), saving the exact target. Maximum targets never receive this shortcut. Zero cannot be decremented. Save feedback does not shift the list.
+
+## Session startup
+
+Initial HTML exposes only a neutral branded startup surface. A confirmed session enters Today; only401 opens login. Network/server/timeout/invalid-session responses retain startup and offer retry. An unavailable sessionStorage does not prevent regular account startup. Demo bypasses session validation. Reload guidance and a no-JavaScript fallback remain available when application code cannot load.
