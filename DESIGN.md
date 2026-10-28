@@ -22,3 +22,7 @@ Use short labels and retain explanations only for a meaningful rule, error, reco
 ## Review notes
 
 The mechanical design detector found an avatar contrast issue and a skipped heading level; these were corrected. Its dialog-padding warning referred to the unpadded outer dialog, whose header/body/footer have explicit padding. The warm canvas is an intentional existing brand choice.
+
+## Mobile refinement — 28 October 2026
+
+Remove Today row overflow/edit actions. Align amount controls to the left on phones. Keep navigation fixed with an opaque surface. Use minimum16px inputs and a fixed viewport scale per the product owner request; touch gestures prioritize scrolling rather than accidental zoom. Progress uses quiet ruled sections and two-column mobile definition lists, not charts without meaningful data.

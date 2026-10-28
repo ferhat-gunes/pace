@@ -38,3 +38,9 @@ Creating specialized rules requires the corresponding extra selection. These cou
 ## Limits
 
 This is a tested release, not a guarantee of a faultless interface. Browser automation used Chromium. Native iOS/Safari keyboard and standalone-PWA behavior were not tested on a physical phone. Offline writes show a recoverable pending/error state rather than claiming cloud persistence. Legacy pause history cannot be reconstructed when earlier versions never stored dated pause settings.
+
+## 28 October follow-up
+
+Removed Today edit menus; editing remains in Habits. Added lifetime statistics and last 7/30-day filters. Averages use recorded days including explicit zero. Unit changes, tombstones, archived history, period bounds and empty states are covered by eight new tests. Mobile viewport is configured at fixed scale at the owner’s request; all inputs stay at least16px, and touch controls avoid double-tap zoom. Browsers can retain accessibility overrides.
+
+Verification:57 automated logic checks and26 browser checks passed, with no runtime/fixture errors. The additional browser checks cover Today controls, editing from Habits, lifetime vs period totals/means, responsive reports and viewport/input sizing. Screenshots were inspected at390px, with overflow checks down to320px. Native iOS gestures were not tested on a physical device.

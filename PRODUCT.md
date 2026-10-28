@@ -15,3 +15,7 @@ PACE is a Turkish habit tracker for ordinary daily routines, quantities and time
 ## Boundaries
 
 The product is mobile first and a PWA. It has no social feed, streak pressure, coaching paragraphs or compulsory goal escalation. Carryover and increasing targets are off by default. Offline account writes remain pending until explicitly retried; the application does not imply that an unconfirmed save reached the server.
+
+## Lifetime statistics
+
+Today contains recording actions only; edit routines in Habits. Progress defaults to all time, with last30/7 days filters. Quantities show total, average per recorded date (explicit zero included), best daily amount, recorded dates and last entry. Historical units remain separate; archived habits remain in reports. Missing dates are not fabricated as zero. Check habits show completed and recorded days.

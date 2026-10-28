@@ -1,0 +1,14 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {habitStatistics} from '../assets/js/statistics.js';
+const habit={id:'h',name:'Oku',start_date:'2026-01-01',tracking:'quantity',unit:'dakika',target:20,direction:'at_least',schedule:{type:'daily'},progression:{enabled:false},debt:{enabled:false}};
+const log=(day,value,extra={})=>({habit_id:'h',habit_date:day,value,revision:1,...extra});
+const stats=(h,logs,start='')=>habitStatistics(h,logs,{start,end:'2026-01-10'});
+test('all-time total includes unplanned recorded days and averages recorded days only',()=>{const s=stats({...habit,schedule:{type:'weekdays',days:[1]}},[log('2026-01-02',10),log('2026-01-04',30)]);assert.equal(s.groups[0].total,40);assert.equal(s.groups[0].average,20);assert.equal(s.groups[0].best,30);assert.equal(s.recordedDays,2)});
+test('period boundaries exclude future and pre-start data',()=>{const s=stats(habit,[log('2025-12-31',50),log('2026-01-01',10),log('2026-01-08',20),log('2026-01-11',90)],'2026-01-05');assert.equal(s.groups[0].total,20);assert.equal(s.lastDate,'2026-01-08')});
+test('latest revision and tombstones are respected',()=>{const s=stats(habit,[log('2026-01-02',10),log('2026-01-02',40,{revision:2}),log('2026-01-03',30),log('2026-01-03',0,{revision:2,deleted:1})]);assert.equal(s.groups[0].total,40);assert.equal(s.recordedDays,1)});
+test('unit changes stay separate while minute aliases combine',()=>{const h={...habit,versions:[{effective_from:'2026-01-01',settings:{unit:'dk'}},{effective_from:'2026-01-03',settings:{unit:'dakika'}},{effective_from:'2026-01-05',settings:{unit:'sayfa'}}]};const s=stats(h,[log('2026-01-02',10),log('2026-01-04',20),log('2026-01-06',50)]);assert.equal(s.groups.length,2);assert.equal(s.groups[0].total,30);assert.equal(s.groups[0].average,15);assert.equal(s.groups[1].total,50)});
+test('explicit zero participates in average and completes a maximum goal',()=>{const s=stats({...habit,direction:'at_most',target:2},[log('2026-01-02',0),log('2026-01-03',4)]);assert.equal(s.groups[0].average,2);assert.equal(s.completedDays,1)});
+test('archived and paused habits retain their recorded history',()=>{const s=stats({...habit,archived_at:'2026-01-05',paused:true},[log('2026-01-02',30)]);assert.equal(s.groups[0].total,30)});
+test('check habits count completed dates rather than quantity or weekly quota',()=>{const s=stats({...habit,tracking:'check',schedule:{type:'weekly_quota',times_per_week:2}},[log('2026-01-02',1),log('2026-01-03',0),log('2026-01-04',1)]);assert.equal(s.checkDays,2);assert.equal(s.groups.length,0);assert.equal(s.completedDays,2)});
+test('no records has no fabricated averages or last date',()=>{const s=stats(habit,[]);assert.deepEqual(s.groups,[]);assert.equal(s.recordedDays,0);assert.equal(s.lastDate,null)});

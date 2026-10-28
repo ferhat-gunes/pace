@@ -17,6 +17,8 @@
 - Optionally carry an unfinished minimum goal to the next planned period.
 - Keep account data in Cloudflare D1 and sign in with an email address and password.
 - Install the website as a PWA; the app shell can open offline, while cloud saves clearly require a connection.
+- Review all-time or last 7/30-day totals, averages per recorded day, highest daily amounts, and entry dates. Historical units remain separate and archived habits remain in reports.
+- Keep daily recording separate from editing in the Habits screen.
 - Export your account data as JSON.
 
 PACE uses supportive, neutral status labels. Unscheduled days do not count as missed days.
