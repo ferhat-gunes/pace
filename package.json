@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "check": "node --check \"assets/js/app.js\" && node --check \"assets/js/api.js\" && node --check \"assets/js/rules.js\" && node --check \"assets/js/entry-queue.js\" && node --check \"assets/js/habit-form.js\" && node --check \"functions/lib/auth.js\" && node --check \"functions/lib/password.js\" && node --check \"functions/api/[[path]].js\" && node --check \"functions/_middleware.js\" && node --check \"sw.js\" && node --check \"scripts/build.mjs\" && node --check assets/js/state-sync.js && node --check assets/js/statistics.js",
-    "test": "node scripts/test-entry-queue.mjs && node scripts/test-habit-form.mjs && node scripts/test-habit-rules.mjs && node --test scripts/test-state-sync.mjs && node --test scripts/test-statistics.mjs"
+    "check": "node --check \"assets/js/app.js\" && node --check \"assets/js/api.js\" && node --check \"assets/js/rules.js\" && node --check \"assets/js/entry-queue.js\" && node --check \"assets/js/habit-form.js\" && node --check \"functions/lib/auth.js\" && node --check \"functions/lib/password.js\" && node --check \"functions/api/[[path]].js\" && node --check \"functions/_middleware.js\" && node --check \"sw.js\" && node --check \"scripts/build.mjs\" && node --check assets/js/state-sync.js && node --check assets/js/statistics.js && node --check assets/js/entry-affordances.js",
+    "test": "node scripts/test-entry-queue.mjs && node scripts/test-habit-form.mjs && node scripts/test-habit-rules.mjs && node --test scripts/test-state-sync.mjs && node --test scripts/test-statistics.mjs && node --test scripts/test-entry-affordances.mjs"
   }
 }

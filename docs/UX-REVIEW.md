@@ -44,3 +44,11 @@ This is a tested release, not a guarantee of a faultless interface. Browser auto
 Removed Today edit menus; editing remains in Habits. Added lifetime statistics and last 7/30-day filters. Averages use recorded days including explicit zero. Unit changes, tombstones, archived history, period bounds and empty states are covered by eight new tests. Mobile viewport is configured at fixed scale at the owner’s request; all inputs stay at least16px, and touch controls avoid double-tap zoom. Browsers can retain accessibility overrides.
 
 Verification:57 automated logic checks and26 browser checks passed, with no runtime/fixture errors. The additional browser checks cover Today controls, editing from Habits, lifetime vs period totals/means, responsive reports and viewport/input sizing. Screenshots were inspected at390px, with overflow checks down to320px. Native iOS gestures were not tested on a physical device.
+
+## Screenshot critique implementation
+
+All six critique priorities addressed:20px responsive gutters, collapsed date access, readable actual/goal numbers, adaptive exact-goal completion, consistent left-aligned controls and an explicit planned/all selector. Binary progress bars removed and zero decrement disabled. Screenshot-specific bottom navigation visibility checked at490×779, plus320×568 through767×900, including scrolling. Save-status rendering was adjusted to prevent vertical layout movement. No root cause is claimed for the previously supplied screenshot lacking gutters/navigation; current rendered dimensions are tested.
+
+Seven new unit checks cover exact completion, decimal values, unit aliases, completed/max/check targets and invalid quantities. Browser coverage includes completion undo, date history/escape/focus, out-of-plan filtering, disabled controls, responsive gutters/navigation and stable save feedback.
+
+Final verification:64 unit/logic tests and31 browser checks passed. Source syntax and static build passed. Final390px and490px demo captures were visually inspected.

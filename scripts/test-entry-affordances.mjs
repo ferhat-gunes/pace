@@ -1,0 +1,11 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {completionFor} from '../assets/js/entry-affordances.js';
+const h={tracking:'quantity',direction:'at_least',unit:'dakika'};
+test('19/20 offers exact target instead of overshooting by five',()=>assert.deepEqual(completionFor(h,19,20),{target:20,remaining:1}));
+test('minute shortcut only appears within the smallest step',()=>{assert.equal(completionFor(h,12,20),null);assert.equal(completionFor(h,15,20).target,20)});
+test('decimal amounts complete exactly at goal',()=>assert.deepEqual(completionFor({...h,unit:'bardak'},7.5,8),{target:8,remaining:.5}));
+test('maximum targets never encourage increasing toward limit',()=>assert.equal(completionFor({...h,direction:'at_most'},19,20),null));
+test('completed over-goal and check habits have no completion shortcut',()=>{assert.equal(completionFor(h,20,20),null);assert.equal(completionFor(h,25,20),null);assert.equal(completionFor({...h,tracking:'check'},0,1),null)});
+test('invalid or unsupported amounts have no shortcut',()=>{for(const n of [-1,NaN,Infinity])assert.equal(completionFor(h,n,20),null);assert.equal(completionFor(h,0,1000001),null)});
+test('minute aliases and generic increments use correct threshold',()=>{assert.equal(completionFor({...h,unit:'DK.'},17,20).remaining,3);assert.equal(completionFor({...h,unit:'sayfa'},17,20),null)});
