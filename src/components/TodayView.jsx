@@ -1,0 +1,10 @@
+export default function TodayView(){return (<section className="page-view" id="view-today" aria-labelledby="page-title">
+<div className="page-heading today-heading"><div className="record-heading"><h1 id="page-title"><button type="button" id="date-toggle" aria-label="Kayıt gününü seç" aria-expanded="false" aria-controls="date-panel"><span id="selected-date-label">{"Bugün"}</span><svg viewbox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></button></h1><span id="today-completion" className="completion-summary"></span></div><div className="today-heading-actions"><span id="today-status" className="today-status"></span><label className="habit-filter"><span className="sr-only">{"Gösterilen alışkanlıklar"}</span><select id="show-all-habits"><option value="planned">{"Planlı"}</option><option value="all">{"Tümü"}</option></select></label><button className="button button-primary add-habit-trigger" aria-label="Alışkanlık ekle">{"Ekle"}</button></div></div>
+<div id="date-panel" className="date-panel hidden"><label htmlFor="record-date">{"Kayıt günü"}</label><input id="record-date" type="date" aria-label="Kayıt günü" /></div>
+<div className="day-controls hidden" id="day-controls"><span id="weekday-label" className="sr-only"></span><button className="text-button hidden" id="back-today">{"Bugüne dön"}</button></div>
+<div className="week-strip" id="week-strip" aria-label="Kayıt gününü seç"></div>
+<div id="load-state" className="load-state" role="status"><span id="load-message">{"Yükleniyor…"}</span><button id="reload-state" className="text-button hidden">{"Tekrar dene"}</button></div>
+<div id="today-list" className="habit-list"></div>
+<div id="today-empty" className="empty-state hidden"><h2 >{"İlk alışkanlığını ekle"}</h2><button className="button button-primary add-habit-trigger">{"Alışkanlık ekle"}</button></div>
+<div id="rest-day" className="rest-state hidden"><p >{"Bu gün için planlı alışkanlık yok."}</p><button className="text-button" data-action="show-all">{"Tüm alışkanlıklar"}</button></div>
+</section>);}

@@ -4,14 +4,23 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node scripts/build.mjs",
+    "build": "vite build",
     "check": "node --check \"assets/js/app.js\" && node --check \"assets/js/api.js\" && node --check \"assets/js/rules.js\" && node --check \"assets/js/entry-queue.js\" && node --check \"assets/js/habit-form.js\" && node --check \"functions/lib/auth.js\" && node --check \"functions/lib/password.js\" && node --check \"functions/api/[[path]].js\" && node --check \"functions/_middleware.js\" && node --check \"sw.js\" && node --check \"scripts/build.mjs\" && node --check assets/js/state-sync.js && node --check assets/js/statistics.js && node --check assets/js/entry-affordances.js && node --check scripts/test-groups-and-social.mjs && node --check scripts/test-auth-security.mjs",
-    "test": "node scripts/test-entry-queue.mjs && node scripts/test-habit-form.mjs && node scripts/test-habit-rules.mjs && node --test scripts/test-state-sync.mjs && node --test scripts/test-statistics.mjs && node --test scripts/test-entry-affordances.mjs && node --test scripts/test-groups-and-social.mjs && node --test scripts/test-auth-security.mjs"
+    "test": "node scripts/test-entry-queue.mjs && node scripts/test-habit-form.mjs && node scripts/test-habit-rules.mjs && node --test scripts/test-state-sync.mjs && node --test scripts/test-statistics.mjs && node --test scripts/test-entry-affordances.mjs && node --test scripts/test-groups-and-social.mjs && node --test scripts/test-auth-security.mjs",
+    "dev": "vite --host 0.0.0.0",
+    "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
-    "@astryxdesign/theme-matcha": "^0.7.11"
+    "@astryxdesign/core": "^0.7.11",
+    "@astryxdesign/theme-matcha": "^0.7.11",
+    "lucide-react": "^1.70.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
-    "@astryxdesign/cli": "^0.7.11"
+    "@astryxdesign/cli": "^0.7.11",
+    "@babel/plugin-transform-runtime": "^7.29.7",
+    "@vitejs/plugin-react": "^6.3.0",
+    "vite": "^8.3.7"
   }
 }
