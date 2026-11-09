@@ -1,5 +1,5 @@
-const CACHE='pace-shell-v8';
-const SHELL=['/','/index.html','/manifest.webmanifest','/assets/astryx-matcha.css','/assets/styles.css','/assets/fonts/Nunito.ttf','/assets/fonts/DMSans.ttf','/assets/fonts/manrope.ttf','/assets/js/app.js','/assets/js/api.js','/assets/js/rules.js','/assets/js/entry-queue.js','/assets/js/state-sync.js','/assets/js/statistics.js','/assets/js/entry-affordances.js','/assets/js/habit-form.js','/assets/icons/pace.svg','/assets/icons/pace-180.png','/assets/icons/pace-192.png','/assets/icons/pace-512.png'];
+const CACHE='pace-shell-v9';
+const SHELL=['/','/index.html','/manifest.webmanifest','/assets/astryx-matcha.css','/assets/styles.css','/assets/fonts/Nunito.ttf','/assets/fonts/DMSans.ttf','/assets/fonts/manrope.ttf','/assets/js/app.js','/assets/js/api.js','/assets/js/rules.js','/assets/js/entry-queue.js','/assets/js/state-sync.js','/assets/js/statistics.js','/assets/js/entry-affordances.js','/assets/js/habit-form.js','/assets/icons/pace.svg','/assets/icons/pace-180.png','/assets/icons/pace-192.png','/assets/icons/pace-512.png','/assets/icons/pace-maskable.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('pace-shell-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('message',event=>{if(event.data?.type==='SKIP_WAITING')self.skipWaiting()});

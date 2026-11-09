@@ -1143,47 +1143,47 @@ function bind(){
     });
   });
 
-  $('#habit-form').addEventListener('submit',saveHabit);
-  $('#habit-form').addEventListener('change',updateFormVisibility);
-  $('#habit-form').addEventListener('input',updateRulePreview);
+  $('#habit-form')?.addEventListener('submit',saveHabit);
+  $('#habit-form')?.addEventListener('change',updateFormVisibility);
+  $('#habit-form')?.addEventListener('input',updateRulePreview);
 
-  $('#group-form').addEventListener('submit',saveGroup);
-  $('#group-habit-form').addEventListener('submit',saveGroupHabit);
+  $('#group-form')?.addEventListener('submit',saveGroup);
+  $('#group-habit-form')?.addEventListener('submit',saveGroupHabit);
 
   // Group Habit tracking radios toggle quantity fields
   $$('input[name="gh-tracking"]').forEach(radio=>{
     radio.addEventListener('change',()=>{
-      $('#gh-quantity-fields').classList.toggle('hidden', radio.value!=='quantity');
+      $('#gh-quantity-fields')?.classList.toggle('hidden', radio.value!=='quantity');
     });
   });
 
-  $('#group-habit-filter').addEventListener('change',renderMatrixTable);
+  $('#group-habit-filter')?.addEventListener('change',renderMatrixTable);
 
-  $('#progress-period').addEventListener('change',renderProgress);
-  $('#show-all-habits').addEventListener('change',e=>{showAll=e.target.value==='all';renderToday()});
-  $('#record-date').addEventListener('change',e=>{
+  $('#progress-period')?.addEventListener('change',renderProgress);
+  $('#show-all-habits')?.addEventListener('change',e=>{showAll=e.target.value==='all';renderToday()});
+  $('#record-date')?.addEventListener('change',e=>{
     if(/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)&&e.target.value<=dateKey()){
       selectedDate=e.target.value;
-      $('#date-panel').classList.add('hidden');
-      $('#date-toggle').setAttribute('aria-expanded','false');
+      $('#date-panel')?.classList.add('hidden');
+      $('#date-toggle')?.setAttribute('aria-expanded','false');
       renderToday();
-      $('#date-toggle').focus();
+      $('#date-toggle')?.focus();
     }else e.target.value=selectedDate;
   });
 
-  $('#week-start').addEventListener('change',async()=>{
+  $('#week-start')?.addEventListener('change',async()=>{
     const previous=state.week_start,next=Number($('#week-start').value);
     try{
       await request('account/preferences',{method:'PATCH',body:JSON.stringify({week_start:next})});
       state.week_start=next;
       renderAll();
     }catch(e){
-      $('#week-start').value=String(previous);
+      if($('#week-start'))$('#week-start').value=String(previous);
       showToast(e.message||'Tercih kaydedilemedi.');
     }
   });
 
-  $('#weekday-picker').addEventListener('click',e=>{
+  $('#weekday-picker')?.addEventListener('click',e=>{
     const b=e.target.closest('[data-day]');
     if(!b)return;
     const selected=!b.classList.contains('is-selected');
@@ -1199,10 +1199,10 @@ function bind(){
   document.addEventListener('keydown',e=>{
     if(e.key==='Escape'){
       $$('.habit-menu').forEach(el=>el.remove());
-      if(!$('#date-panel').classList.contains('hidden')){
-        $('#date-panel').classList.add('hidden');
-        $('#date-toggle').setAttribute('aria-expanded','false');
-        $('#date-toggle').focus();
+      if(!$('#date-panel')?.classList.contains('hidden')){
+        $('#date-panel')?.classList.add('hidden');
+        $('#date-toggle')?.setAttribute('aria-expanded','false');
+        $('#date-toggle')?.focus();
       }
     }
     if(e.key==='Enter'&&e.target.matches('.amount-input')){
@@ -1211,44 +1211,44 @@ function bind(){
     }
   });
 
-  $('#confirm-action').addEventListener('click',async()=>{
+  $('#confirm-action')?.addEventListener('click',async()=>{
     if(!pendingAction)return;
     const button=$('#confirm-action');
-    button.disabled=true;
+    if(button)button.disabled=true;
     $$('[data-cancel-confirm]').forEach(b=>b.disabled=true);
-    $('#confirm-error').textContent='';
+    if($('#confirm-error'))$('#confirm-error').textContent='';
     try{
       await pendingAction();
       pendingAction=null;
-      $('#confirm-dialog').close();
+      $('#confirm-dialog')?.close();
     }catch(e){
-      $('#confirm-error').textContent=e.message||'İşlem tamamlanamadı. Yeniden dene.';
+      if($('#confirm-error'))$('#confirm-error').textContent=e.message||'İşlem tamamlanamadı. Yeniden dene.';
     }finally{
-      button.disabled=false;
+      if(button)button.disabled=false;
       $$('[data-cancel-confirm]').forEach(b=>b.disabled=false);
     }
   });
 
-  $('#confirm-dialog').addEventListener('cancel',e=>{
-    if($('#confirm-action').disabled)e.preventDefault();
+  $('#confirm-dialog')?.addEventListener('cancel',e=>{
+    if($('#confirm-action')?.disabled)e.preventDefault();
     else pendingAction=null;
   });
 
-  $('#auth-form').addEventListener('submit',submitAuth);
+  $('#auth-form')?.addEventListener('submit',submitAuth);
   $$('[data-auth-mode]').forEach(b=>b.addEventListener('click',()=>setAuthMode(b.dataset.authMode)));
-  $('#close-recovery').addEventListener('click',()=>{$('#recovery-dialog').close();$('#recovery-code').value=''});
-  $('#recovery-dialog').addEventListener('cancel',e=>e.preventDefault());
-  $('#copy-recovery').addEventListener('click',async()=>{
+  $('#close-recovery')?.addEventListener('click',()=>{$('#recovery-dialog')?.close();if($('#recovery-code'))$('#recovery-code').value=''});
+  $('#recovery-dialog')?.addEventListener('cancel',e=>e.preventDefault());
+  $('#copy-recovery')?.addEventListener('click',async()=>{
     try{
-      await navigator.clipboard.writeText($('#recovery-code').value);
+      await navigator.clipboard.writeText($('#recovery-code')?.value||'');
       showToast('Kurtarma kodu kopyalandı.');
     }catch{
-      $('#recovery-code').select();
+      $('#recovery-code')?.select();
       showToast('Kodu seçip kopyalayabilirsin.');
     }
   });
 
-  $('#import-file-input').addEventListener('change',async e=>{
+  $('#import-file-input')?.addEventListener('change',async e=>{
     const file=e.target.files?.[0];
     if(!file)return;
     try{
