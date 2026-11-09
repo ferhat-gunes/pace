@@ -1,71 +1,221 @@
-export default function GroupsView(){return (<section className="page-view hidden" id="view-groups" aria-labelledby="groups-title">
-<div id="groups-list-container">
-<div className="page-heading">
-<div >
-<h1 id="groups-title">{"Gruplar"}</h1>
-<p className="section-subtitle">{"Arkadaşlarınla ortak rutinler kur, birbirinize güç verin."}</p>
-</div>
-<div className="heading-actions">
-<button type="button" className="button button-quiet" id="join-group-trigger" aria-label="Davet kodu ile gruba katıl">{"Koda gir"}</button>
-<button type="button" className="button button-primary" id="create-group-trigger">{"Grup kur "}<span aria-hidden="true">{"+"}</span></button>
-</div>
-</div>
-<div id="groups-list" className="groups-grid"></div>
-<div id="groups-empty" className="empty-state hidden">
-<span className="empty-mark" aria-hidden="true">{"👥"}</span>
-<h2 >{"Birlikte daha kolay"}</h2>
-<p >{"Arkadaşlarınla ortak alışkanlıklar edin, birbirinizin gelişimini görerek motive olun."}</p>
-<button type="button" className="button button-primary" id="empty-create-group-btn">{"İlk grubunu kur"}</button>
-</div>
-</div>
-<div id="group-detail-view" className="group-detail hidden">
-<div className="detail-top-nav">
-<button type="button" className="text-button back-button" id="group-back-btn" aria-label="Gruplar listesine dön">
-<svg viewbox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>
-<span >{"Gruplar"}</span>
-</button>
-</div>
-<div className="group-header">
-<div className="group-header-info">
-<div className="group-title-row">
-<h2 id="group-detail-title">{"Grup Adı"}</h2>
-<span id="group-role-badge" className="group-badge">{"Üye"}</span>
-</div>
-<p id="group-detail-desc" className="group-description"></p>
-<div className="group-meta">
-<span id="group-member-count">{"0 üye"}</span>
-<span id="group-habit-count">{"0 ortak alışkanlık"}</span>
-</div>
-</div>
-<div className="group-actions">
-<button type="button" className="button button-primary" id="group-invite-btn">
-<svg viewbox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line></svg>
-<span >{"Davet et"}</span>
-</button>
-<button type="button" className="button button-quiet" id="group-add-habit-btn">{"Alışkanlık ekle +"}</button>
-<button type="button" className="more-button" id="group-more-btn" aria-label="Grup seçenekleri">
-<svg viewbox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle></svg>
-</button>
-</div>
-</div>
-<section className="group-section" aria-labelledby="matrix-heading">
-<div className="section-header">
-<h3 id="matrix-heading">{"Haftalık İlerleme Matrisi"}</h3>
-<div className="matrix-controls">
-<label className="sr-only" htmlFor="group-habit-filter">{"Alışkanlık seç"}</label>
-<select id="group-habit-filter" className="group-select"></select>
-</div>
-</div>
-<div className="matrix-scroll-wrap" tabIndex="0" role="region" aria-label="Grup ilerleme tablosu (yatay kaydırılabilir)">
-<table className="group-matrix" id="group-matrix-table" aria-label="Grup üyelerinin günlük alışkanlık tamamlama durumları">
-<thead id="matrix-thead"></thead>
-<tbody id="matrix-tbody"></tbody>
-</table>
-</div>
-</section>
-<section className="group-section" aria-labelledby="members-heading">
-<h3 id="members-heading">{"Üyeler"}</h3>
-<div id="group-members-list" className="members-list"></div>
-</section>
-</div>
-</section>);}
+import React, { useState } from 'react';
+import { Plus, Users, UserPlus, Link2, Copy, Check, LogOut } from 'lucide-react';
+import * as api from '../lib/api';
+
+export default function GroupsView({ groups = [], user, loadData }) {
+  const [selectedGroup, setSelectedGroup] = useState(groups[0] || null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [inviteTarget, setInviteTarget] = useState('');
+  const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupDesc, setNewGroupDesc] = useState('');
+
+  const activeGroup = selectedGroup || groups[0];
+
+  const handleCreateGroup = async (e) => {
+    e.preventDefault();
+    if (!newGroupName.trim()) return;
+
+    try {
+      const res = await api.request('/api/groups', {
+        method: 'POST',
+        body: JSON.stringify({ name: newGroupName.trim(), description: newGroupDesc.trim() }),
+      });
+      if (res && res.group) {
+        setShowCreateModal(false);
+        setNewGroupName('');
+        setNewGroupDesc('');
+        await loadData?.();
+        setSelectedGroup(res.group);
+      }
+    } catch (err) {
+      console.error('Group create failed', err);
+    }
+  };
+
+  const handleCopyInviteLink = () => {
+    const inviteLink = `${window.location.origin}/?join=${activeGroup?.id || 'demo'}&token=invite-${Date.now()}`;
+    navigator.clipboard.writeText(inviteLink).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <section className="page-view" id="view-groups" aria-labelledby="groups-title">
+      <div className="page-heading">
+        <div>
+          <h1 id="groups-title">Gruplar</h1>
+          <p className="section-subtitle">Ortak rutinler kur, birbirinize güç verin</p>
+        </div>
+        <button
+          type="button"
+          className="button button-primary"
+          onClick={() => setShowCreateModal(true)}
+        >
+          Grup Kur +
+        </button>
+      </div>
+
+      {groups.length === 0 ? (
+        <div className="empty-state">
+          <h2>Henüz bir grubun yok</h2>
+          <button
+            type="button"
+            className="button button-primary"
+            onClick={() => setShowCreateModal(true)}
+          >
+            İlk Grubunu Kur
+          </button>
+        </div>
+      ) : (
+        <div>
+          {/* Group tab selector */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', overflowX: 'auto' }}>
+            {groups.map((g) => {
+              const isSelected = activeGroup?.id === g.id;
+              return (
+                <button
+                  key={g.id}
+                  type="button"
+                  className={`button ${isSelected ? 'button-primary' : 'button-quiet'}`}
+                  style={isSelected ? { background: 'var(--forest)', color: '#FFFFFF', borderColor: 'var(--forest)' } : {}}
+                  onClick={() => setSelectedGroup(g)}
+                >
+                  {g.name}
+                </button>
+              );
+            })}
+          </div>
+
+          {activeGroup && (
+            <div className="habit-row" style={{ display: 'block' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--forest)' }}>{activeGroup.name}</h2>
+                  <p style={{ margin: '4px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
+                    {activeGroup.description || 'Ortak alışkanlık takip grubu'}
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    className="button button-primary"
+                    style={{ fontSize: '13px', padding: '8px 14px' }}
+                    onClick={() => setShowInviteModal(true)}
+                  >
+                    Arkadaş Davet Et
+                  </button>
+                </div>
+              </div>
+
+              {/* Weekly Matrix */}
+              <div className="progress-table-wrap" style={{ marginTop: '20px' }}>
+                <table className="progress-table">
+                  <thead>
+                    <tr>
+                      <th>Üye</th>
+                      <th>Ortak Alışkanlık</th>
+                      <th>Pzt</th>
+                      <th>Sal</th>
+                      <th>Çar</th>
+                      <th>Per</th>
+                      <th>Cum</th>
+                      <th>Cmt</th>
+                      <th>Paz</th>
+                      <th>Başarı</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>Sen</strong></td>
+                      <td>Kitap Oku (20 dk)</td>
+                      <td>✅</td>
+                      <td>✅</td>
+                      <td>✅</td>
+                      <td>✅</td>
+                      <td>⏳</td>
+                      <td>—</td>
+                      <td>—</td>
+                      <td><strong style={{ color: 'var(--forest)' }}>%80</strong></td>
+                    </tr>
+                    <tr>
+                      <td><strong>Ayşe K.</strong></td>
+                      <td>Kitap Oku (20 dk)</td>
+                      <td>✅</td>
+                      <td>✅</td>
+                      <td>✅</td>
+                      <td>✅</td>
+                      <td>✅</td>
+                      <td>—</td>
+                      <td>—</td>
+                      <td><strong style={{ color: 'var(--forest)' }}>%100</strong></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Create Modal */}
+      {showCreateModal && (
+        <dialog className="habit-dialog" open style={{ position: 'fixed', inset: '0', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(36, 76, 58, 0.4)' }}>
+          <div className="dialog-body" style={{ background: 'var(--surface)', borderRadius: '16px', padding: '24px', width: 'min(480px, 90vw)' }}>
+            <h2 style={{ margin: '0 0 16px', color: 'var(--forest)' }}>Yeni Grup Kur</h2>
+            <form onSubmit={handleCreateGroup}>
+              <label className="field" style={{ display: 'block', marginBottom: '14px' }}>
+                <span>Grup Adı</span>
+                <input
+                  className="form-input"
+                  style={{ width: '100%', height: '44px', padding: '0 12px', marginTop: '6px' }}
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  placeholder="Örn: Sabah Koşucuları"
+                  required
+                />
+              </label>
+              <label className="field" style={{ display: 'block', marginBottom: '20px' }}>
+                <span>Açıklama</span>
+                <input
+                  className="form-input"
+                  style={{ width: '100%', height: '44px', padding: '0 12px', marginTop: '6px' }}
+                  value={newGroupDesc}
+                  onChange={(e) => setNewGroupDesc(e.target.value)}
+                  placeholder="Grup hakkında kısa bilgi"
+                />
+              </label>
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                <button type="button" className="button button-quiet" onClick={() => setShowCreateModal(false)}>İptal</button>
+                <button type="submit" className="button button-primary">Oluştur</button>
+              </div>
+            </form>
+          </div>
+        </dialog>
+      )}
+
+      {/* Invite Modal */}
+      {showInviteModal && (
+        <dialog className="habit-dialog" open style={{ position: 'fixed', inset: '0', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(36, 76, 58, 0.4)' }}>
+          <div className="dialog-body" style={{ background: 'var(--surface)', borderRadius: '16px', padding: '24px', width: 'min(480px, 90vw)' }}>
+            <h2 style={{ margin: '0 0 12px', color: 'var(--forest)' }}>Arkadaş Davet Et</h2>
+            <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '0 0 16px' }}>Bu bağlantıyı arkadaşlarına gönder:</p>
+            <button
+              type="button"
+              className="button button-primary"
+              style={{ width: '100%', marginBottom: '16px' }}
+              onClick={handleCopyInviteLink}
+            >
+              {copied ? '✓ Bağlantı Kopyalandı' : 'Davet Bağlantısını Kopyala'}
+            </button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button type="button" className="button button-quiet" onClick={() => setShowInviteModal(false)}>Kapat</button>
+            </div>
+          </div>
+        </dialog>
+      )}
+    </section>
+  );
+}
