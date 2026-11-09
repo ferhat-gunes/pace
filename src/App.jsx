@@ -10,7 +10,7 @@ import AuthModal from './components/AuthModal.jsx';
 import {useEffect} from 'react';
 export default function App(){useEffect(()=>{import('./lib/controller.js')},[]);return <>
 <section className="startup-screen" id="startup-screen" aria-labelledby="startup-title">
-<h1 className="startup-brand" id="startup-title"><img className="pace-logo" src="/assets/icons/pace.png" alt="" /><span >{"pace"}</span></h1>
+<h1 className="startup-brand" id="startup-title"><span>pace</span></h1>
 <p id="startup-message" role="status" aria-live="polite">{"PACE hazırlanıyor…"}</p>
 <button type="button" id="startup-retry" className="button button-primary hidden">{"Tekrar dene"}</button>
 <details id="startup-fallback" className="startup-fallback"><summary >{"Açılması uzun mu sürdü?"}</summary><p >{"Bağlantını kontrol edip "}<a href="">{"sayfayı yenileyebilirsin"}</a>{"."}</p></details>

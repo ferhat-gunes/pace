@@ -1,6 +1,6 @@
 import {CalendarDays,ListChecks,ChartNoAxesColumnIncreasing,Users,Settings} from 'lucide-react';
 export default function Sidebar(){return (<aside className="sidebar astryx-side-nav" data-astryx-component="side-nav" aria-label="Ana gezinme">
-<a className="brand" href="#today" aria-label="PACE ana sayfa"><img className="pace-logo" src="/assets/icons/pace.png" alt="" /><span >{"pace"}</span></a>
+<a className="brand" href="#today" aria-label="PACE ana sayfa"><span>pace</span></a>
 <nav className="nav-list">
 <button className="nav-item is-active" data-view="today" aria-current="page"><span className="nav-icon"><CalendarDays aria-hidden="true" /></span><span >{"Bugün"}</span></button>
 <button className="nav-item" data-view="habits"><span className="nav-icon"><ListChecks aria-hidden="true" /></span><span >{"Alışkanlıklar"}</span></button>
