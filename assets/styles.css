@@ -102,56 +102,7 @@
   --font-family-heading: var(--font-heading);
 }
 
-/* --- Dark Theme Support --- */
-@media (prefers-color-scheme: dark) {
-  :root, [data-astryx-theme="matcha"] {
-    color-scheme: dark;
-
-    --canvas: #16241D;
-    --surface: #1E3429;
-    --surface-alt: #264234;
-
-    --ink: #F4F0E6;
-    --muted: #A8B59A;
-    --border: #2D4C3C;
-    --border-strong: #3F6853;
-
-    --orange: #E8753B;
-    --orange-dark: #F2854F;
-    --orange-soft: rgba(232, 117, 59, 0.22);
-    --orange-border: rgba(232, 117, 59, 0.4);
-
-    --forest: #9CB8AA;
-    --forest-dark: #1F3E30;
-    --forest-soft: rgba(156, 184, 170, 0.2);
-    --forest-border: #4D7A64;
-
-    --sage: #A8B59A;
-    --sage-dark: #B9C6AC;
-    --sage-soft: rgba(168, 181, 154, 0.22);
-    --sage-track: #2D4B3C;
-
-    --green: #A8B59A;
-    --green-soft: rgba(168, 181, 154, 0.22);
-    --red: #F26D5A;
-    --red-soft: rgba(242, 109, 90, 0.25);
-
-    --color-background-body: var(--canvas);
-    --color-background-surface: var(--surface);
-    --color-background-card: var(--surface);
-    --color-background-muted: var(--surface-alt);
-    --color-text-primary: var(--ink);
-    --color-text-secondary: var(--muted);
-    --color-text-accent: var(--orange);
-    --color-border: var(--border);
-    --color-border-emphasized: var(--border-strong);
-    --color-success: var(--sage);
-    --color-success-muted: var(--sage-soft);
-    --color-error: var(--red);
-    --color-error-muted: var(--red-soft);
-  }
-}
-
+/* --- Explicit Dark Theme Support (when toggled) --- */
 html[data-theme="dark"] {
   color-scheme: dark;
   --canvas: #16241D;
@@ -309,9 +260,10 @@ svg {
   position: fixed;
   inset: 0 auto 0 0;
   z-index: 5;
-  width: 232px;
-  background: var(--surface);
-  border-right: 1px solid var(--border);
+  width: 240px;
+  background: var(--forest);
+  border-right: 1px solid rgba(0, 0, 0, 0.12);
+  color: var(--canvas);
   padding: 32px 20px;
   display: flex;
   flex-direction: column;
@@ -330,23 +282,33 @@ svg {
 }
 
 .brand {
-  margin: 0 12px 40px;
+  margin: 0 8px 40px;
+}
+
+.sidebar .brand {
+  color: var(--canvas);
 }
 
 .brand-mark {
   display: inline-block;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   flex-shrink: 0;
-  border-radius: 8px;
-  background-image: url('/assets/icons/pace.svg');
+  border-radius: 10px;
+  background-image: url('/assets/icons/pace.png');
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
 }
 
+.sidebar .brand .brand-mark {
+  background-color: #FFFFFF;
+  padding: 2px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
 .brand-mark i {
-  display: none;
+  display: none !important;
 }
 
 .nav-list {
@@ -364,7 +326,7 @@ svg {
   border: 0;
   border-radius: 12px;
   background: transparent;
-  color: var(--muted);
+  color: rgba(244, 240, 230, 0.8);
   text-align: left;
   font-family: var(--font-body);
   font-size: 14px;
@@ -373,14 +335,19 @@ svg {
 }
 
 .nav-item:hover {
-  background: var(--canvas);
-  color: var(--ink);
+  background: rgba(244, 240, 230, 0.12);
+  color: #FFFFFF;
 }
 
 .nav-item.is-active, .nav-item[aria-current=page] {
-  background: var(--orange-soft);
-  color: var(--orange-dark);
+  background: var(--orange);
+  color: #FFFFFF;
   font-weight: 700;
+  box-shadow: 0 4px 14px rgba(232, 117, 59, 0.35);
+}
+
+.nav-item.is-active .nav-icon {
+  color: #FFFFFF;
 }
 
 .nav-icon, .nav-icon svg {
@@ -398,7 +365,7 @@ svg {
   gap: 8px;
   margin: 0 16px 24px;
   font-size: 12px;
-  color: var(--muted);
+  color: rgba(244, 240, 230, 0.7);
 }
 
 .sync-indicator i {
@@ -409,11 +376,11 @@ svg {
 }
 
 .sync-indicator[data-state=saved] {
-  color: var(--forest);
+  color: var(--sage);
 }
 
 .sync-indicator[data-state=error] {
-  color: var(--red);
+  color: #FFA594;
 }
 
 /* --- Main Area & Topbar --- */
@@ -1976,17 +1943,23 @@ body:has(dialog[open]) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   font-family: var(--font-heading);
   font-size: 32px;
   font-weight: 800;
+  color: var(--forest);
 }
 
 .startup-brand .brand-mark {
   width: 96px;
   height: 96px;
-  border-radius: 20px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  border-radius: 24px;
+  background-color: #FFFFFF;
+  background-image: url('/assets/icons/pace.png');
+  background-size: 80px 80px;
+  background-repeat: no-repeat;
+  background-position: center;
+  box-shadow: 0 8px 24px rgba(36, 76, 58, 0.15);
 }
 
 #startup-message {
@@ -2170,8 +2143,9 @@ body:has(dialog[open]) {
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 2px;
     padding: 6px max(4px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(4px, env(safe-area-inset-left, 0px));
-    border-top: 1px solid var(--border);
-    background: var(--surface);
+    border-top: 1px solid rgba(0, 0, 0, 0.15);
+    background: var(--forest);
+    box-shadow: 0 -4px 20px rgba(36, 76, 58, 0.25);
   }
   .mobile-nav .nav-item {
     display: flex;
@@ -2183,10 +2157,19 @@ body:has(dialog[open]) {
     padding: 2px 0;
     background: transparent;
     border-radius: 0;
+    color: rgba(244, 240, 230, 0.75);
     font-family: var(--font-body);
     font-size: 11px;
     font-weight: 700;
     overflow: hidden;
+    transition: color 0.15s ease;
+  }
+  .mobile-nav .nav-item:hover,
+  .mobile-nav .nav-item:focus-visible {
+    color: #FFFFFF;
+  }
+  .mobile-nav .nav-item.is-active {
+    color: #FFFFFF;
   }
   .mobile-nav .nav-item span:not(.nav-icon) {
     white-space: nowrap;
@@ -2201,10 +2184,12 @@ body:has(dialog[open]) {
     width: 40px;
     height: 26px;
     border-radius: 8px;
+    color: #A8B59A;
   }
   .mobile-nav .is-active .nav-icon {
-    background: var(--orange-soft);
-    color: var(--orange-dark);
+    background: var(--orange);
+    color: #FFFFFF;
+    box-shadow: 0 2px 8px rgba(232, 117, 59, 0.4);
   }
   .mobile-nav .nav-icon svg {
     width: 20px;
