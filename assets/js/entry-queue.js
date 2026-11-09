@@ -53,8 +53,8 @@ export function createEntryQueue(options) {
     if (e.status === 'saved') e.previous = snapshot(readRecord(id, day));
     Object.assign(e, desired, { canUndo: true, error: '' });
     clearTimeout(e.timer);
-    // Preserve a conflict/error until explicit retry; editing must not silently overwrite server data.
-    if (e.status !== 'conflict' && e.status !== 'error') e.status = e.running ? 'saving' : 'pending';
+    // Setting a new desired value resolves previous error/conflict and resumes syncing.
+    e.status = e.running ? 'saving' : 'pending';
     notify(e);
     if (e.status === 'pending' || e.status === 'saving') {
       if (immediate) void flush(id, day);
