@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Copy, Check, X } from 'lucide-react';
 import * as api from '../lib/api';
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
@@ -9,6 +10,17 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   const [generatedCode, setGeneratedCode] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // Handle ESC key for modal dismissal
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose?.();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -19,7 +31,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
     try {
       if (mode === 'login') {
-        const res = await api.request('/api/auth/login', {
+        const res = await api.request('auth/login', {
           method: 'POST',
           body: JSON.stringify({ email, password }),
         });
@@ -28,7 +40,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           onClose();
         }
       } else if (mode === 'register') {
-        const res = await api.request('/api/auth/register', {
+        const res = await api.request('auth/register', {
           method: 'POST',
           body: JSON.stringify({ email, password }),
         });
@@ -37,7 +49,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           if (res.user) onAuthSuccess?.(res.user);
         }
       } else if (mode === 'recover') {
-        const res = await api.request('/api/auth/recover', {
+        const res = await api.request('auth/recover', {
           method: 'POST',
           body: JSON.stringify({ email, recovery_code: recoveryCode, new_password: password }),
         });
@@ -47,53 +59,107 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
         }
       }
     } catch (err) {
-      setErrorMsg(err.message || 'İşlem sırasında bir hata oluştu');
+      setErrorMsg(err.message || 'İşlem başarısız oldu.');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleCopyCode = () => {
+    if (!generatedCode) return;
+    navigator.clipboard.writeText(generatedCode).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
   return (
-    <section
+    <div
       className="auth-screen"
       id="auth-screen"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="auth-title"
       style={{ display: 'flex', zIndex: 100 }}
+      onClick={onClose}
     >
-      <div className="auth-brand">
-        <span>pace</span>
-      </div>
+      <div
+        className="auth-panel"
+        style={{ position: 'relative' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          className="icon-button"
+          aria-label="Kapat"
+          style={{ position: 'absolute', top: '16px', right: '16px' }}
+          onClick={onClose}
+        >
+          <X size={20} />
+        </button>
 
-      <div className="auth-panel">
+        <div className="auth-brand" style={{ marginBottom: '16px' }}>
+          <span>pace</span>
+        </div>
+
         <h1 id="auth-title">
           {generatedCode ? 'Kurtarma Kodunu Sakla' : mode === 'login' ? 'Alışkanlıklarına yer aç.' : mode === 'register' ? 'Hesap Oluştur' : 'Parola Sıfırla'}
         </h1>
 
         {generatedCode ? (
           <div>
-            <div className="habit-row" style={{ background: 'var(--orange-soft)', borderColor: 'var(--orange-border)', textAlign: 'center', margin: '20px 0' }}>
-              <div style={{ fontSize: '18px', fontWeight: 800, letterSpacing: '2px', color: 'var(--ink)' }}>
+            <div
+              className="panel-card"
+              style={{
+                background: 'var(--orange-soft)',
+                border: '1px solid var(--orange-border)',
+                borderRadius: '16px',
+                textAlign: 'center',
+                margin: '20px 0',
+                padding: '20px',
+              }}
+            >
+              <div style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '3px', color: 'var(--ink)' }}>
                 {generatedCode}
               </div>
-              <p style={{ fontSize: '12px', color: 'var(--muted)', margin: '8px 0 0' }}>
+              <p style={{ fontSize: '13px', color: 'var(--muted)', margin: '10px 0 16px' }}>
                 Parolanı unutursan bu kodla hesabına dönebilirsin. Kod yalnızca şimdi gösterilir.
               </p>
+              <button
+                type="button"
+                className="button button-quiet"
+                style={{ width: '100%', minHeight: '40px', fontWeight: 700 }}
+                onClick={handleCopyCode}
+              >
+                {copied ? (
+                  <>
+                    <Check size={16} style={{ marginRight: '6px' }} />
+                    Kod Panoya Kopyalandı
+                  </>
+                ) : (
+                  <>
+                    <Copy size={16} style={{ marginRight: '6px' }} />
+                    Kodu Kopyala
+                  </>
+                )}
+              </button>
             </div>
             <button
               type="button"
               className="button button-primary"
-              style={{ width: '100%' }}
+              style={{ width: '100%', minHeight: '44px' }}
               onClick={() => {
                 setGeneratedCode('');
                 onClose();
               }}
             >
-              Kodu kaydettim
+              Kodu kaydettim, devam et
             </button>
           </div>
         ) : (
           <form id="auth-form" onSubmit={handleSubmit}>
             {errorMsg && (
-              <p className="form-message" role="status" style={{ color: 'var(--red)' }}>
+              <p className="form-message" role="status" style={{ color: 'var(--red)', fontWeight: 600 }}>
                 {errorMsg}
               </p>
             )}
@@ -119,15 +185,14 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                   type="text"
                   value={recoveryCode}
                   onChange={(e) => setRecoveryCode(e.target.value)}
-                  autoComplete="off"
-                  placeholder="Hesabını açarken kaydettiğin kod"
                   required
+                  placeholder="Kayıt olurken verilen kod"
                 />
               </div>
             )}
 
-            <label htmlFor="auth-password" id="auth-password-label">
-              {mode === 'recover' ? 'Yeni Parolan' : 'Parolan'}
+            <label htmlFor="auth-password">
+              {mode === 'recover' ? 'Yeni parolan' : 'Parolan'}
             </label>
             <input
               id="auth-password"
@@ -135,40 +200,71 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              minLength={10}
-              maxLength={128}
+              autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
               required
-              placeholder="En az 10 karakter"
+              placeholder="En az 8 karakter"
             />
 
-            <button className="button button-primary auth-submit" id="auth-submit" type="submit" disabled={loading}>
-              {loading ? 'İşleniyor…' : mode === 'login' ? 'Giriş yap' : mode === 'register' ? 'Hesap oluştur' : 'Parolamı sıfırla'}
-            </button>
-
-            <div className="auth-switch">
-              {mode === 'login' ? (
-                <>
-                  <button type="button" onClick={() => setMode('register')}>Hesap oluştur</button>
-                  <button type="button" onClick={() => setMode('recover')}>Parolamı unuttum</button>
-                </>
-              ) : (
-                <button type="button" onClick={() => setMode('login')}>Giriş yap</button>
-              )}
-            </div>
-
-            <p className="auth-privacy">Verilerin hesabında saklanır.</p>
             <button
-              type="button"
-              className="text-button"
-              style={{ marginTop: '12px' }}
-              onClick={onClose}
+              type="submit"
+              className="button button-primary"
+              id="auth-submit"
+              disabled={loading}
+              style={{ width: '100%', minHeight: '44px', marginTop: '12px' }}
             >
-              Kapat
+              {loading
+                ? 'İşleniyor…'
+                : mode === 'login'
+                ? 'Giriş Yap'
+                : mode === 'register'
+                ? 'Hesap Oluştur'
+                : 'Parolayı Güncelle'}
             </button>
           </form>
         )}
+
+        {!generatedCode && (
+          <div className="auth-footer" style={{ marginTop: '16px', textAlign: 'center' }}>
+            {mode === 'login' && (
+              <>
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => { setMode('register'); setErrorMsg(''); }}
+                >
+                  Hesabın yok mu? Kayıt ol
+                </button>
+                <span style={{ margin: '0 8px', color: 'var(--border)' }}>•</span>
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => { setMode('recover'); setErrorMsg(''); }}
+                >
+                  Parolamı unuttum
+                </button>
+              </>
+            )}
+            {mode === 'register' && (
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => { setMode('login'); setErrorMsg(''); }}
+              >
+                Zaten hesabın var mı? Giriş yap
+              </button>
+            )}
+            {mode === 'recover' && (
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => { setMode('login'); setErrorMsg(''); }}
+              >
+                Giriş ekranına dön
+              </button>
+            )}
+          </div>
+        )}
       </div>
-    </section>
+    </div>
   );
 }

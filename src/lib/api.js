@@ -52,13 +52,14 @@ function seedDemo(){
     }
   };
 }
-function getDemo(){let raw=localStorage.getItem(DEMO_KEY);if(!raw){const s=seedDemo();localStorage.setItem(DEMO_KEY,JSON.stringify(s));return s}try{return JSON.parse(raw)}catch{return seedDemo()}}
-function saveDemo(state){localStorage.setItem(DEMO_KEY,JSON.stringify(state));return state}
+function getDemo(){try{let raw=localStorage.getItem(DEMO_KEY);if(!raw){const s=seedDemo();try{localStorage.setItem(DEMO_KEY,JSON.stringify(s))}catch(e){}return s}return JSON.parse(raw)}catch{return seedDemo()}}
+function saveDemo(state){try{localStorage.setItem(DEMO_KEY,JSON.stringify(state));}catch(e){console.warn('localStorage save failed:', e);}return state}
 export async function request(path,options={}){
-  if(demoMode)return demoRequest(path,options);
+  const cleanPath = String(path||'').replace(/^\/?api\//,'').replace(/^\//,'');
+  if(demoMode)return demoRequest(cleanPath,options);
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
   try{
-    const response=await fetch('/api/'+path.replace(/^\//,''),{...options,signal:controller.signal,credentials:'same-origin',headers:{'Content-Type':'application/json',...(options.headers||{})}});
+    const response=await fetch('/api/'+cleanPath,{...options,signal:controller.signal,credentials:'same-origin',headers:{'Content-Type':'application/json',...(options.headers||{})}});
     const payload=await response.json().catch(()=>({error:'Sunucudan yanıt alınamadı.'}));
     if(!response.ok){
       const err=new Error(payload.error||'İşlem tamamlanamadı.');
@@ -75,6 +76,7 @@ export async function request(path,options={}){
 }
 
 function demoRequest(path,options={}){
+  path = String(path||'').replace(/^\/?api\//,'').replace(/^\//,'');
   let s=getDemo();
   if(!s.groups) s.groups=[];
   if(!s.group_details) s.group_details={};
@@ -91,12 +93,42 @@ function demoRequest(path,options={}){
   }
   const checkinMatch=path.match(/^habits\/([^/]+)\/check-ins\/(\d{4}-\d{2}-\d{2})$/);
   if(checkinMatch&&(method==='PUT'||method==='DELETE')){
-    const id=checkinMatch[1],day=checkinMatch[2],index=s.checkins.findIndex(x=>x.habit_id===id&&x.habit_date===day),old=index>=0?s.checkins[index]:null,expected=Number(body.expected_revision||0);
-    if((old?.revision||0)!==expected)return Promise.reject(Object.assign(new Error('Bu gün başka bir cihazda değişmiş. Yeniden uygula.'),{status:409}));
+    const id=checkinMatch[1],day=checkinMatch[2],index=s.checkins.findIndex(x=>x.habit_id===id&&x.habit_date===day),old=index>=0?s.checkins[index]:null;
     const log={id:old?.id||crypto.randomUUID(),habit_id:id,habit_date:day,value:method==='DELETE'?0:Number(body.value),deleted:method==='DELETE'?1:0,revision:(old?.revision||0)+1,idempotency_key:body.idempotency_key||crypto.randomUUID(),created_at:old?.created_at||new Date().toISOString(),updated_at:new Date().toISOString()};
     if(index>=0)s.checkins[index]=log;else s.checkins.push(log);
     saveDemo(s);
     return Promise.resolve({checkin:log});
+  }
+  if(path==='checkins'&&method==='POST'){
+    const { habit_id, habit_date, value } = body;
+    const index = s.checkins.findIndex(x=>x.habit_id===habit_id&&x.habit_date===habit_date);
+    const old = index >= 0 ? s.checkins[index] : null;
+    const log = {
+      id: old?.id || crypto.randomUUID(),
+      habit_id,
+      habit_date,
+      value: Number(value || 0),
+      deleted: 0,
+      revision: (old?.revision || 0) + 1,
+      idempotency_key: crypto.randomUUID(),
+      created_at: old?.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    if(index >= 0) s.checkins[index] = log; else s.checkins.push(log);
+    saveDemo(s);
+    return Promise.resolve({checkin: log});
+  }
+  const archiveMatch=path.match(/^habits\/([^/]+)\/archive$/);
+  if(archiveMatch&&method==='POST'){
+    s.habits=s.habits.map(h=>h.id===archiveMatch[1]?{...h,archived_at:new Date().toISOString()}:h);
+    saveDemo(s);
+    return Promise.resolve({ok:true});
+  }
+  const restoreMatch=path.match(/^habits\/([^/]+)\/restore$/);
+  if(restoreMatch&&method==='POST'){
+    s.habits=s.habits.map(h=>h.id===restoreMatch[1]?{...h,archived_at:null}:h);
+    saveDemo(s);
+    return Promise.resolve({ok:true});
   }
   const habitMatch=path.match(/^habits\/([^/]+)$/);
   if(habitMatch&&method==='PATCH'){
@@ -113,7 +145,14 @@ function demoRequest(path,options={}){
   if(path==='account/preferences'&&method==='PATCH'){
     s.week_start=Number(body.week_start)===0?0:1;
     saveDemo(s);
-    return Promise.resolve({ok:true});
+    return Promise.resolve({ok:true,week_start:s.week_start});
+  }
+  if(path==='import'&&method==='POST'){
+    if(Array.isArray(body.habits)) s.habits=body.habits;
+    if(Array.isArray(body.checkins)) s.checkins=body.checkins;
+    if(body.week_start!==undefined) s.week_start=Number(body.week_start);
+    saveDemo(s);
+    return Promise.resolve({ok:true,habits_count:s.habits.length,checkins_count:(s.checkins||[]).length});
   }
   if(habitMatch&&method==='DELETE'){
     s.habits=s.habits.filter(h=>h.id!==habitMatch[1]);

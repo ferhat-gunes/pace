@@ -44,6 +44,7 @@ export default function Sidebar({ currentView = 'today', setView, syncState = 'B
           type="button"
           className={`nav-item settings-link ${currentView === 'settings' ? 'is-active' : ''}`}
           data-view="settings"
+          aria-current={currentView === 'settings' ? 'page' : undefined}
           onClick={() => setView?.('settings')}
         >
           <span className="nav-icon"><Settings aria-hidden="true" /></span>

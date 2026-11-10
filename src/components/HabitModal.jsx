@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function HabitModal({ isOpen, onClose, onAddHabit }) {
   const [name, setName] = useState('');
@@ -7,6 +7,16 @@ export default function HabitModal({ isOpen, onClose, onAddHabit }) {
   const [unit, setUnit] = useState('dakika');
   const [scheduleType, setScheduleType] = useState('daily');
 
+  // Handle ESC key for modal dismissal
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose?.();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleSubmit = (e) => {
@@ -14,9 +24,9 @@ export default function HabitModal({ isOpen, onClose, onAddHabit }) {
     if (!name.trim()) return;
 
     onAddHabit?.({
-      name: name.trim(),
+      name: name.trim().slice(0, 60),
       tracking,
-      target: tracking === 'check' ? 1 : Number(target) || 1,
+      target: tracking === 'check' ? 1 : Math.max(1, Math.min(1000000, Number(target) || 1)),
       unit: tracking === 'check' ? '' : unit,
       schedule: { type: scheduleType },
       progression: { enabled: false, step: 0 },
@@ -32,6 +42,9 @@ export default function HabitModal({ isOpen, onClose, onAddHabit }) {
     <dialog
       className="habit-dialog"
       open
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="habit-modal-title"
       style={{
         position: 'fixed',
         inset: '0',
@@ -39,7 +52,7 @@ export default function HabitModal({ isOpen, onClose, onAddHabit }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'rgba(36, 76, 58, 0.4)',
+        background: 'rgba(36, 76, 58, 0.45)',
         border: 'none',
         width: '100%',
         maxWidth: '100%',
@@ -55,22 +68,33 @@ export default function HabitModal({ isOpen, onClose, onAddHabit }) {
           padding: '24px',
           width: 'min(500px, 92vw)',
           color: 'var(--ink)',
+          boxShadow: '0 8px 32px rgba(36, 76, 58, 0.16)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="dialog-header" style={{ padding: '0 0 16px', borderBottom: '1px solid var(--border)' }}>
-          <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--forest)' }}>Alışkanlık Ekle</h2>
-          <button type="button" className="icon-button" onClick={onClose}>✕</button>
+        <div className="dialog-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 0 16px', borderBottom: '1px solid var(--border)' }}>
+          <h2 id="habit-modal-title" style={{ margin: 0, fontSize: '20px', color: 'var(--forest)' }}>
+            Yeni Alışkanlık Ekle
+          </h2>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Kapat"
+            onClick={onClose}
+          >
+            ✕
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} style={{ marginTop: '16px' }}>
-          <label className="field" style={{ display: 'block', marginBottom: '14px' }}>
-            <span style={{ fontWeight: 700, fontSize: '13px' }}>Adı</span>
+          <label className="field" style={{ display: 'block', marginBottom: '16px' }}>
+            <span style={{ fontWeight: 700, fontSize: '13px' }}>Alışkanlık Adı</span>
             <input
               className="form-input"
               style={{ width: '100%', height: '44px', padding: '0 12px', marginTop: '6px' }}
-              placeholder="Örn: Kitap oku, Su iç"
+              placeholder="Örn: Kitap oku, Yürüyüş yap, Su iç"
               value={name}
+              maxLength={60}
               onChange={(e) => setName(e.target.value)}
               required
               autoFocus
@@ -78,23 +102,35 @@ export default function HabitModal({ isOpen, onClose, onAddHabit }) {
           </label>
 
           <fieldset className="field" style={{ border: 0, padding: 0, margin: '0 0 16px' }}>
-            <legend style={{ fontWeight: 700, fontSize: '13px', marginBottom: '6px' }}>Takip Tipi</legend>
+            <legend style={{ fontWeight: 700, fontSize: '13px', marginBottom: '8px' }}>Hedef Biçimi</legend>
             <div className="segmented" style={{ display: 'flex', gap: '8px' }}>
               <button
                 type="button"
                 className={`button ${tracking === 'check' ? 'button-primary' : 'button-quiet'}`}
-                style={{ flex: 1 }}
+                style={{
+                  flex: 1,
+                  height: '42px',
+                  background: tracking === 'check' ? 'var(--forest)' : undefined,
+                  color: tracking === 'check' ? '#FFFFFF' : undefined,
+                  borderColor: tracking === 'check' ? 'var(--forest)' : undefined,
+                }}
                 onClick={() => setTracking('check')}
               >
-                Yaptım (Check)
+                Tek Seferlik (Evet/Hayır)
               </button>
               <button
                 type="button"
                 className={`button ${tracking === 'quantity' ? 'button-primary' : 'button-quiet'}`}
-                style={{ flex: 1 }}
+                style={{
+                  flex: 1,
+                  height: '42px',
+                  background: tracking === 'quantity' ? 'var(--forest)' : undefined,
+                  color: tracking === 'quantity' ? '#FFFFFF' : undefined,
+                  borderColor: tracking === 'quantity' ? 'var(--forest)' : undefined,
+                }}
                 onClick={() => setTracking('quantity')}
               >
-                Miktar
+                Miktar / Süre
               </button>
             </div>
           </fieldset>
@@ -106,6 +142,7 @@ export default function HabitModal({ isOpen, onClose, onAddHabit }) {
                 <input
                   type="number"
                   min="1"
+                  max="1000000"
                   className="form-input"
                   style={{ width: '100%', height: '44px', padding: '0 12px', marginTop: '6px' }}
                   value={target}
@@ -126,14 +163,28 @@ export default function HabitModal({ isOpen, onClose, onAddHabit }) {
                   <option value="bardak">bardak</option>
                   <option value="km">km</option>
                   <option value="tekrar">tekrar</option>
+                  <option value="adım">adım</option>
                 </select>
               </label>
             </div>
           )}
 
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '24px' }}>
-            <button type="button" className="button button-quiet" onClick={onClose}>İptal</button>
-            <button type="submit" className="button button-primary">Kaydet</button>
+            <button
+              type="button"
+              className="button button-quiet"
+              style={{ minHeight: '42px' }}
+              onClick={onClose}
+            >
+              İptal
+            </button>
+            <button
+              type="submit"
+              className="button button-primary"
+              style={{ minHeight: '42px', padding: '0 20px' }}
+            >
+              Alışkanlığı Kaydet
+            </button>
           </div>
         </form>
       </div>

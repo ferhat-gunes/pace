@@ -1,14 +1,31 @@
 import React, { useState } from 'react';
-import { Download, Upload, LogOut, Trash2, Calendar, Globe } from 'lucide-react';
+import { Download, Upload, LogOut, Trash2, Calendar, Globe, CheckCircle2, AlertTriangle } from 'lucide-react';
+import * as api from '../lib/api';
 
-export default function SettingsView({ user, habits = [], checkins = [], onSignOut }) {
-  const [weekStart, setWeekStart] = useState('1');
+export default function SettingsView({
+  user,
+  habits = [],
+  checkins = [],
+  weekStart = 1,
+  updateWeekStart,
+  importBackup,
+  onSignOut,
+}) {
   const [msg, setMsg] = useState('');
+  const [isError, setIsError] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const showNotification = (text, error = false) => {
+    setMsg(text);
+    setIsError(error);
+    setTimeout(() => setMsg(''), 4000);
+  };
 
   const handleExport = () => {
     const data = {
       exported_at: new Date().toISOString(),
       user,
+      week_start: weekStart,
       habits,
       checkins,
     };
@@ -16,31 +33,46 @@ export default function SettingsView({ user, habits = [], checkins = [], onSignO
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `pace-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `pace-yedek-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    setMsg('Yedek JSON olarak indirildi');
-    setTimeout(() => setMsg(''), 3000);
+    showNotification('Yedek JSON dosyası olarak başarıyla indirildi.');
   };
 
-  const handleImport = (e) => {
+  const handleImportFile = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
         const json = JSON.parse(evt.target?.result);
-        if (json.habits && Array.isArray(json.habits)) {
-          setMsg('Yedek başarıyla yüklendi! Sayfayı yenileyebilirsiniz.');
+        if (json && Array.isArray(json.habits)) {
+          const res = await importBackup?.(json);
+          if (res?.success) {
+            showNotification(`Yedek başarıyla yüklendi! (${res.count} alışkanlık eşitlendi)`);
+          } else {
+            showNotification(res?.error || 'Yedek yükleme başarısız.', true);
+          }
         } else {
-          setMsg('Geçersiz yedek formatı');
+          showNotification('Geçersiz dosya: "habits" listesi bulunamadı.', true);
         }
       } catch {
-        setMsg('Dosya okuma hatası');
+        showNotification('Dosya okunamadı. Geçerli bir JSON seçin.', true);
       }
     };
     reader.readAsText(file);
+    e.target.value = ''; // Reset input
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      await api.request('account', { method: 'DELETE' }).catch(() => null);
+      showNotification('Hesabınız silindi.');
+      setTimeout(() => onSignOut?.(), 1000);
+    } catch (err) {
+      showNotification('Hesap silme başarısız: ' + err.message, true);
+    }
   };
 
   return (
@@ -53,22 +85,47 @@ export default function SettingsView({ user, habits = [], checkins = [], onSignO
       </div>
 
       {msg && (
-        <div className="habit-row" style={{ background: 'var(--sage-soft)', borderColor: 'var(--sage)', marginBottom: '16px' }}>
-          <strong style={{ color: 'var(--forest)' }}>{msg}</strong>
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            background: isError ? 'var(--red-soft)' : 'var(--forest-soft)',
+            border: `1px solid ${isError ? 'var(--red)' : 'var(--forest-border)'}`,
+            borderRadius: '12px',
+            padding: '12px 16px',
+            marginBottom: '20px',
+            color: isError ? 'var(--red)' : 'var(--forest-dark)',
+            fontWeight: 600,
+            fontSize: '14px',
+          }}
+        >
+          {isError ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}
+          <span>{msg}</span>
         </div>
       )}
 
       <div className="settings-layout">
         <section className="settings-section">
-          <h2>Hesap</h2>
+          <h2>Hesap Bilgileri</h2>
           <div className="settings-row">
             <div>
-              <strong id="account-email">{user?.email || 'Demo Görünümü'}</strong>
-              <p style={{ margin: '4px 0 0', color: 'var(--muted)', fontSize: '12px' }}>
-                Kullanıcı: @{user?.username || 'demo'}
+              <strong id="account-email" style={{ fontSize: '15px' }}>
+                {user?.email || 'Örnek Kullanıcı (Çevrimdışı)'}
+              </strong>
+              <p style={{ margin: '4px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
+                {user?.email && user.email !== 'demo@pace.app' ? 'Giriş yapıldı' : 'Verileriniz bu cihazda saklanıyor'}
               </p>
             </div>
-            <button type="button" className="button button-quiet" onClick={onSignOut}>
+            <button
+              type="button"
+              className="button button-quiet"
+              style={{ minHeight: '40px' }}
+              onClick={onSignOut}
+            >
+              <LogOut size={16} style={{ marginRight: '6px' }} />
               Çıkış yap
             </button>
           </div>
@@ -76,16 +133,42 @@ export default function SettingsView({ user, habits = [], checkins = [], onSignO
 
         <section className="settings-section">
           <h2>Tercihler</h2>
-          <label className="settings-row">
-            <span><strong>Haftanın ilk günü</strong></span>
-            <select id="week-start" value={weekStart} onChange={(e) => setWeekStart(e.target.value)}>
+          <label className="settings-row" htmlFor="week-start-select">
+            <div>
+              <strong>Haftanın ilk günü</strong>
+              <p style={{ margin: '2px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
+                Takvim şeridinin ve haftalık hedeflerin başladığı gün.
+              </p>
+            </div>
+            <select
+              id="week-start-select"
+              value={weekStart}
+              onChange={(e) => updateWeekStart?.(Number(e.target.value))}
+              style={{
+                height: '40px',
+                padding: '0 12px',
+                borderRadius: '8px',
+                border: '1px solid var(--border)',
+                background: 'var(--surface)',
+                color: 'var(--ink)',
+                fontWeight: 600,
+              }}
+            >
               <option value="1">Pazartesi</option>
               <option value="0">Pazar</option>
             </select>
           </label>
+
           <div className="settings-row">
-            <span><strong>Saat dilimi</strong></span>
-            <span id="device-timezone">{Intl.DateTimeFormat().resolvedOptions().timeZone}</span>
+            <div>
+              <strong>Saat dilimi</strong>
+              <p style={{ margin: '2px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
+                Cihaz saat dilimine göre otomatik ayarlanır.
+              </p>
+            </div>
+            <span id="device-timezone" style={{ fontWeight: 600, color: 'var(--ink)' }}>
+              {Intl.DateTimeFormat().resolvedOptions().timeZone}
+            </span>
           </div>
         </section>
 
@@ -93,33 +176,80 @@ export default function SettingsView({ user, habits = [], checkins = [], onSignO
           <h2>Verilerin ve Yedekleme</h2>
           <div className="settings-row">
             <div>
-              <strong>Yedeğini al ve geri yükle</strong>
-              <p>Alışkanlıkların ve kayıtların JSON dosyası olarak iner veya geri yüklenir.</p>
+              <strong>Yedekleme & Geri Yükleme</strong>
+              <p style={{ margin: '2px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
+                Alışkanlıklarını ve kayıt geçmişini JSON dosyası olarak indir veya geri yükle.
+              </p>
             </div>
             <div className="heading-actions" style={{ display: 'flex', gap: '8px' }}>
-              <button type="button" className="button button-quiet" onClick={handleExport}>
+              <button
+                type="button"
+                className="button button-quiet"
+                style={{ minHeight: '40px' }}
+                onClick={handleExport}
+                aria-label="Yedeği JSON olarak dışa aktar"
+              >
+                <Download size={16} style={{ marginRight: '6px' }} />
                 Dışa aktar
               </button>
-              <label className="button button-quiet" style={{ cursor: 'pointer' }}>
+              <label
+                className="button button-quiet"
+                style={{ cursor: 'pointer', minHeight: '40px', display: 'inline-flex', alignItems: 'center' }}
+                aria-label="JSON yedeğini yükle"
+              >
+                <Upload size={16} style={{ marginRight: '6px' }} />
                 Yedeği yükle
-                <input type="file" accept=".json,application/json" onChange={handleImport} style={{ display: 'none' }} />
+                <input
+                  type="file"
+                  accept=".json,application/json"
+                  onChange={handleImportFile}
+                  style={{ display: 'none' }}
+                />
               </label>
             </div>
           </div>
+
           <div className="settings-row">
             <div>
-              <strong>Hesabını sil</strong>
-              <p>Bu işlem verilerini ve oturumlarını kaldırır.</p>
+              <strong style={{ color: 'var(--red)' }}>Hesabı ve Verileri Sil</strong>
+              <p style={{ margin: '2px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
+                Tüm alışkanlıklarını, kayıtlarını ve oturumlarını kalıcı olarak siler.
+              </p>
             </div>
-            <button
-              type="button"
-              className="text-button danger-text"
-              onClick={() => {
-                if (window.confirm('Tüm verilerini silmek istediğine emin misin?')) onSignOut?.();
-              }}
-            >
-              Hesabı sil
-            </button>
+            {confirmDelete ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button
+                  type="button"
+                  className="button button-quiet"
+                  style={{ minHeight: '36px' }}
+                  onClick={() => setConfirmDelete(false)}
+                >
+                  Vazgeç
+                </button>
+                <button
+                  type="button"
+                  className="button"
+                  style={{
+                    minHeight: '36px',
+                    background: 'var(--red)',
+                    color: '#FFFFFF',
+                    borderColor: 'var(--red)',
+                  }}
+                  onClick={handleDeleteAccount}
+                >
+                  Evet, Kalıcı Olarak Sil
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="text-button danger-text"
+                style={{ color: 'var(--red)', fontWeight: 600, padding: '8px 12px' }}
+                onClick={() => setConfirmDelete(true)}
+              >
+                Hesabı sil
+              </button>
+            )}
           </div>
         </section>
       </div>
