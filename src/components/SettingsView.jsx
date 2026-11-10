@@ -14,6 +14,34 @@ export default function SettingsView({
   const [msg, setMsg] = useState('');
   const [isError, setIsError] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [themePreference, setThemePreference] = useState(() => {
+    try {
+      return localStorage.getItem('pace_theme') || 'system';
+    } catch {
+      return 'system';
+    }
+  });
+
+  const handleThemeChange = (newTheme) => {
+    setThemePreference(newTheme);
+    try {
+      if (newTheme === 'dark') {
+        localStorage.setItem('pace_theme', 'dark');
+        document.documentElement.setAttribute('data-theme', 'dark');
+      } else if (newTheme === 'light') {
+        localStorage.setItem('pace_theme', 'light');
+        document.documentElement.removeAttribute('data-theme');
+      } else {
+        localStorage.removeItem('pace_theme');
+        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+          document.documentElement.removeAttribute('data-theme');
+        }
+      }
+      showNotification('Tema tercihi güncellendi.');
+    } catch {}
+  };
 
   const showNotification = (text, error = false) => {
     setMsg(text);
@@ -156,6 +184,33 @@ export default function SettingsView({
             >
               <option value="1">Pazartesi</option>
               <option value="0">Pazar</option>
+            </select>
+          </label>
+
+          <label className="settings-row" htmlFor="theme-select">
+            <div>
+              <strong>Görünüm Teması</strong>
+              <p style={{ margin: '2px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
+                Açık krem, koyu gece veya sistem tercihi.
+              </p>
+            </div>
+            <select
+              id="theme-select"
+              value={themePreference}
+              onChange={(e) => handleThemeChange(e.target.value)}
+              style={{
+                height: '40px',
+                padding: '0 12px',
+                borderRadius: '8px',
+                border: '1px solid var(--border)',
+                background: 'var(--surface)',
+                color: 'var(--ink)',
+                fontWeight: 600,
+              }}
+            >
+              <option value="light">Açık (Krem)</option>
+              <option value="dark">Koyu (Gece)</option>
+              <option value="system">Sistem</option>
             </select>
           </label>
 

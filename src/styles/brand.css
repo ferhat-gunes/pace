@@ -94,7 +94,7 @@
 }
 
 /* --- Explicit Dark Theme Support (when toggled) --- */
-html[data-theme="dark"] {
+html[data-theme="dark"], [data-theme="dark"] {
   color-scheme: dark;
   --canvas: #16241D;
   --surface: #1E3429;
@@ -2795,6 +2795,46 @@ html[data-theme="dark"] .mobile-nav .nav-item.is-active {
   color: var(--orange-dark) !important;
 }
 
+/* Dark Mode Typography & Contrast Overrides */
+html[data-theme="dark"] .mobile-brand,
+[data-theme="dark"] .mobile-brand,
+html[data-theme="dark"] .page-heading h1,
+[data-theme="dark"] .page-heading h1,
+html[data-theme="dark"] .habit-name,
+[data-theme="dark"] .habit-name {
+  color: var(--ink) !important;
+}
+
+html[data-theme="dark"] .habit-row,
+[data-theme="dark"] .habit-row {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+
+html[data-theme="dark"] .week-day,
+[data-theme="dark"] .week-day {
+  background: var(--surface) !important;
+  color: var(--ink) !important;
+  border-color: var(--border) !important;
+}
+
+html[data-theme="dark"] .week-day.is-selected,
+[data-theme="dark"] .week-day.is-selected {
+  background: var(--orange-dark) !important;
+  color: #FFFFFF !important;
+}
+
+html[data-theme="dark"] .segmented-control,
+[data-theme="dark"] .segmented-control {
+  background: var(--surface-alt) !important;
+}
+
+html[data-theme="dark"] .segmented-item.is-selected,
+[data-theme="dark"] .segmented-item.is-selected {
+  background: var(--surface) !important;
+  color: var(--ink) !important;
+}
+
 /* Buttons System */
 .button-complete {
   background: var(--forest) !important;
@@ -3053,3 +3093,88 @@ html[data-theme="dark"] .mobile-nav .nav-item.is-active {
 }
 
 .sidebar{background:#244C3A;color:#F4F0E6}.mobile-nav{padding-bottom:env(safe-area-inset-bottom)}
+
+/* PWA Install Banner */
+.pwa-install-banner {
+  background: var(--surface);
+  border: 1.5px solid var(--forest-border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-shadow: 0 4px 16px rgba(36, 76, 58, 0.08);
+  animation: fadeIn 0.3s ease;
+}
+.pwa-banner-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--forest-soft);
+  color: var(--forest);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.pwa-banner-content {
+  flex: 1;
+  min-width: 0;
+}
+.pwa-banner-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--forest);
+  display: block;
+}
+.pwa-banner-subtitle {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 2px 0 0;
+  line-height: 1.35;
+}
+.pwa-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.pwa-btn-install {
+  min-height: 38px;
+  padding: 0 16px;
+  font-size: 13px;
+  border-radius: 10px;
+}
+.pwa-btn-dismiss {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+}
+
+/* Theme Toggle Button in TopBar */
+.theme-toggle-btn {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--forest);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.theme-toggle-btn:hover {
+  background: var(--surface-alt);
+  border-color: var(--forest-border);
+}
+

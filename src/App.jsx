@@ -8,6 +8,7 @@ import TodayView from './components/TodayView.jsx';
 import HabitsView from './components/HabitsView.jsx';
 import HabitModal from './components/HabitModal.jsx';
 import { ErrorBoundary } from './components/Common/ErrorBoundary.jsx';
+import PwaInstallBanner from './components/Navigation/PwaInstallBanner.jsx';
 
 // Code splitting for secondary routes
 const ProgressView = lazy(() => import('./components/ProgressView.jsx'));
@@ -92,6 +93,7 @@ export default function App() {
 
         <main id="main-content" className="content-wrap" tabIndex={-1}>
           <ErrorBoundary>
+          <PwaInstallBanner />
           {loading && habits.length === 0 ? (
             <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--muted)' }}>
               <div style={{ fontSize: '16px', fontWeight: 600 }}>Alışkanlıklar yükleniyor…</div>

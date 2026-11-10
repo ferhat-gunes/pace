@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Plus, Check, Minus, ChevronLeft, ChevronRight, RotateCcw, Sparkles } from 'lucide-react';
 import { formatTarget } from '../lib/rules';
+import { triggerHaptic, triggerConfetti } from '../lib/celebration';
 
 const MONTH_NAMES = [
   'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
@@ -97,11 +98,18 @@ export default function TodayView({
     setAnnouncement(`Miktar güncellendi: ${n}`);
   };
 
-  const handleQuickStep = (habit, delta) => {
+  const handleQuickStep = (habit, delta, e) => {
     const checkin = checkins.find((c) => !c.deleted && c.habit_id === habit.id && c.habit_date === selectedDate);
     const current = checkin ? Number(checkin.value) : 0;
+    const target = Number(habit.target) || 1;
     const nextVal = Math.max(0, current + delta);
     logCheckin?.(habit.id, nextVal);
+    if (nextVal >= target && current < target) {
+      triggerHaptic('success');
+      triggerConfetti(e?.clientX, e?.clientY);
+    } else {
+      triggerHaptic('light');
+    }
     setAnnouncement(`${habit.name}: ${nextVal} ${habit.unit || ''}`);
   };
 
@@ -451,9 +459,15 @@ export default function TodayView({
                       }}
                       aria-pressed={isDone}
                       aria-label={isDone ? `${h.name} tamamlandı, geri almak için tıkla` : `${h.name} tamamlandı olarak işaretle`}
-                      onClick={() => {
+                      onClick={(e) => {
                         const nextVal = isDone ? 0 : 1;
                         logCheckin?.(h.id, nextVal);
+                        if (nextVal > 0) {
+                          triggerHaptic('success');
+                          triggerConfetti(e?.clientX, e?.clientY);
+                        } else {
+                          triggerHaptic('light');
+                        }
                         setAnnouncement(nextVal > 0 ? `${h.name} tamamlandı` : `${h.name} geri alındı`);
                       }}
                     >
@@ -526,7 +540,7 @@ export default function TodayView({
                         type="button"
                         className="button button-primary button-icon"
                         aria-label={`${h.name} miktarını 1 artır`}
-                        onClick={() => handleQuickStep(h, 1)}
+                        onClick={(e) => handleQuickStep(h, 1, e)}
                       >
                         <Plus size={16} />
                       </button>
@@ -538,8 +552,10 @@ export default function TodayView({
                           className="button button-quiet"
                           style={{ minHeight: '44px', padding: '0 10px', fontSize: '12px', fontWeight: 700, color: 'var(--forest)' }}
                           title={`Kalan ${target - value} ${h.unit || ''} tamamla`}
-                          onClick={() => {
+                          onClick={(e) => {
                             logCheckin?.(h.id, target);
+                            triggerHaptic('success');
+                            triggerConfetti(e?.clientX, e?.clientY);
                             setAnnouncement(`${h.name} hedefe ulaştı: ${target}`);
                           }}
                         >
