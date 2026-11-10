@@ -4,16 +4,38 @@ import * as api from '../lib/api';
 
 const WEEKDAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 
-export default function GroupsView({ groups = [], user, loadData }) {
+export default function GroupsView({
+  groups = [],
+  user,
+  loadData,
+  initialInviteToken = null,
+  onClearInviteToken = null,
+}) {
   const [selectedGroupId, setSelectedGroupId] = useState(groups[0]?.id || null);
   const [groupDetail, setGroupDetail] = useState(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [invitePreview, setInvitePreview] = useState(null);
+  const [inviteLinkValue, setInviteLinkValue] = useState('');
   const [copied, setCopied] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupDesc, setNewGroupDesc] = useState('');
   const [newHabitName, setNewHabitName] = useState('');
+
+  // Handle incoming invite token from deep-link
+  useEffect(() => {
+    if (!initialInviteToken) return;
+    api.getInvitePreview(initialInviteToken)
+      .then((res) => {
+        if (res?.invite) {
+          setInvitePreview({ ...res.invite, token: initialInviteToken });
+        }
+      })
+      .catch((err) => {
+        console.warn('Invite preview error:', err);
+      });
+  }, [initialInviteToken]);
 
   // Synchronize selectedGroupId if groups change
   useEffect(() => {
@@ -50,11 +72,13 @@ export default function GroupsView({ groups = [], user, loadData }) {
       if (e.key === 'Escape') {
         setShowCreateModal(false);
         setShowInviteModal(false);
+        setInvitePreview(null);
+        onClearInviteToken?.();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [onClearInviteToken]);
 
   const activeGroup = groups.find((g) => g.id === selectedGroupId) || groups[0];
 
@@ -81,12 +105,36 @@ export default function GroupsView({ groups = [], user, loadData }) {
     }
   };
 
+  const handleOpenInviteModal = async () => {
+    if (!activeGroup) return;
+    setShowInviteModal(true);
+    try {
+      const res = await api.createGroupInvite(activeGroup.id, 'link').catch(() => null);
+      const token = res?.invite?.token || `inv-${Date.now()}`;
+      setInviteLinkValue(`${window.location.origin}/?join=${token}`);
+    } catch {
+      setInviteLinkValue(`${window.location.origin}/?join=${activeGroup.id}`);
+    }
+  };
+
   const handleCopyInviteLink = () => {
-    const inviteLink = `${window.location.origin}/?join=${activeGroup?.id || 'demo'}&token=inv-${Date.now()}`;
-    navigator.clipboard.writeText(inviteLink).then(() => {
+    if (!inviteLinkValue) return;
+    navigator.clipboard.writeText(inviteLinkValue).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  };
+
+  const handleAcceptInvite = async () => {
+    if (!invitePreview?.token) return;
+    try {
+      await api.respondInvite(invitePreview.token, 'accept');
+      setInvitePreview(null);
+      onClearInviteToken?.();
+      await loadData?.();
+    } catch (err) {
+      alert('Davet kabul edilemedi: ' + err.message);
+    }
   };
 
   const handleLeaveGroup = async () => {
@@ -112,103 +160,102 @@ export default function GroupsView({ groups = [], user, loadData }) {
 
   return (
     <section className="page-view" id="view-groups" aria-labelledby="groups-title">
-      <div className="page-heading">
+      <div className="page-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h1 id="groups-title">Gruplar</h1>
-          <p className="section-subtitle">Ortak rutinler kur, birbirinize güç verin</p>
+          <h1 id="groups-title" style={{ margin: 0, fontSize: 'clamp(22px, 4vw, 28px)', color: 'var(--forest)' }}>
+            Ortak Takip & Gruplar
+          </h1>
+          <p className="section-subtitle" style={{ color: 'var(--muted)', fontSize: '13px', margin: '4px 0 0' }}>
+            Arkadaşlarınla birbirini teşvik et, ortak ritmini yakala.
+          </p>
         </div>
         <button
           type="button"
           className="button button-primary"
-          aria-label="Yeni grup oluştur"
+          style={{ minHeight: '44px', padding: '0 20px', fontSize: '14px' }}
           onClick={() => setShowCreateModal(true)}
         >
           Grup Kur +
         </button>
       </div>
 
+      {/* Group Navigation Tabs */}
+      {groups.length > 0 && (
+        <div className="segmented-control" role="tablist" aria-label="Grup seç" style={{ width: '100%', marginBottom: '20px', overflowX: 'auto', display: 'flex' }}>
+          {groups.map((g) => {
+            const isSelected = g.id === selectedGroupId;
+            return (
+              <button
+                key={g.id}
+                type="button"
+                role="tab"
+                aria-selected={isSelected}
+                className={`segmented-item ${isSelected ? 'is-selected' : ''}`}
+                style={{ flex: 1, minWidth: '120px', minHeight: '42px', fontSize: '14px' }}
+                onClick={() => setSelectedGroupId(g.id)}
+              >
+                {g.name}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Empty State */}
       {groups.length === 0 ? (
-        <div className="empty-state" style={{ padding: '48px 24px', textAlign: 'center' }}>
-          <h2 style={{ fontSize: '18px', color: 'var(--forest)', marginBottom: '8px' }}>
-            Henüz bir grubun yok
+        <div className="empty-state panel-card" style={{ padding: '48px 24px', textAlign: 'center' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: 'var(--forest-soft)', color: 'var(--forest)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <Users size={24} />
+          </div>
+          <h2 style={{ fontSize: '18px', color: 'var(--forest)', marginBottom: '8px', fontFamily: 'var(--font-heading)' }}>
+            Henüz bir gruba üye değilsin
           </h2>
-          <p style={{ color: 'var(--muted)', fontSize: '14px', marginBottom: '20px' }}>
-            Arkadaşlarınla ortak bir hedef belirleyip birlikte takip edin.
+          <p style={{ color: 'var(--muted)', fontSize: '14px', marginBottom: '20px', maxWidth: '380px', margin: '0 auto 20px' }}>
+            Arkadaşlarınla birlikte ortak hedefler belirleyip birbirinizin ilerlemesini takip edin.
           </p>
           <button
             type="button"
             className="button button-primary"
+            style={{ minHeight: '48px', padding: '0 24px' }}
             onClick={() => setShowCreateModal(true)}
           >
             İlk Grubunu Kur +
           </button>
         </div>
       ) : (
-        <div>
-          {/* Group Tab Bar */}
-          <div
-            role="tablist"
-            aria-label="Gruplarım"
-            style={{ display: 'flex', gap: '8px', marginBottom: '20px', overflowX: 'auto', paddingBottom: '4px' }}
-          >
-            {groups.map((g) => {
-              const isSelected = activeGroup?.id === g.id;
-              return (
-                <button
-                  key={g.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={isSelected}
-                  className={`button ${isSelected ? 'button-primary' : 'button-quiet'}`}
-                  style={{
-                    height: '42px',
-                    padding: '0 16px',
-                    fontWeight: 600,
-                    background: isSelected ? 'var(--forest)' : undefined,
-                    color: isSelected ? '#FFFFFF' : undefined,
-                    borderColor: isSelected ? 'var(--forest)' : undefined,
-                  }}
-                  onClick={() => setSelectedGroupId(g.id)}
-                >
-                  <Users size={16} style={{ marginRight: '6px' }} />
-                  {g.name}
-                </button>
-              );
-            })}
-          </div>
-
+        <div className="group-content">
           {activeGroup && (
-            <div
-              className="panel-card"
-              style={{
-                background: 'var(--surface)',
-                border: '1px solid var(--border)',
-                borderRadius: '16px',
-                padding: '24px',
-                boxShadow: '0 2px 8px rgba(36, 76, 58, 0.04)',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+            <div className="panel-card" style={{ marginBottom: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '20px' }}>
                 <div>
-                  <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--forest)' }}>{activeGroup.name}</h2>
-                  <p style={{ margin: '6px 0 0', color: 'var(--muted)', fontSize: '14px' }}>
-                    {activeGroup.description || 'Ortak alışkanlık takip grubu'}
-                  </p>
+                  <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--forest)' }}>
+                    {activeGroup.name}
+                  </h2>
+                  {activeGroup.description && (
+                    <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '4px 0 0' }}>
+                      {activeGroup.description}
+                    </p>
+                  )}
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--forest-dark)', marginTop: '4px', display: 'inline-block' }}>
+                    {members.length} Üye • {habits.length} Ortak Alışkanlık
+                  </span>
                 </div>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <button
-                    type="button"
-                    className="button button-primary"
-                    style={{ fontSize: '13px', padding: '0 16px', height: '40px' }}
-                    onClick={() => setShowInviteModal(true)}
-                  >
-                    <UserPlus size={16} style={{ marginRight: '6px' }} />
-                    Arkadaş Davet Et
-                  </button>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <button
                     type="button"
                     className="button button-quiet"
-                    style={{ height: '40px', padding: '0 12px', color: 'var(--red)' }}
+                    style={{ minHeight: '44px', padding: '0 16px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    onClick={handleOpenInviteModal}
+                  >
+                    <UserPlus size={16} />
+                    <span>Arkadaş Davet Et</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="button button-quiet button-icon"
+                    aria-label="Gruptan ayrıl"
                     title="Gruptan ayrıl"
                     onClick={handleLeaveGroup}
                   >
@@ -219,55 +266,65 @@ export default function GroupsView({ groups = [], user, loadData }) {
 
               {/* Weekly Matrix Table */}
               <div
-                className="progress-table-wrap"
+                className="table-container"
                 tabIndex={0}
                 role="region"
-                aria-label={`${activeGroup.name} haftalık katılım tablosu`}
-                style={{ marginTop: '24px', overflowX: 'auto', borderRadius: '12px', border: '1px solid var(--border)' }}
+                aria-label="Grup haftalık takip matrisi (yatay kaydırılabilir)"
               >
-                <table className="progress-table" style={{ width: '100%', minWidth: '640px', margin: 0 }}>
+                <table className="table-standard" style={{ minWidth: '600px' }}>
                   <thead>
-                    <tr style={{ background: 'var(--surface-alt)', borderBottom: '1px solid var(--border)' }}>
-                      <th scope="col" style={{ textAlign: 'left', padding: '12px 16px' }}>Üye</th>
-                      <th scope="col" style={{ textAlign: 'left', padding: '12px 16px' }}>Alışkanlık</th>
-                      {WEEKDAYS.map((day) => (
-                        <th key={day} scope="col" style={{ textAlign: 'center', padding: '12px 8px' }}>{day}</th>
+                    <tr>
+                      <th scope="col" style={{ textAlign: 'left', width: '180px' }}>Üye</th>
+                      <th scope="col" style={{ textAlign: 'left', width: '140px' }}>Alışkanlık</th>
+                      {WEEKDAYS.map((d, idx) => (
+                        <th key={idx} scope="col" style={{ textAlign: 'center', width: '40px' }}>
+                          {d}
+                        </th>
                       ))}
-                      <th scope="col" style={{ textAlign: 'center', padding: '12px 16px' }}>Haftalık Başarı</th>
+                      <th scope="col" style={{ textAlign: 'center', width: '70px' }}>Haftalık</th>
                     </tr>
                   </thead>
                   <tbody>
                     {members.map((member) => {
-                      const habitName = habits[0]?.name || 'Kitap Oku';
-                      const memberCheckins = checkins.filter((c) => c.user_id === member.user_id);
-                      const doneCount = memberCheckins.filter((c) => Number(c.value) > 0).length;
-                      const percentage = Math.min(100, Math.round((doneCount / 7) * 100));
+                      const memberCheckins = checkins.filter(c => !c.deleted && c.user_id === member.user_id);
+                      const habitName = habits[0]?.name || 'Günlük Takip';
+                      const completedDays = WEEKDAYS.filter((_, dayIdx) => {
+                        return memberCheckins.some(c => (new Date(c.habit_date).getDay() + 6) % 7 === dayIdx && Number(c.value) > 0);
+                      }).length;
+                      const percentage = Math.round((completedDays / 7) * 100);
 
                       return (
-                        <tr key={member.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                          <td style={{ padding: '12px 16px' }}>
-                            <strong>{member.display_name || 'Üye'}</strong>
-                            {member.role === 'owner' && (
-                              <span style={{ marginLeft: '6px', fontSize: '11px', color: 'var(--orange-dark)', fontWeight: 700 }}>
-                                (Lider)
-                              </span>
-                            )}
-                          </td>
-                          <td style={{ padding: '12px 16px', color: 'var(--muted)' }}>{habitName}</td>
+                        <tr key={member.id}>
+                          <th scope="row" style={{ textAlign: 'left', fontWeight: 600 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span>{member.display_name || 'Üye'}</span>
+                              {member.role === 'owner' && (
+                                <span style={{ fontSize: '11px', color: 'var(--orange-dark)', fontWeight: 700 }}>
+                                  (Lider)
+                                </span>
+                              )}
+                            </div>
+                          </th>
+                          <td style={{ color: 'var(--muted)', fontSize: '13px' }}>{habitName}</td>
                           {WEEKDAYS.map((_, dayIdx) => {
-                            // Check if log exists for this weekday
                             const hasLog = memberCheckins.some(c => (new Date(c.habit_date).getDay() + 6) % 7 === dayIdx && Number(c.value) > 0);
                             return (
-                              <td key={dayIdx} style={{ textAlign: 'center', padding: '12px 8px' }}>
+                              <td key={dayIdx} style={{ textAlign: 'center' }}>
                                 {hasLog ? (
-                                  <span style={{ color: 'var(--forest)', fontWeight: 700 }}>✓</span>
+                                  <span>
+                                    <span aria-hidden="true" style={{ color: 'var(--forest)', fontWeight: 800 }}>✓</span>
+                                    <span className="sr-only">Tamamlandı</span>
+                                  </span>
                                 ) : (
-                                  <span style={{ color: 'var(--muted)', opacity: 0.5 }}>—</span>
+                                  <span>
+                                    <span aria-hidden="true" style={{ color: 'var(--muted)', opacity: 0.4 }}>—</span>
+                                    <span className="sr-only">Eksik</span>
+                                  </span>
                                 )}
                               </td>
                             );
                           })}
-                          <td style={{ textAlign: 'center', padding: '12px 16px' }}>
+                          <td style={{ textAlign: 'center' }}>
                             <strong style={{ color: percentage >= 70 ? 'var(--forest)' : 'var(--orange-dark)' }}>
                               %{percentage}
                             </strong>
@@ -283,56 +340,41 @@ export default function GroupsView({ groups = [], user, loadData }) {
         </div>
       )}
 
-      {/* Create Group Modal */}
+      {/* Create Group Sheet */}
       {showCreateModal && (
-        <dialog
-          className="habit-dialog"
-          open
+        <div
+          className="modal-overlay"
           role="dialog"
           aria-modal="true"
           aria-labelledby="create-group-title"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 100,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'rgba(36, 76, 58, 0.45)',
-            border: 'none',
-            width: '100%',
-            height: '100%',
-          }}
           onClick={() => setShowCreateModal(false)}
         >
           <div
-            className="dialog-body"
-            style={{
-              background: 'var(--surface)',
-              borderRadius: '16px',
-              padding: '24px',
-              width: 'min(480px, 92vw)',
-              color: 'var(--ink)',
-            }}
+            className="dialog-sheet"
             onClick={(e) => e.stopPropagation()}
           >
+            <div className="sheet-handle" aria-hidden="true"></div>
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h2 id="create-group-title" style={{ margin: 0, color: 'var(--forest)', fontSize: '20px' }}>Yeni Grup Kur</h2>
+              <h2 id="create-group-title" style={{ margin: 0, color: 'var(--forest)', fontSize: '20px' }}>
+                Yeni Grup Kur
+              </h2>
               <button
                 type="button"
-                className="icon-button"
+                className="button-icon icon-button"
                 aria-label="Kapat"
                 onClick={() => setShowCreateModal(false)}
               >
                 ✕
               </button>
             </div>
+
             <form onSubmit={handleCreateGroup}>
               <label className="field" style={{ display: 'block', marginBottom: '14px' }}>
                 <span style={{ fontWeight: 700, fontSize: '13px' }}>Grup Adı</span>
                 <input
                   className="form-input"
-                  style={{ width: '100%', height: '44px', padding: '0 12px', marginTop: '6px' }}
+                  style={{ width: '100%', height: '48px', padding: '0 12px', marginTop: '6px', fontSize: '16px' }}
                   value={newGroupName}
                   onChange={(e) => setNewGroupName(e.target.value)}
                   placeholder="Örn: Sabah Koşucuları"
@@ -340,31 +382,34 @@ export default function GroupsView({ groups = [], user, loadData }) {
                   autoFocus
                 />
               </label>
+
               <label className="field" style={{ display: 'block', marginBottom: '14px' }}>
-                <span style={{ fontWeight: 700, fontSize: '13px' }}>Açıklama</span>
+                <span style={{ fontWeight: 700, fontSize: '13px' }}>Açıklama (İsteğe bağlı)</span>
                 <input
                   className="form-input"
-                  style={{ width: '100%', height: '44px', padding: '0 12px', marginTop: '6px' }}
+                  style={{ width: '100%', height: '48px', padding: '0 12px', marginTop: '6px', fontSize: '16px' }}
                   value={newGroupDesc}
                   onChange={(e) => setNewGroupDesc(e.target.value)}
-                  placeholder="Grup hakkında kısa bilgi"
+                  placeholder="Grup hakkında kısa motivasyon"
                 />
               </label>
+
               <label className="field" style={{ display: 'block', marginBottom: '20px' }}>
-                <span style={{ fontWeight: 700, fontSize: '13px' }}>İlk Ortak Alışkanlık (İsteğe bağlı)</span>
+                <span style={{ fontWeight: 700, fontSize: '13px' }}>Ortak Alışkanlık Adı</span>
                 <input
                   className="form-input"
-                  style={{ width: '100%', height: '44px', padding: '0 12px', marginTop: '6px' }}
+                  style={{ width: '100%', height: '48px', padding: '0 12px', marginTop: '6px', fontSize: '16px' }}
                   value={newHabitName}
                   onChange={(e) => setNewHabitName(e.target.value)}
-                  placeholder="Örn: Kitap okuma, Su içme"
+                  placeholder="Örn: 5 km Koşu veya Kitap Okuma"
                 />
               </label>
+
               <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                 <button
                   type="button"
                   className="button button-quiet"
-                  style={{ minHeight: '40px' }}
+                  style={{ minHeight: '48px', padding: '0 20px' }}
                   onClick={() => setShowCreateModal(false)}
                 >
                   İptal
@@ -372,93 +417,137 @@ export default function GroupsView({ groups = [], user, loadData }) {
                 <button
                   type="submit"
                   className="button button-primary"
-                  style={{ minHeight: '40px' }}
+                  style={{ minHeight: '48px', padding: '0 24px' }}
                 >
-                  Oluştur
+                  Grup Oluştur
                 </button>
               </div>
             </form>
           </div>
-        </dialog>
+        </div>
       )}
 
-      {/* Invite Member Modal */}
+      {/* Invite Friends Sheet */}
       {showInviteModal && (
-        <dialog
-          className="habit-dialog"
-          open
+        <div
+          className="modal-overlay"
           role="dialog"
           aria-modal="true"
-          aria-labelledby="invite-title"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 100,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'rgba(36, 76, 58, 0.45)',
-            border: 'none',
-            width: '100%',
-            height: '100%',
-          }}
+          aria-labelledby="invite-modal-title"
           onClick={() => setShowInviteModal(false)}
         >
           <div
-            className="dialog-body"
-            style={{
-              background: 'var(--surface)',
-              borderRadius: '16px',
-              padding: '24px',
-              width: 'min(480px, 92vw)',
-              color: 'var(--ink)',
-            }}
+            className="dialog-sheet"
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <h2 id="invite-title" style={{ margin: 0, color: 'var(--forest)', fontSize: '20px' }}>Arkadaş Davet Et</h2>
+            <div className="sheet-handle" aria-hidden="true"></div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h2 id="invite-modal-title" style={{ margin: 0, color: 'var(--forest)', fontSize: '20px' }}>
+                Arkadaşlarını Davet Et
+              </h2>
               <button
                 type="button"
-                className="icon-button"
+                className="button-icon icon-button"
                 aria-label="Kapat"
                 onClick={() => setShowInviteModal(false)}
               >
                 ✕
               </button>
             </div>
-            <p style={{ color: 'var(--muted)', fontSize: '14px', margin: '0 0 16px' }}>
-              Arkadaşların bu bağlantı üzerinden gruba katılarak ortak ritminize dahil olabilir:
+
+            <p style={{ color: 'var(--muted)', fontSize: '14px', lineHeight: 1.4, margin: '0 0 16px' }}>
+              Bu bağlantıyı arkadaşlarına gönder. Bağlantıya tıklayanlar doğrudan grubuna katılacaktır.
             </p>
-            <button
-              type="button"
-              className="button button-primary"
-              style={{ width: '100%', minHeight: '44px', marginBottom: '16px' }}
-              onClick={handleCopyInviteLink}
-            >
-              {copied ? (
-                <>
-                  <Check size={16} style={{ marginRight: '6px' }} />
-                  Bağlantı Panoya Kopyalandı
-                </>
-              ) : (
-                <>
-                  <Copy size={16} style={{ marginRight: '6px' }} />
-                  Davet Bağlantısını Kopyala
-                </>
-              )}
-            </button>
+
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+              <input
+                className="form-input"
+                readOnly
+                value={inviteLinkValue}
+                style={{ flex: 1, height: '48px', padding: '0 12px', fontSize: '14px', background: 'var(--surface-alt)' }}
+              />
+              <button
+                type="button"
+                className="button button-primary"
+                style={{ minHeight: '48px', padding: '0 16px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                onClick={handleCopyInviteLink}
+              >
+                {copied ? <Check size={16} /> : <Copy size={16} />}
+                <span>{copied ? 'Kopyalandı' : 'Kopyala'}</span>
+              </button>
+            </div>
+
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button
                 type="button"
                 className="button button-quiet"
-                style={{ minHeight: '40px' }}
+                style={{ minHeight: '48px', padding: '0 20px' }}
                 onClick={() => setShowInviteModal(false)}
               >
                 Kapat
               </button>
             </div>
           </div>
-        </dialog>
+        </div>
+      )}
+
+      {/* Deep Link Join Confirmation Sheet */}
+      {invitePreview && (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="join-preview-title"
+          onClick={() => {
+            setInvitePreview(null);
+            onClearInviteToken?.();
+          }}
+        >
+          <div
+            className="dialog-sheet"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sheet-handle" aria-hidden="true"></div>
+
+            <div style={{ textAlign: 'center', padding: '12px 0 20px' }}>
+              <div style={{ width: '52px', height: '52px', borderRadius: '16px', background: 'var(--orange-soft)', color: 'var(--orange-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                <Users size={28} />
+              </div>
+
+              <h2 id="join-preview-title" style={{ fontSize: '20px', color: 'var(--forest)', margin: '0 0 8px' }}>
+                "{invitePreview.group_name}" Grubuna Katıl
+              </h2>
+
+              <p style={{ color: 'var(--muted)', fontSize: '14px', margin: '0 0 16px' }}>
+                {invitePreview.inviter_display} seni bu gruba davet etti.
+                {invitePreview.group_description && ` (${invitePreview.group_description})`}
+              </p>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '20px' }}>
+                <button
+                  type="button"
+                  className="button button-quiet"
+                  style={{ minHeight: '48px', padding: '0 20px' }}
+                  onClick={() => {
+                    setInvitePreview(null);
+                    onClearInviteToken?.();
+                  }}
+                >
+                  Vazgeç
+                </button>
+                <button
+                  type="button"
+                  className="button button-primary"
+                  style={{ minHeight: '48px', padding: '0 24px' }}
+                  onClick={handleAcceptInvite}
+                >
+                  Gruba Katıl
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </section>
   );

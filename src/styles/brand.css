@@ -142,6 +142,8 @@ html[data-theme="dark"] {
 html, body {
   margin: 0;
   min-width: 0;
+  max-width: 100vw;
+  overflow-x: hidden;
   background: var(--canvas);
   color: var(--ink);
   font-family: var(--font-body);
@@ -2129,7 +2131,8 @@ body:has(dialog[open]) {
   .mobile-nav {
     position: fixed;
     inset: auto 0 0;
-    z-index: 10;
+    z-index: 1000;
+    pointer-events: auto;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 2px;
@@ -2715,6 +2718,7 @@ body:has(dialog[open]) {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow-x: auto;
+  contain: paint;
   background: var(--surface);
 }
 
@@ -2737,13 +2741,315 @@ body:has(dialog[open]) {
   font-family: var(--font-heading);
 }
 
-/* Reduced Motion Support */
+/* Reduced Motion Support - duration squashing */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
-    animation: none !important;
-    transition: none !important;
   }
 }
 
-.pace-logo{width:42px;height:42px;object-fit:contain}.sidebar{background:#244C3A;color:#F4F0E6}.mobile-nav{padding-bottom:env(safe-area-inset-bottom)}
+/* Accessibility: Skip Link */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 16px;
+  background: var(--forest);
+  color: #FFFFFF;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  z-index: 9999;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  transition: top 0.2s ease;
+}
+.skip-link:focus {
+  top: 16px;
+  outline: 3px solid var(--orange);
+}
+
+/* Accessible Context-Aware Focus Rings */
+.sidebar :focus-visible,
+.mobile-nav :focus-visible,
+.button-primary :focus-visible,
+.button-complete :focus-visible,
+html[data-theme="dark"] :focus-visible {
+  outline: 3px solid #FFFFFF !important;
+  outline-offset: 2px;
+}
+
+/* Dark theme illumination for mobile nav and sidebar */
+html[data-theme="dark"] .mobile-nav,
+html[data-theme="dark"] .sidebar {
+  background: var(--surface) !important;
+  border-top: 1px solid var(--border);
+}
+html[data-theme="dark"] .mobile-nav .nav-item {
+  color: var(--muted) !important;
+}
+html[data-theme="dark"] .mobile-nav .nav-item.is-active {
+  color: var(--orange-dark) !important;
+}
+
+/* Buttons System */
+.button-complete {
+  background: var(--forest) !important;
+  border-color: var(--forest) !important;
+  color: #FFFFFF !important;
+}
+.button-complete:hover {
+  background: var(--forest-dark) !important;
+}
+
+.button-danger {
+  background: var(--red) !important;
+  border-color: var(--red) !important;
+  color: #FFFFFF !important;
+}
+.button-danger:hover {
+  background: #A82E1C !important;
+}
+
+.button-danger-quiet {
+  background: var(--red-soft) !important;
+  border-color: var(--red) !important;
+  color: var(--red) !important;
+}
+.button-danger-quiet:hover {
+  background: #F9D8D2 !important;
+}
+
+.button-icon {
+  min-width: 44px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+}
+
+/* Segmented Control Component */
+.segmented-control {
+  display: inline-flex;
+  align-items: center;
+  background: var(--canvas);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 3px;
+  gap: 2px;
+}
+.segmented-item {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 16px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.segmented-item.is-selected {
+  background: var(--surface);
+  color: var(--forest);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* Stat & Panel Cards */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 2px 8px rgba(36, 76, 58, 0.04);
+}
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.stat-icon.is-orange { background: var(--orange-soft); color: var(--orange-dark); }
+.stat-icon.is-sage   { background: var(--sage-soft); color: var(--forest); }
+.stat-icon.is-forest { background: var(--forest-soft); color: var(--forest); }
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 800;
+  font-family: var(--font-heading);
+  color: var(--forest);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.stat-label {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+.panel-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(36, 76, 58, 0.04);
+}
+
+/* Standard Responsive Tables */
+.table-container {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow-x: auto;
+  contain: paint;
+  box-shadow: 0 2px 8px rgba(36, 76, 58, 0.04);
+}
+.table-standard {
+  width: 100%;
+  border-collapse: collapse;
+}
+.table-standard th, .table-standard td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.table-standard thead tr {
+  background: var(--surface-alt);
+}
+
+/* Modal Overlay & Responsive Mobile Bottom Sheet */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(36, 76, 58, 0.45);
+  backdrop-filter: blur(4px);
+  padding: 16px;
+}
+
+.dialog-sheet {
+  background: var(--surface);
+  border-radius: 20px;
+  padding: 28px;
+  width: min(520px, 94vw);
+  max-height: 90vh;
+  overflow-y: auto;
+  color: var(--ink);
+  box-shadow: 0 20px 60px rgba(36, 76, 58, 0.2);
+  position: relative;
+}
+
+.sheet-handle {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .dialog-sheet {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 85vh;
+    border-radius: 24px 24px 0 0 !important;
+    padding: 20px 20px calc(24px + env(safe-area-inset-bottom, 12px)) !important;
+    animation: slideUpSheet 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .sheet-handle {
+    display: block;
+    width: 40px;
+    height: 5px;
+    border-radius: 999px;
+    background: var(--border-strong);
+    margin: 0 auto 16px;
+  }
+  /* Prevent iOS Safari auto-zoom by enforcing 16px font-size */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+@keyframes slideUpSheet {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Mobile Floating Action Button (FAB) */
+.mobile-fab {
+  display: none;
+}
+@media (max-width: 767px) {
+  .mobile-fab {
+    display: flex;
+    position: fixed;
+    right: 20px;
+    bottom: calc(72px + env(safe-area-inset-bottom, 12px));
+    width: 56px;
+    height: 56px;
+    border-radius: 28px;
+    background: var(--orange-dark);
+    color: #FFFFFF;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 20px rgba(185, 79, 26, 0.4);
+    z-index: 90;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.15s ease, background-color 0.15s ease;
+  }
+  .mobile-fab:active {
+    transform: scale(0.92);
+  }
+}
+
+/* Completion Celebration Card */
+.celebration-card {
+  background: linear-gradient(135deg, var(--forest-soft) 0%, var(--surface) 100%);
+  border: 1.5px solid var(--forest);
+  border-radius: var(--radius);
+  padding: 20px;
+  text-align: center;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 16px rgba(36, 76, 58, 0.08);
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.sidebar{background:#244C3A;color:#F4F0E6}.mobile-nav{padding-bottom:env(safe-area-inset-bottom)}

@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from 'react';
 
+const PRESETS = [
+  { name: 'Kitap oku', tracking: 'quantity', target: 20, unit: 'sayfa' },
+  { name: 'Su iç', tracking: 'quantity', target: 8, unit: 'bardak' },
+  { name: 'Yürüyüş yap', tracking: 'quantity', target: 30, unit: 'dakika' },
+  { name: 'Meditasyon', tracking: 'check', target: 1, unit: '' },
+];
+
 export default function HabitModal({ isOpen, onClose, onAddHabit }) {
   const [name, setName] = useState('');
   const [tracking, setTracking] = useState('check'); // 'check' | 'quantity'
@@ -38,47 +45,34 @@ export default function HabitModal({ isOpen, onClose, onAddHabit }) {
     onClose();
   };
 
+  const applyPreset = (preset) => {
+    setName(preset.name);
+    setTracking(preset.tracking);
+    setTarget(preset.target);
+    setUnit(preset.unit || 'dakika');
+  };
+
   return (
-    <dialog
-      className="habit-dialog"
-      open
+    <div
+      className="modal-overlay"
       role="dialog"
       aria-modal="true"
       aria-labelledby="habit-modal-title"
-      style={{
-        position: 'fixed',
-        inset: '0',
-        zIndex: 100,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'rgba(36, 76, 58, 0.45)',
-        border: 'none',
-        width: '100%',
-        maxWidth: '100%',
-        height: '100%',
-      }}
       onClick={onClose}
     >
       <div
-        className="dialog-body"
-        style={{
-          background: 'var(--surface)',
-          borderRadius: '16px',
-          padding: '24px',
-          width: 'min(500px, 92vw)',
-          color: 'var(--ink)',
-          boxShadow: '0 8px 32px rgba(36, 76, 58, 0.16)',
-        }}
+        className="dialog-sheet habit-dialog"
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="sheet-handle" aria-hidden="true"></div>
+
         <div className="dialog-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 0 16px', borderBottom: '1px solid var(--border)' }}>
           <h2 id="habit-modal-title" style={{ margin: 0, fontSize: '20px', color: 'var(--forest)' }}>
             Yeni Alışkanlık Ekle
           </h2>
           <button
             type="button"
-            className="icon-button"
+            className="button-icon icon-button"
             aria-label="Kapat"
             onClick={onClose}
           >
@@ -86,12 +80,32 @@ export default function HabitModal({ isOpen, onClose, onAddHabit }) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ marginTop: '16px' }}>
+        {/* Quick starter presets */}
+        <div style={{ marginTop: '16px', marginBottom: '8px' }}>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '8px' }}>
+            Hızlı Şablonlar
+          </span>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            {PRESETS.map((p) => (
+              <button
+                key={p.name}
+                type="button"
+                className="button button-quiet"
+                style={{ minHeight: '34px', padding: '0 12px', fontSize: '12px', borderRadius: '8px' }}
+                onClick={() => applyPreset(p)}
+              >
+                + {p.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ marginTop: '12px' }}>
           <label className="field" style={{ display: 'block', marginBottom: '16px' }}>
             <span style={{ fontWeight: 700, fontSize: '13px' }}>Alışkanlık Adı</span>
             <input
               className="form-input"
-              style={{ width: '100%', height: '44px', padding: '0 12px', marginTop: '6px' }}
+              style={{ width: '100%', height: '48px', padding: '0 12px', marginTop: '6px', fontSize: '16px' }}
               placeholder="Örn: Kitap oku, Yürüyüş yap, Su iç"
               value={name}
               maxLength={60}
@@ -103,31 +117,23 @@ export default function HabitModal({ isOpen, onClose, onAddHabit }) {
 
           <fieldset className="field" style={{ border: 0, padding: 0, margin: '0 0 16px' }}>
             <legend style={{ fontWeight: 700, fontSize: '13px', marginBottom: '8px' }}>Hedef Biçimi</legend>
-            <div className="segmented" style={{ display: 'flex', gap: '8px' }}>
+            <div className="segmented-control" role="radiogroup" aria-label="Hedef Biçimi" style={{ width: '100%' }}>
               <button
                 type="button"
-                className={`button ${tracking === 'check' ? 'button-primary' : 'button-quiet'}`}
-                style={{
-                  flex: 1,
-                  height: '42px',
-                  background: tracking === 'check' ? 'var(--forest)' : undefined,
-                  color: tracking === 'check' ? '#FFFFFF' : undefined,
-                  borderColor: tracking === 'check' ? 'var(--forest)' : undefined,
-                }}
+                role="radio"
+                aria-checked={tracking === 'check'}
+                className={`segmented-item ${tracking === 'check' ? 'is-selected' : ''}`}
+                style={{ flex: 1, minHeight: '44px' }}
                 onClick={() => setTracking('check')}
               >
                 Tek Seferlik (Evet/Hayır)
               </button>
               <button
                 type="button"
-                className={`button ${tracking === 'quantity' ? 'button-primary' : 'button-quiet'}`}
-                style={{
-                  flex: 1,
-                  height: '42px',
-                  background: tracking === 'quantity' ? 'var(--forest)' : undefined,
-                  color: tracking === 'quantity' ? '#FFFFFF' : undefined,
-                  borderColor: tracking === 'quantity' ? 'var(--forest)' : undefined,
-                }}
+                role="radio"
+                aria-checked={tracking === 'quantity'}
+                className={`segmented-item ${tracking === 'quantity' ? 'is-selected' : ''}`}
+                style={{ flex: 1, minHeight: '44px' }}
                 onClick={() => setTracking('quantity')}
               >
                 Miktar / Süre
@@ -144,7 +150,7 @@ export default function HabitModal({ isOpen, onClose, onAddHabit }) {
                   min="1"
                   max="1000000"
                   className="form-input"
-                  style={{ width: '100%', height: '44px', padding: '0 12px', marginTop: '6px' }}
+                  style={{ width: '100%', height: '48px', padding: '0 12px', marginTop: '6px', fontSize: '16px' }}
                   value={target}
                   onChange={(e) => setTarget(e.target.value)}
                   required
@@ -154,7 +160,7 @@ export default function HabitModal({ isOpen, onClose, onAddHabit }) {
                 <span style={{ fontWeight: 700, fontSize: '13px' }}>Birim</span>
                 <select
                   className="form-select"
-                  style={{ width: '100%', height: '44px', padding: '0 12px', marginTop: '6px' }}
+                  style={{ width: '100%', height: '48px', padding: '0 12px', marginTop: '6px', fontSize: '16px' }}
                   value={unit}
                   onChange={(e) => setUnit(e.target.value)}
                 >
@@ -164,6 +170,7 @@ export default function HabitModal({ isOpen, onClose, onAddHabit }) {
                   <option value="km">km</option>
                   <option value="tekrar">tekrar</option>
                   <option value="adım">adım</option>
+                  <option value="litre">litre</option>
                 </select>
               </label>
             </div>
@@ -173,7 +180,7 @@ export default function HabitModal({ isOpen, onClose, onAddHabit }) {
             <button
               type="button"
               className="button button-quiet"
-              style={{ minHeight: '42px' }}
+              style={{ minHeight: '48px', padding: '0 20px' }}
               onClick={onClose}
             >
               İptal
@@ -181,13 +188,13 @@ export default function HabitModal({ isOpen, onClose, onAddHabit }) {
             <button
               type="submit"
               className="button button-primary"
-              style={{ minHeight: '42px', padding: '0 20px' }}
+              style={{ minHeight: '48px', padding: '0 24px' }}
             >
               Alışkanlığı Kaydet
             </button>
           </div>
         </form>
       </div>
-    </dialog>
+    </div>
   );
 }

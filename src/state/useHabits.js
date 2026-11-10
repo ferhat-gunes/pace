@@ -79,35 +79,96 @@ export function useHabits() {
     }
   }, [habits, checkins]);
 
+  // Auto-flush pending mutations when returning online
+  const flushPending = useCallback(async () => {
+    try {
+      const queueKey = 'pace_pending_mutations';
+      const raw = localStorage.getItem(queueKey);
+      if (!raw) return;
+      const queue = JSON.parse(raw);
+      if (!Array.isArray(queue) || !queue.length) return;
+      setSyncState('Eşitleniyor…');
+      while (queue.length > 0) {
+        const item = queue[0];
+        try {
+          await api.request(`habits/${item.habitId}/check-ins/${item.date}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+              value: item.value,
+              expected_revision: item.expectedRevision,
+              idempotency_key: item.idempotencyKey,
+            }),
+          });
+          queue.shift();
+          localStorage.setItem(queueKey, JSON.stringify(queue));
+        } catch {
+          break; // Stop on error, wait for next reconnection
+        }
+      }
+      if (queue.length === 0) {
+        localStorage.removeItem(queueKey);
+        setSyncState('Kaydedildi');
+        await loadData();
+      }
+    } catch (e) {
+      console.warn('Failed to flush queue:', e);
+    }
+  }, [loadData]);
+
+  useEffect(() => {
+    window.addEventListener('online', flushPending);
+    return () => window.removeEventListener('online', flushPending);
+  }, [flushPending]);
+
   // Log a checkin for a habit on selectedDate
   const logCheckin = useCallback(async (habitId, value) => {
     const habit = habits.find((h) => h.id === habitId);
     if (!habit) return;
 
-    let prevValue = 0;
+    let expectedRevision = 0;
     setCheckins((prev) => {
       const idx = prev.findIndex((c) => c.habit_id === habitId && c.habit_date === selectedDate);
       if (idx >= 0) {
-        prevValue = prev[idx].value;
+        expectedRevision = Number(prev[idx].revision || 0);
         const next = [...prev];
         next[idx] = { ...next[idx], value, updated_at: new Date().toISOString() };
         return next;
       }
-      return [...prev, { id: `log-${Date.now()}`, habit_id: habitId, habit_date: selectedDate, value, created_at: new Date().toISOString() }];
+      return [...prev, { id: `log-${Date.now()}`, habit_id: habitId, habit_date: selectedDate, value, revision: 0, created_at: new Date().toISOString() }];
     });
 
+    const idempotencyKey = `chk-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     try {
       setSyncState('Kaydediliyor…');
-      await api.request(`habits/${habitId}/check-ins/${selectedDate}`, {
+      const res = await api.request(`habits/${habitId}/check-ins/${selectedDate}`, {
         method: 'PUT',
         body: JSON.stringify({
           value,
-          idempotency_key: `chk-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          expected_revision: expectedRevision,
+          idempotency_key: idempotencyKey,
         }),
       });
+      if (res?.checkin) {
+        setCheckins((prev) => {
+          const idx = prev.findIndex((c) => c.habit_id === habitId && c.habit_date === selectedDate);
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = { ...next[idx], ...res.checkin };
+            return next;
+          }
+          return [...prev, res.checkin];
+        });
+      }
       setSyncState('Kaydedildi');
     } catch (err) {
       console.warn('Sync queued locally:', err);
+      try {
+        const queueKey = 'pace_pending_mutations';
+        const raw = localStorage.getItem(queueKey);
+        const queue = raw ? JSON.parse(raw) : [];
+        queue.push({ habitId, date: selectedDate, value, expectedRevision, idempotencyKey });
+        localStorage.setItem(queueKey, JSON.stringify(queue));
+      } catch (e) {}
       setSyncState('Çevrimdışı kaydedildi');
     }
   }, [habits, selectedDate]);

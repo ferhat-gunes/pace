@@ -8,10 +8,7 @@ const dateIso = (date) => {
 export default function ProgressView({ habits = [], checkins = [] }) {
   const [period, setPeriod] = useState('30'); // '7' | '30' | 'all'
 
-  const activeHabits = habits.filter((h) => !h.archived_at);
-
   const stats = useMemo(() => {
-    const today = new Date();
     const periodDays = period === '7' ? 7 : period === '30' ? 30 : null;
     const minDateKey = periodDays
       ? dateIso(new Date(Date.now() - (periodDays - 1) * 86400000))
@@ -25,7 +22,12 @@ export default function ProgressView({ habits = [], checkins = [] }) {
     let totalLogs = 0;
     let completedCount = 0;
 
-    const habitBreakdown = activeHabits.map((h) => {
+    // Include all habits that are either active or have historical records
+    const relevantHabits = habits.filter(
+      (h) => !h.archived_at || checkins.some((c) => !c.deleted && c.habit_id === h.id)
+    );
+
+    const habitBreakdown = relevantHabits.map((h) => {
       const hLogs = scopedCheckins.filter((c) => c.habit_id === h.id);
       totalLogs += hLogs.length;
 
@@ -35,20 +37,18 @@ export default function ProgressView({ habits = [], checkins = [] }) {
       });
       completedCount += completedLogs.length;
 
-      // Real streak calculation: consecutive calendar days backwards
+      // Streak calculation
       let currentStreak = 0;
       let checkDate = new Date();
-      // Check if today is completed or yesterday
-      const allHabitLogs = checkins.filter(c => !c.deleted && c.habit_id === h.id);
+      const allHabitLogs = checkins.filter((c) => !c.deleted && c.habit_id === h.id);
       for (let i = 0; i < 365; i++) {
         const iso = dateIso(checkDate);
-        const log = allHabitLogs.find(c => c.habit_date === iso);
+        const log = allHabitLogs.find((c) => c.habit_date === iso);
         const isDone = log ? (h.tracking === 'check' ? Number(log.value) >= 1 : Number(log.value) >= (h.target || 1)) : false;
         if (isDone) {
           currentStreak++;
           checkDate.setDate(checkDate.getDate() - 1);
         } else if (i === 0) {
-          // If today isn't done yet, check if yesterday was done
           checkDate.setDate(checkDate.getDate() - 1);
         } else {
           break;
@@ -58,6 +58,7 @@ export default function ProgressView({ habits = [], checkins = [] }) {
       return {
         id: h.id,
         name: h.name,
+        isArchived: Boolean(h.archived_at),
         logsCount: hLogs.length,
         completedCount: completedLogs.length,
         completionRate: hLogs.length > 0 ? Math.round((completedLogs.length / hLogs.length) * 100) : 0,
@@ -73,138 +74,100 @@ export default function ProgressView({ habits = [], checkins = [] }) {
       overallRate,
       habitBreakdown,
     };
-  }, [activeHabits, checkins, period]);
+  }, [habits, checkins, period]);
 
   return (
     <section className="page-view" id="view-progress" aria-labelledby="progress-title">
-      <div className="page-heading">
+      <div className="page-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h1 id="progress-title">İlerleme</h1>
-          <p className="section-subtitle">Ritim ve serilerini analiz et</p>
+          <h1 id="progress-title" style={{ margin: 0, fontSize: 'clamp(22px, 4vw, 28px)', color: 'var(--forest)' }}>
+            İlerleme & Ritim
+          </h1>
+          <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '4px 0 0' }}>
+            Zaman içindeki alışkanlık devamlılığın ve tutarlılık özetin.
+          </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <label className="period-select" htmlFor="progress-period" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Calendar size={15} style={{ color: 'var(--muted)' }} />
-            <span className="sr-only">İlerleme dönemi</span>
-            <select
-              id="progress-period"
-              value={period}
-              onChange={(e) => setPeriod(e.target.value)}
-              style={{
-                height: '40px',
-                padding: '0 12px',
-                borderRadius: '8px',
-                border: '1px solid var(--border)',
-                background: 'var(--surface)',
-                color: 'var(--ink)',
-                fontWeight: 600,
-              }}
-            >
-              <option value="7">Son 7 gün</option>
-              <option value="30">Son 30 gün</option>
-              <option value="all">Tüm zamanlar</option>
-            </select>
-          </label>
+
+        {/* Period Selector */}
+        <div className="segmented-control" role="tablist" aria-label="Zaman aralığı seç">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={period === '7'}
+            className={`segmented-item ${period === '7' ? 'is-selected' : ''}`}
+            onClick={() => setPeriod('7')}
+          >
+            Son 7 Gün
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={period === '30'}
+            className={`segmented-item ${period === '30' ? 'is-selected' : ''}`}
+            onClick={() => setPeriod('30')}
+          >
+            Son 30 Gün
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={period === 'all'}
+            className={`segmented-item ${period === 'all' ? 'is-selected' : ''}`}
+            onClick={() => setPeriod('all')}
+          >
+            Tümü
+          </button>
         </div>
       </div>
 
       {/* KPI Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '28px' }}>
-        <div
-          className="stat-card"
-          style={{
-            background: 'var(--surface)',
-            border: '1px solid var(--border)',
-            borderRadius: '16px',
-            padding: '20px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '16px',
-            boxShadow: '0 2px 8px rgba(36, 76, 58, 0.04)',
-          }}
-        >
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'var(--orange-soft)', color: 'var(--orange-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="stat-grid">
+        <div className="stat-card">
+          <div className="stat-icon is-orange">
             <CheckCircle2 size={24} />
           </div>
           <div>
-            <div style={{ fontSize: '24px', fontWeight: 800, fontFamily: 'var(--font-heading)', color: 'var(--forest)' }}>
-              {stats.completedCount}
-            </div>
-            <div style={{ fontSize: '13px', color: 'var(--muted)', fontWeight: 500 }}>Tamamlanan Hedef</div>
+            <div className="stat-value">{stats.completedCount}</div>
+            <div className="stat-label">Tamamlanan Hedef</div>
           </div>
         </div>
 
-        <div
-          className="stat-card"
-          style={{
-            background: 'var(--surface)',
-            border: '1px solid var(--border)',
-            borderRadius: '16px',
-            padding: '20px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '16px',
-            boxShadow: '0 2px 8px rgba(36, 76, 58, 0.04)',
-          }}
-        >
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'var(--sage-soft)', color: 'var(--forest)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="stat-card">
+          <div className="stat-icon is-sage">
             <TrendingUp size={24} />
           </div>
           <div>
-            <div style={{ fontSize: '24px', fontWeight: 800, fontFamily: 'var(--font-heading)', color: 'var(--forest)' }}>
-              %{stats.overallRate}
-            </div>
-            <div style={{ fontSize: '13px', color: 'var(--muted)', fontWeight: 500 }}>Başarı Oranı</div>
+            <div className="stat-value">%{stats.overallRate}</div>
+            <div className="stat-label">Başarı Oranı</div>
           </div>
         </div>
 
-        <div
-          className="stat-card"
-          style={{
-            background: 'var(--surface)',
-            border: '1px solid var(--border)',
-            borderRadius: '16px',
-            padding: '20px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '16px',
-            boxShadow: '0 2px 8px rgba(36, 76, 58, 0.04)',
-          }}
-        >
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'var(--forest-soft)', color: 'var(--forest)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="stat-card">
+          <div className="stat-icon is-forest">
             <Zap size={24} />
           </div>
           <div>
-            <div style={{ fontSize: '24px', fontWeight: 800, fontFamily: 'var(--font-heading)', color: 'var(--forest)' }}>
-              {stats.totalLogs}
-            </div>
-            <div style={{ fontSize: '13px', color: 'var(--muted)', fontWeight: 500 }}>Toplam Kayıt</div>
+            <div className="stat-value">{stats.totalLogs}</div>
+            <div className="stat-label">Toplam Kayıt</div>
           </div>
         </div>
       </div>
 
-      {/* Progress Table */}
+      {/* Progress Table Container */}
       <div
-        className="progress-table-wrap"
+        className="table-container"
         tabIndex={0}
         role="region"
         aria-label="Alışkanlık ilerleme tablosu (yatay kaydırılabilir)"
-        style={{
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: '16px',
-          overflowX: 'auto',
-          boxShadow: '0 2px 8px rgba(36, 76, 58, 0.04)',
-        }}
       >
-        <table className="progress-table" id="progress-table" aria-label="Alışkanlık istatistikleri özeti" style={{ width: '100%', minWidth: '540px' }}>
+        <table className="table-standard" id="progress-table" aria-label="Alışkanlık istatistikleri özeti">
           <thead>
-            <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-alt)' }}>
-              <th scope="col" style={{ textAlign: 'left', padding: '14px 16px' }}>Alışkanlık</th>
-              <th scope="col" style={{ textAlign: 'center', padding: '14px 16px' }}>Tamamlanan</th>
-              <th scope="col" style={{ textAlign: 'center', padding: '14px 16px' }}>Toplam</th>
-              <th scope="col" style={{ textAlign: 'center', padding: '14px 16px' }}>Başarı</th>
-              <th scope="col" style={{ textAlign: 'center', padding: '14px 16px' }}>Güncel Seri</th>
+            <tr>
+              <th scope="col" style={{ textAlign: 'left' }}>Alışkanlık</th>
+              <th scope="col" style={{ textAlign: 'center' }}>Tamamlanan</th>
+              <th scope="col" style={{ textAlign: 'center' }}>Toplam</th>
+              <th scope="col" style={{ textAlign: 'center' }}>Başarı</th>
+              <th scope="col" style={{ textAlign: 'center' }}>Güncel Seri</th>
             </tr>
           </thead>
           <tbody id="progress-table-body">
@@ -216,18 +179,25 @@ export default function ProgressView({ habits = [], checkins = [] }) {
               </tr>
             ) : (
               stats.habitBreakdown.map((item) => (
-                <tr key={item.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                  <th scope="row" style={{ textAlign: 'left', padding: '14px 16px', fontWeight: 700 }}>
-                    {item.name}
+                <tr key={item.id}>
+                  <th scope="row" style={{ textAlign: 'left', fontWeight: 700 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>{item.name}</span>
+                      {item.isArchived && (
+                        <span style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: 'var(--surface-alt)', color: 'var(--muted)' }}>
+                          Arşiv
+                        </span>
+                      )}
+                    </div>
                   </th>
-                  <td style={{ textAlign: 'center', padding: '14px 16px' }}>{item.completedCount}</td>
-                  <td style={{ textAlign: 'center', padding: '14px 16px' }}>{item.logsCount}</td>
-                  <td style={{ textAlign: 'center', padding: '14px 16px' }}>
+                  <td style={{ textAlign: 'center' }}>{item.completedCount}</td>
+                  <td style={{ textAlign: 'center' }}>{item.logsCount}</td>
+                  <td style={{ textAlign: 'center' }}>
                     <span style={{ fontWeight: 700, color: item.completionRate >= 80 ? 'var(--forest)' : 'var(--orange-dark)' }}>
                       %{item.completionRate}
                     </span>
                   </td>
-                  <td style={{ textAlign: 'center', padding: '14px 16px' }}>
+                  <td style={{ textAlign: 'center' }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: item.streak > 0 ? 'var(--orange-dark)' : 'var(--muted)', fontWeight: 700 }}>
                       <Zap size={14} /> {item.streak} gün
                     </span>

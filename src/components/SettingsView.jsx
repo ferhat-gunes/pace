@@ -185,7 +185,7 @@ export default function SettingsView({
               <button
                 type="button"
                 className="button button-quiet"
-                style={{ minHeight: '40px' }}
+                style={{ minHeight: '44px', padding: '0 16px' }}
                 onClick={handleExport}
                 aria-label="Yedeği JSON olarak dışa aktar"
               >
@@ -193,23 +193,25 @@ export default function SettingsView({
                 Dışa aktar
               </button>
               <label
+                htmlFor="backup-upload-input"
                 className="button button-quiet"
-                style={{ cursor: 'pointer', minHeight: '40px', display: 'inline-flex', alignItems: 'center' }}
+                style={{ cursor: 'pointer', minHeight: '44px', padding: '0 16px', display: 'inline-flex', alignItems: 'center' }}
                 aria-label="JSON yedeğini yükle"
               >
                 <Upload size={16} style={{ marginRight: '6px' }} />
-                Yedeği yükle
+                <span>Yedeği yükle</span>
                 <input
+                  id="backup-upload-input"
                   type="file"
                   accept=".json,application/json"
                   onChange={handleImportFile}
-                  style={{ display: 'none' }}
+                  className="sr-only"
                 />
               </label>
             </div>
           </div>
 
-          <div className="settings-row">
+          <div className="settings-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', padding: '16px 0' }}>
             <div>
               <strong style={{ color: 'var(--red)' }}>Hesabı ve Verileri Sil</strong>
               <p style={{ margin: '2px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
@@ -217,24 +219,19 @@ export default function SettingsView({
               </p>
             </div>
             {confirmDelete ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <button
                   type="button"
                   className="button button-quiet"
-                  style={{ minHeight: '36px' }}
+                  style={{ minHeight: '44px', padding: '0 14px' }}
                   onClick={() => setConfirmDelete(false)}
                 >
                   Vazgeç
                 </button>
                 <button
                   type="button"
-                  className="button"
-                  style={{
-                    minHeight: '36px',
-                    background: 'var(--red)',
-                    color: '#FFFFFF',
-                    borderColor: 'var(--red)',
-                  }}
+                  className="button button-danger"
+                  style={{ minHeight: '44px', padding: '0 16px' }}
                   onClick={handleDeleteAccount}
                 >
                   Evet, Kalıcı Olarak Sil
@@ -243,11 +240,11 @@ export default function SettingsView({
             ) : (
               <button
                 type="button"
-                className="text-button danger-text"
-                style={{ color: 'var(--red)', fontWeight: 600, padding: '8px 12px' }}
+                className="button button-danger-quiet"
+                style={{ minHeight: '44px', padding: '0 16px' }}
                 onClick={() => setConfirmDelete(true)}
               >
-                Hesabı sil
+                Hesabı Sil
               </button>
             )}
           </div>

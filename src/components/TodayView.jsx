@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Plus, Check, Minus, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
+import { Plus, Check, Minus, ChevronLeft, ChevronRight, RotateCcw, Sparkles } from 'lucide-react';
 import { formatTarget } from '../lib/rules';
 
 const MONTH_NAMES = [
@@ -26,6 +26,7 @@ export default function TodayView({
 }) {
   const [editingHabitId, setEditingHabitId] = useState(null);
   const [editValue, setEditValue] = useState('');
+  const [announcement, setAnnouncement] = useState('');
 
   const todayIso = useMemo(() => {
     const d = new Date();
@@ -63,7 +64,6 @@ export default function TodayView({
       d.setDate(startDay.getDate() + i);
       const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       
-      // Calculate completion pip for this day
       const dayLogs = checkins.filter(c => !c.deleted && c.habit_date === iso);
       const hasCompleted = dayLogs.some(c => Number(c.value) > 0);
 
@@ -94,203 +94,386 @@ export default function TodayView({
     const n = Math.max(0, Math.min(1000000, Number(editValue) || 0));
     logCheckin?.(habitId, n);
     setEditingHabitId(null);
+    setAnnouncement(`Miktar güncellendi: ${n}`);
   };
+
+  const handleQuickStep = (habit, delta) => {
+    const checkin = checkins.find((c) => !c.deleted && c.habit_id === habit.id && c.habit_date === selectedDate);
+    const current = checkin ? Number(checkin.value) : 0;
+    const nextVal = Math.max(0, current + delta);
+    logCheckin?.(habit.id, nextVal);
+    setAnnouncement(`${habit.name}: ${nextVal} ${habit.unit || ''}`);
+  };
+
+  const isAllDone = completionStats.total > 0 && completionStats.completed === completionStats.total;
 
   return (
     <section className="page-view" id="view-today" aria-labelledby="page-title">
-      <div className="page-heading today-heading">
-        <div className="record-heading">
-          <h1 id="page-title">
-            <span id="selected-date-label">{dateHeading}</span>
-          </h1>
-          <span id="today-completion" className="completion-summary" aria-live="polite">
-            {completionStats.total > 0
-              ? `${completionStats.completed} / ${completionStats.total} tamamlandı (%${completionStats.percentage})`
-              : 'Bu gün için planlanan alışkanlık yok'}
-          </span>
+      {/* Screen reader live announcement */}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {announcement}
+      </div>
+
+      {/* Header with stacked mobile layout */}
+      <div className="today-heading-wrap" style={{ marginBottom: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px' }}>
+          <div>
+            <h1 id="page-title" style={{ margin: 0, fontSize: 'clamp(20px, 4vw, 26px)', color: 'var(--forest)' }}>
+              <span id="selected-date-label">{dateHeading}</span>
+            </h1>
+            <span id="today-completion" className="completion-summary" aria-live="polite" style={{ fontSize: '13px', color: 'var(--muted)', fontWeight: 500, display: 'block', marginTop: '2px' }}>
+              {completionStats.total > 0
+                ? `${completionStats.completed} / ${completionStats.total} tamamlandı (%${completionStats.percentage})`
+                : 'Bu gün için planlanan alışkanlık yok'}
+            </span>
+          </div>
+
+          {/* Desktop "Alışkanlık Ekle" Button */}
+          <button
+            type="button"
+            className="button button-primary add-habit-trigger"
+            aria-label="Yeni alışkanlık ekle"
+            onClick={onOpenAddModal}
+            style={{ display: 'none' }} /* Desktop-only media rule handles visibility */
+          >
+            Alışkanlık Ekle +
+          </button>
         </div>
 
-        <div className="today-heading-actions">
-          {/* Segmented filter control */}
-          <div className="segmented-filter" role="group" aria-label="Alışkanlık filtreleme">
+        {/* Filter bar & Jump to today */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', gap: '8px' }}>
+          <div className="segmented-control" role="tablist" aria-label="Alışkanlık filtreleme">
             <button
               type="button"
-              className={`button ${filterMode === 'planned' ? 'button-primary' : 'button-quiet'}`}
-              style={{ height: '38px', padding: '0 12px', fontSize: '13px' }}
-              aria-pressed={filterMode === 'planned'}
+              role="tab"
+              className={`segmented-item ${filterMode === 'planned' ? 'is-selected' : ''}`}
+              aria-selected={filterMode === 'planned'}
               onClick={() => setFilterMode?.('planned')}
             >
               Planlı
             </button>
             <button
               type="button"
-              className={`button ${filterMode === 'all' ? 'button-primary' : 'button-quiet'}`}
-              style={{ height: '38px', padding: '0 12px', fontSize: '13px' }}
-              aria-pressed={filterMode === 'all'}
+              role="tab"
+              className={`segmented-item ${filterMode === 'all' ? 'is-selected' : ''}`}
+              aria-selected={filterMode === 'all'}
               onClick={() => setFilterMode?.('all')}
             >
               Tümü
             </button>
           </div>
 
-          <button
-            type="button"
-            className="button button-primary add-habit-trigger"
-            aria-label="Yeni alışkanlık ekle"
-            onClick={onOpenAddModal}
-          >
-            Alışkanlık Ekle +
-          </button>
+          {selectedDate !== todayIso && (
+            <button
+              type="button"
+              className="button button-quiet"
+              style={{ minHeight: '38px', padding: '0 12px', fontSize: '13px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              onClick={() => setSelectedDate?.(todayIso)}
+              title="Bugüne dön"
+            >
+              <RotateCcw size={14} />
+              <span>Bugün</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Week Navigation & Strip */}
-      <div className="week-strip-container" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px' }}>
-        <button
-          type="button"
-          className="button button-quiet"
-          style={{ minWidth: '40px', height: '48px', padding: 0 }}
-          aria-label="Önceki hafta"
-          onClick={() => changeWeek(-7)}
-        >
-          <ChevronLeft size={20} />
-        </button>
-
-        <div className="week-strip" id="week-strip" role="tablist" aria-label="Kayıt gününü seç" style={{ flex: 1, margin: 0 }}>
-          {weekDays.map((day) => {
-            const isSelected = day.iso === selectedDate;
-            return (
-              <button
-                key={day.iso}
-                type="button"
-                role="tab"
-                className={`week-day ${isSelected ? 'is-selected' : ''}`}
-                aria-selected={isSelected}
-                aria-current={day.isToday ? 'date' : undefined}
-                aria-label={`${day.dayNum} ${day.dayName}${day.isToday ? ', Bugün' : ''}`}
-                onClick={() => setSelectedDate?.(day.iso)}
-                style={isSelected ? { background: 'var(--orange-dark)', color: '#FFFFFF', borderColor: 'var(--orange-dark)' } : {}}
-              >
-                <span className="week-day-name">{day.dayName}</span>
-                <strong className="week-day-num">{day.dayNum}</strong>
-                {day.hasActivity && (
-                  <span
-                    style={{
-                      display: 'block',
-                      width: '5px',
-                      height: '5px',
-                      borderRadius: '50%',
-                      background: isSelected ? '#FFFFFF' : 'var(--sage)',
-                      margin: '3px auto 0',
-                    }}
-                    aria-hidden="true"
-                  />
-                )}
-              </button>
-            );
-          })}
+      {/* Week Navigation Controls */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <button
+            type="button"
+            className="button button-quiet"
+            style={{ width: '40px', height: '40px', minWidth: '40px', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px' }}
+            aria-label="Önceki hafta"
+            onClick={() => changeWeek(-7)}
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--muted)' }}>
+            Haftalık Takvim
+          </span>
+          <button
+            type="button"
+            className="button button-quiet"
+            style={{ width: '40px', height: '40px', minWidth: '40px', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px' }}
+            aria-label="Sonraki hafta"
+            onClick={() => changeWeek(7)}
+          >
+            <ChevronRight size={18} />
+          </button>
         </div>
-
-        <button
-          type="button"
-          className="button button-quiet"
-          style={{ minWidth: '40px', height: '48px', padding: 0 }}
-          aria-label="Sonraki hafta"
-          onClick={() => changeWeek(7)}
-        >
-          <ChevronRight size={20} />
-        </button>
 
         {selectedDate !== todayIso && (
           <button
             type="button"
             className="button button-quiet"
-            style={{ height: '48px', padding: '0 12px', fontSize: '12px', fontWeight: 600 }}
+            style={{ minHeight: '38px', padding: '0 12px', fontSize: '12px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px', borderRadius: '10px' }}
             onClick={() => setSelectedDate?.(todayIso)}
             title="Bugüne dön"
           >
-            <RotateCcw size={14} style={{ marginRight: '4px' }} />
-            Bugün
+            <RotateCcw size={13} />
+            <span>Bugün</span>
           </button>
         )}
       </div>
 
+      {/* 7-Day Strip Full Width Grid */}
+      <div
+        className="week-strip"
+        id="week-strip"
+        role="tablist"
+        aria-label="Kayıt gününü seç"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(7, 1fr)',
+          gap: '4px',
+          marginBottom: '20px',
+          width: '100%',
+        }}
+      >
+        {weekDays.map((day) => {
+          const isSelected = day.iso === selectedDate;
+          return (
+            <button
+              key={day.iso}
+              type="button"
+              role="tab"
+              className={`week-day ${isSelected ? 'is-selected' : ''}`}
+              aria-selected={isSelected}
+              aria-current={day.isToday ? 'date' : undefined}
+              aria-label={`${day.dayNum} ${day.dayName}${day.isToday ? ', Bugün' : ''}`}
+              onClick={() => setSelectedDate?.(day.iso)}
+              style={{
+                minHeight: '52px',
+                padding: '6px 2px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '10px',
+                background: isSelected ? 'var(--orange-dark)' : 'var(--surface)',
+                color: isSelected ? '#FFFFFF' : 'var(--ink)',
+                border: isSelected ? '1px solid var(--orange-dark)' : '1px solid var(--border)',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span className="week-day-name" style={{ fontSize: '11px', fontWeight: 600, opacity: isSelected ? 0.9 : 0.7 }}>
+                {day.dayName}
+              </span>
+              <strong className="week-day-num" style={{ fontSize: '15px', fontWeight: 800 }}>
+                {day.dayNum}
+              </strong>
+              {day.hasActivity && (
+                <span
+                  style={{
+                    display: 'block',
+                    width: '4px',
+                    height: '4px',
+                    borderRadius: '50%',
+                    background: isSelected ? '#FFFFFF' : 'var(--sage)',
+                    marginTop: '2px',
+                  }}
+                  aria-hidden="true"
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Completion Celebration Card */}
+      {isAllDone && (
+        <div className="celebration-card" role="status">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '4px' }}>
+            <Sparkles size={20} color="var(--orange-dark)" />
+            <strong style={{ fontSize: '16px', color: 'var(--forest)' }}>Harika bir ritim!</strong>
+          </div>
+          <p style={{ margin: 0, fontSize: '13px', color: 'var(--muted)' }}>
+            Bugün için planlanan tüm alışkanlıklarını tamamladın. Dinlenmeyi hak ettin.
+          </p>
+        </div>
+      )}
+
       {/* Habit List */}
       {todayHabits.length === 0 ? (
-        <div className="empty-state" style={{ padding: '48px 24px', textAlign: 'center' }}>
-          <h2 style={{ fontSize: '18px', color: 'var(--forest)', marginBottom: '8px' }}>
+        <div className="empty-state panel-card" style={{ padding: '48px 24px', textAlign: 'center' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: 'var(--forest-soft)', color: 'var(--forest)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            🌱
+          </div>
+          <h2 style={{ fontSize: '18px', color: 'var(--forest)', marginBottom: '8px', fontFamily: 'var(--font-heading)' }}>
             {filterMode === 'planned' ? 'Bu gün için planlanan alışkanlık yok' : 'Henüz hiç alışkanlık yok'}
           </h2>
-          <p style={{ color: 'var(--muted)', fontSize: '14px', marginBottom: '20px' }}>
-            Yeni bir rutin başlatarak kendi ritmini yakala.
+          <p style={{ color: 'var(--muted)', fontSize: '14px', marginBottom: '20px', maxWidth: '360px', margin: '0 auto 20px' }}>
+            Kendini zorlamadan, kendi ritminde küçük adımlarla başla.
           </p>
+
           <button
             type="button"
-            className="button button-primary add-habit-trigger"
+            className="button button-primary"
+            style={{ minHeight: '48px', padding: '0 24px', fontSize: '15px' }}
             onClick={onOpenAddModal}
           >
             Alışkanlık Ekle +
           </button>
         </div>
       ) : (
-        <div id="today-list" className="habit-list">
+        <div id="today-list" className="habit-list" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {todayHabits.map((h) => {
             const checkin = checkins.find(
               (c) => !c.deleted && c.habit_id === h.id && c.habit_date === selectedDate
             );
             const value = checkin ? Number(checkin.value) : 0;
-            const isDone =
-              h.tracking === 'check' ? value >= 1 : value >= (h.target || 1);
+            const target = Number(h.target) || 1;
+            const isDone = h.tracking === 'check' ? value >= 1 : value >= target;
 
             return (
               <div
                 key={h.id}
                 className={`habit-row ${h.tracking === 'check' ? 'is-check' : 'is-quantity'} ${isDone ? 'is-complete' : ''}`}
-                style={{ minHeight: '64px', transition: 'all 0.2s ease' }}
+                style={{
+                  minHeight: '64px',
+                  background: 'var(--surface)',
+                  border: isDone ? '1px solid var(--forest-border)' : '1px solid var(--border)',
+                  borderLeft: isDone ? '4px solid var(--forest)' : '4px solid transparent',
+                  borderRadius: 'var(--radius)',
+                  padding: '14px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
+                  transition: 'all 0.18s ease',
+                }}
               >
-                <div className="habit-main">
-                  <div className="habit-title-group">
-                    <strong className="habit-name" style={{ fontSize: '16px' }}>{h.name}</strong>
-                    <span className="habit-meta" style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                <div
+                  className="habit-main"
+                  style={{
+                    flex: '1 1 auto',
+                    minWidth: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'stretch',
+                    gap: '4px',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'flex-start',
+                      gap: '2px',
+                      minWidth: 0,
+                      width: '100%',
+                    }}
+                  >
+                    <strong
+                      className="habit-name"
+                      style={{
+                        fontSize: '15px',
+                        fontWeight: 700,
+                        color: 'var(--ink)',
+                        display: 'block',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        width: '100%',
+                      }}
+                    >
+                      {h.name}
+                    </strong>
+                    <span
+                      className="habit-meta"
+                      style={{
+                        color: 'var(--muted)',
+                        fontSize: '12px',
+                        display: 'block',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
                       {formatTarget(h)}
                     </span>
                   </div>
 
                   {h.tracking === 'quantity' && (
-                    <div className="habit-progress" style={{ marginTop: '4px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 600, color: isDone ? 'var(--forest)' : 'var(--ink)' }}>
-                        {value} / {h.target} {h.unit || ''}
-                      </span>
+                    <div style={{ marginTop: '4px', width: '100%' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          color: isDone ? 'var(--forest)' : 'var(--muted)',
+                          marginBottom: '3px',
+                        }}
+                      >
+                        <span>{value} / {target} {h.unit || ''}</span>
+                        <span>%{Math.min(100, Math.round((value / target) * 100))}</span>
+                      </div>
+                      <div
+                        style={{
+                          width: '100%',
+                          height: '5px',
+                          background: 'var(--sage-track)',
+                          borderRadius: '999px',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <div
+                          style={{
+                            height: '100%',
+                            width: `${Math.min(100, (value / target) * 100)}%`,
+                            background: isDone ? 'var(--forest)' : 'var(--orange-dark)',
+                            transition: 'width 0.25s ease',
+                          }}
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
 
-                <div className="habit-actions">
+                <div className="habit-actions" style={{ flexShrink: 0 }}>
                   {h.tracking === 'check' ? (
                     <button
                       type="button"
-                      className={`button ${isDone ? 'button-primary' : 'button-quiet'}`}
+                      className={`button ${isDone ? 'button-complete' : 'button-quiet'}`}
                       style={{
                         minHeight: '44px',
-                        minWidth: '100px',
-                        background: isDone ? 'var(--forest)' : undefined,
-                        color: isDone ? '#FFFFFF' : undefined,
-                        borderColor: isDone ? 'var(--forest)' : undefined,
+                        minWidth: '96px',
+                        fontSize: '14px',
+                        fontWeight: 700,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        borderRadius: '12px',
                       }}
                       aria-pressed={isDone}
-                      aria-label={`${h.name} tamamlandı olarak işaretle`}
-                      onClick={() => logCheckin?.(h.id, isDone ? 0 : 1)}
+                      aria-label={isDone ? `${h.name} tamamlandı, geri almak için tıkla` : `${h.name} tamamlandı olarak işaretle`}
+                      onClick={() => {
+                        const nextVal = isDone ? 0 : 1;
+                        logCheckin?.(h.id, nextVal);
+                        setAnnouncement(nextVal > 0 ? `${h.name} tamamlandı` : `${h.name} geri alındı`);
+                      }}
                     >
-                      {isDone ? '✓ Tamam' : 'Tamamla'}
+                      {isDone ? (
+                        <>
+                          <Check size={16} />
+                          <span>Tamam</span>
+                        </>
+                      ) : (
+                        <span>Tamamla</span>
+                      )}
                     </button>
                   ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <button
                         type="button"
-                        className="button button-quiet"
-                        style={{ minWidth: '44px', height: '44px', padding: 0 }}
+                        className="button button-quiet button-icon"
                         aria-label={`${h.name} miktarını 1 azalt`}
-                        onClick={() => logCheckin?.(h.id, Math.max(0, value - 1))}
+                        onClick={() => handleQuickStep(h, -1)}
+                        disabled={value <= 0}
                       >
                         <Minus size={16} />
                       </button>
@@ -310,10 +493,11 @@ export default function TodayView({
                             width: '56px',
                             height: '44px',
                             textAlign: 'center',
-                            borderRadius: '8px',
+                            borderRadius: '10px',
                             border: '2px solid var(--orange-dark)',
                             fontWeight: 700,
-                            fontSize: '15px',
+                            fontSize: '16px',
+                            background: 'var(--surface)',
                           }}
                           aria-label={`${h.name} miktarı`}
                         />
@@ -326,11 +510,11 @@ export default function TodayView({
                           style={{
                             minWidth: '44px',
                             height: '44px',
-                            padding: '0 6px',
+                            padding: '0 8px',
                             textAlign: 'center',
                             fontWeight: 700,
                             fontSize: '15px',
-                            border: '1px dashed var(--border)',
+                            borderRadius: '10px',
                           }}
                           aria-label={`${h.name} güncel miktar: ${value}, değiştirmek için tıkla`}
                         >
@@ -340,13 +524,28 @@ export default function TodayView({
 
                       <button
                         type="button"
-                        className="button button-primary"
-                        style={{ minWidth: '44px', height: '44px', padding: 0 }}
+                        className="button button-primary button-icon"
                         aria-label={`${h.name} miktarını 1 artır`}
-                        onClick={() => logCheckin?.(h.id, value + 1)}
+                        onClick={() => handleQuickStep(h, 1)}
                       >
                         <Plus size={16} />
                       </button>
+
+                      {/* Smart complete shortcut if under target by > 1 */}
+                      {!isDone && target - value > 1 && (
+                        <button
+                          type="button"
+                          className="button button-quiet"
+                          style={{ minHeight: '44px', padding: '0 10px', fontSize: '12px', fontWeight: 700, color: 'var(--forest)' }}
+                          title={`Kalan ${target - value} ${h.unit || ''} tamamla`}
+                          onClick={() => {
+                            logCheckin?.(h.id, target);
+                            setAnnouncement(`${h.name} hedefe ulaştı: ${target}`);
+                          }}
+                        >
+                          +{target - value}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -355,6 +554,16 @@ export default function TodayView({
           })}
         </div>
       )}
+
+      {/* Thumb-zone Floating Action Button on mobile */}
+      <button
+        type="button"
+        className="mobile-fab"
+        aria-label="Yeni alışkanlık ekle"
+        onClick={onOpenAddModal}
+      >
+        <Plus size={26} strokeWidth={2.5} />
+      </button>
     </section>
   );
 }

@@ -51,11 +51,16 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
       } else if (mode === 'recover') {
         const res = await api.request('auth/recover', {
           method: 'POST',
-          body: JSON.stringify({ email, recovery_code: recoveryCode, new_password: password }),
+          body: JSON.stringify({ email, recovery_code: recoveryCode, password }),
         });
-        if (res?.success) {
-          alert('Parolanız sıfırlandı. Giriş yapabilirsiniz.');
-          setMode('login');
+        if (res?.ok || res?.user) {
+          if (res.user) onAuthSuccess?.(res.user);
+          if (res.recovery_code) {
+            setGeneratedCode(res.recovery_code);
+          } else {
+            alert('Parolanız sıfırlandı. Yeni parolanızla giriş yapabilirsiniz.');
+            setMode('login');
+          }
         }
       }
     } catch (err) {
@@ -75,22 +80,23 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
   return (
     <div
-      className="auth-screen"
+      className="modal-overlay"
       id="auth-screen"
       role="dialog"
       aria-modal="true"
       aria-labelledby="auth-title"
-      style={{ display: 'flex', zIndex: 100 }}
       onClick={onClose}
     >
       <div
-        className="auth-panel"
+        className="dialog-sheet auth-panel"
         style={{ position: 'relative' }}
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="sheet-handle" aria-hidden="true"></div>
+
         <button
           type="button"
-          className="icon-button"
+          className="button-icon icon-button"
           aria-label="Kapat"
           style={{ position: 'absolute', top: '16px', right: '16px' }}
           onClick={onClose}
@@ -98,56 +104,99 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           <X size={20} />
         </button>
 
-        <div className="auth-brand" style={{ marginBottom: '16px' }}>
-          <span>pace</span>
+        <div className="auth-brand">
+          <span style={{ fontFamily: 'var(--font-heading)', fontSize: '28px', fontWeight: 800, color: 'var(--forest)' }}>
+            pace
+          </span>
+          <p className="auth-lead" style={{ marginTop: '4px', color: 'var(--muted)', fontSize: '14px' }}>
+            {mode === 'login' && 'Hesabına giriş yap, alışkanlıklarını eşitle.'}
+            {mode === 'register' && 'Hemen hesabını oluştur, cihazlar arası takip et.'}
+            {mode === 'recover' && 'Kurtarma kodunla parolanı yenile.'}
+          </p>
         </div>
 
-        <h1 id="auth-title">
-          {generatedCode ? 'Kurtarma Kodunu Sakla' : mode === 'login' ? 'Alışkanlıklarına yer aç.' : mode === 'register' ? 'Hesap Oluştur' : 'Parola Sıfırla'}
-        </h1>
+        {/* Tab mode toggle */}
+        <div className="segmented-control" role="tablist" style={{ width: '100%', margin: '16px 0' }}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === 'login'}
+            className={`segmented-item ${mode === 'login' ? 'is-selected' : ''}`}
+            style={{ flex: 1, minHeight: '42px' }}
+            onClick={() => {
+              setMode('login');
+              setErrorMsg('');
+              setGeneratedCode('');
+            }}
+          >
+            Giriş Yap
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === 'register'}
+            className={`segmented-item ${mode === 'register' ? 'is-selected' : ''}`}
+            style={{ flex: 1, minHeight: '42px' }}
+            onClick={() => {
+              setMode('register');
+              setErrorMsg('');
+              setGeneratedCode('');
+            }}
+          >
+            Kayıt Ol
+          </button>
+        </div>
 
         {generatedCode ? (
-          <div>
+          <div
+            className="recovery-box"
+            style={{
+              background: 'var(--orange-soft)',
+              border: '1px solid var(--orange-border)',
+              borderRadius: '12px',
+              padding: '16px',
+              margin: '16px 0',
+            }}
+          >
+            <h3 style={{ margin: '0 0 8px', fontSize: '15px', color: 'var(--orange-dark)' }}>
+              Önemli: Kurtarma Kodunu Kaydet!
+            </h3>
+            <p style={{ margin: '0 0 12px', fontSize: '13px', lineHeight: 1.4 }}>
+              Parolanı unutursan hesabını yalnızca bu kodla kurtarabilirsin. Başka bir kurtarma yöntemi yoktur.
+            </p>
             <div
-              className="panel-card"
               style={{
-                background: 'var(--orange-soft)',
-                border: '1px solid var(--orange-border)',
-                borderRadius: '16px',
-                textAlign: 'center',
-                margin: '20px 0',
-                padding: '20px',
+                fontFamily: 'monospace',
+                fontSize: '13px',
+                fontWeight: 700,
+                letterSpacing: '1px',
+                wordBreak: 'break-all',
+                background: 'var(--surface)',
+                padding: '12px',
+                borderRadius: '8px',
+                border: '1px solid var(--border)',
+                marginBottom: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
               }}
             >
-              <div style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '3px', color: 'var(--ink)' }}>
-                {generatedCode}
-              </div>
-              <p style={{ fontSize: '13px', color: 'var(--muted)', margin: '10px 0 16px' }}>
-                Parolanı unutursan bu kodla hesabına dönebilirsin. Kod yalnızca şimdi gösterilir.
-              </p>
+              <span>{generatedCode}</span>
               <button
                 type="button"
                 className="button button-quiet"
-                style={{ width: '100%', minHeight: '40px', fontWeight: 700 }}
+                style={{ height: '36px', padding: '0 10px', fontSize: '12px' }}
                 onClick={handleCopyCode}
+                aria-label="Kodu kopyala"
               >
-                {copied ? (
-                  <>
-                    <Check size={16} style={{ marginRight: '6px' }} />
-                    Kod Panoya Kopyalandı
-                  </>
-                ) : (
-                  <>
-                    <Copy size={16} style={{ marginRight: '6px' }} />
-                    Kodu Kopyala
-                  </>
-                )}
+                {copied ? <Check size={14} color="var(--forest)" /> : <Copy size={14} />}
+                <span style={{ marginLeft: '4px' }}>{copied ? 'Kopyalandı' : 'Kopyala'}</span>
               </button>
             </div>
             <button
               type="button"
               className="button button-primary"
-              style={{ width: '100%', minHeight: '44px' }}
+              style={{ width: '100%', minHeight: '48px' }}
               onClick={() => {
                 setGeneratedCode('');
                 onClose();
@@ -157,60 +206,68 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
             </button>
           </div>
         ) : (
-          <form id="auth-form" onSubmit={handleSubmit}>
+          <form id="auth-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {errorMsg && (
-              <p className="form-message" role="status" style={{ color: 'var(--red)', fontWeight: 600 }}>
+              <p className="form-message" role="alert" style={{ color: 'var(--red)', fontWeight: 600, fontSize: '14px', margin: 0 }}>
                 {errorMsg}
               </p>
             )}
 
-            <label htmlFor="auth-email">E-posta adresin</label>
-            <input
-              id="auth-email"
-              name="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="username"
-              required
-              placeholder="ornek@email.com"
-            />
+            <label htmlFor="auth-email" style={{ fontSize: '13px', fontWeight: 700 }}>
+              E-posta adresin
+              <input
+                id="auth-email"
+                name="email"
+                type="email"
+                className="form-input"
+                style={{ width: '100%', height: '48px', padding: '0 12px', marginTop: '6px', fontSize: '16px' }}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="username"
+                required
+                placeholder="ornek@email.com"
+              />
+            </label>
 
             {mode === 'recover' && (
-              <div>
-                <label htmlFor="auth-recovery">Kurtarma kodun</label>
+              <label htmlFor="auth-recovery" style={{ fontSize: '13px', fontWeight: 700 }}>
+                Kurtarma kodun
                 <input
                   id="auth-recovery"
                   name="recovery"
                   type="text"
+                  className="form-input"
+                  style={{ width: '100%', height: '48px', padding: '0 12px', marginTop: '6px', fontSize: '16px' }}
                   value={recoveryCode}
                   onChange={(e) => setRecoveryCode(e.target.value)}
                   required
                   placeholder="Kayıt olurken verilen kod"
                 />
-              </div>
+              </label>
             )}
 
-            <label htmlFor="auth-password">
+            <label htmlFor="auth-password" style={{ fontSize: '13px', fontWeight: 700 }}>
               {mode === 'recover' ? 'Yeni parolan' : 'Parolan'}
+              <input
+                id="auth-password"
+                name="password"
+                type="password"
+                className="form-input"
+                style={{ width: '100%', height: '48px', padding: '0 12px', marginTop: '6px', fontSize: '16px' }}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+                required
+                placeholder="En az 10 karakter"
+              />
             </label>
-            <input
-              id="auth-password"
-              name="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
-              required
-              placeholder="En az 8 karakter"
-            />
 
             <button
               type="submit"
               className="button button-primary"
               id="auth-submit"
               disabled={loading}
-              style={{ width: '100%', minHeight: '44px', marginTop: '12px' }}
+              style={{ width: '100%', minHeight: '48px', marginTop: '8px', fontSize: '15px' }}
             >
               {loading
                 ? 'İşleniyor…'
@@ -218,51 +275,53 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 ? 'Giriş Yap'
                 : mode === 'register'
                 ? 'Hesap Oluştur'
-                : 'Parolayı Güncelle'}
+                : 'Parolayı Sıfırla'}
             </button>
-          </form>
-        )}
 
-        {!generatedCode && (
-          <div className="auth-footer" style={{ marginTop: '16px', textAlign: 'center' }}>
             {mode === 'login' && (
-              <>
-                <button
-                  type="button"
-                  className="text-button"
-                  onClick={() => { setMode('register'); setErrorMsg(''); }}
-                >
-                  Hesabın yok mu? Kayıt ol
-                </button>
-                <span style={{ margin: '0 8px', color: 'var(--border)' }}>•</span>
-                <button
-                  type="button"
-                  className="text-button"
-                  onClick={() => { setMode('recover'); setErrorMsg(''); }}
-                >
-                  Parolamı unuttum
-                </button>
-              </>
-            )}
-            {mode === 'register' && (
               <button
                 type="button"
-                className="text-button"
-                onClick={() => { setMode('login'); setErrorMsg(''); }}
+                className="button-link"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--muted)',
+                  fontSize: '13px',
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                  padding: '8px 0',
+                }}
+                onClick={() => {
+                  setMode('recover');
+                  setErrorMsg('');
+                }}
               >
-                Zaten hesabın var mı? Giriş yap
+                Parolamı unuttum (Kurtarma koduyla aç)
               </button>
             )}
+
             {mode === 'recover' && (
               <button
                 type="button"
-                className="text-button"
-                onClick={() => { setMode('login'); setErrorMsg(''); }}
+                className="button-link"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--muted)',
+                  fontSize: '13px',
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                  padding: '8px 0',
+                }}
+                onClick={() => {
+                  setMode('login');
+                  setErrorMsg('');
+                }}
               >
-                Giriş ekranına dön
+                ← Giriş ekranına dön
               </button>
             )}
-          </div>
+          </form>
         )}
       </div>
     </div>

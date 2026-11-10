@@ -1,11 +1,13 @@
-import React, { useState, Suspense, lazy } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useHabits } from './state/useHabits.js';
+import * as api from './lib/api.js';
 import Sidebar from './components/Navigation/Sidebar.jsx';
 import TopBar from './components/Navigation/TopBar.jsx';
 import MobileNav from './components/Navigation/MobileNav.jsx';
 import TodayView from './components/TodayView.jsx';
 import HabitsView from './components/HabitsView.jsx';
 import HabitModal from './components/HabitModal.jsx';
+import { ErrorBoundary } from './components/Common/ErrorBoundary.jsx';
 
 // Code splitting for secondary routes
 const ProgressView = lazy(() => import('./components/ProgressView.jsx'));
@@ -17,6 +19,7 @@ export default function App() {
   const [currentView, setView] = useState('today'); // 'today' | 'habits' | 'progress' | 'groups' | 'settings'
   const [isHabitModalOpen, setHabitModalOpen] = useState(false);
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
+  const [inviteToken, setInviteToken] = useState(null);
 
   const {
     habits,
@@ -44,16 +47,42 @@ export default function App() {
     loadData,
   } = useHabits();
 
-  const handleSignOut = () => {
+  // Check URL query parameters for deep linking (e.g. ?join= or ?invite=)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('join') || params.get('invite');
+      if (token) {
+        setInviteToken(token);
+        setView('groups');
+      }
+    } catch (e) {}
+  }, []);
+
+  const handleSignOut = async () => {
+    try {
+      await api.request('auth/logout', { method: 'POST', body: '{}' });
+    } catch (err) {
+      console.warn('Logout request fallback:', err);
+    }
+    try {
+      localStorage.removeItem('pace_local_drafts');
+      localStorage.removeItem('pace_pending_mutations');
+      localStorage.removeItem('pace_week_start');
+    } catch {}
     setUser(null);
     window.location.reload();
   };
 
   return (
     <div id="app" className="app-shell astryx-app-shell" data-astryx-component="app-shell">
+      <a href="#main-content" className="skip-link">
+        Ana içeriğe atla
+      </a>
+
       <Sidebar currentView={currentView} setView={setView} syncState={syncState} />
 
-      <main className="main-area">
+      <div className="main-area">
         <TopBar
           setView={setView}
           user={user}
@@ -61,7 +90,8 @@ export default function App() {
           syncState={syncState}
         />
 
-        <div className="content-wrap">
+        <main id="main-content" className="content-wrap" tabIndex={-1}>
+          <ErrorBoundary>
           {loading && habits.length === 0 ? (
             <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--muted)' }}>
               <div style={{ fontSize: '16px', fontWeight: 600 }}>Alışkanlıklar yükleniyor…</div>
@@ -101,7 +131,7 @@ export default function App() {
                 )}
 
                 {currentView === 'groups' && (
-                  <GroupsView groups={groups} user={user} loadData={loadData} />
+                  <GroupsView groups={groups} user={user} loadData={loadData} initialInviteToken={inviteToken} onClearInviteToken={() => setInviteToken(null)} />
                 )}
 
                 {currentView === 'settings' && (
@@ -118,10 +148,11 @@ export default function App() {
               </Suspense>
             </>
           )}
-        </div>
+          </ErrorBoundary>
+        </main>
+      </div>
 
-        <MobileNav currentView={currentView} setView={setView} />
-      </main>
+      <MobileNav currentView={currentView} setView={setView} />
 
       <HabitModal
         isOpen={isHabitModalOpen}
