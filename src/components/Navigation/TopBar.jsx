@@ -20,7 +20,7 @@ export default function TopBar({
   const [shieldFeedback, setShieldFeedback] = useState(null);
 
   return (
-    <header className="topbar" role="banner" style={{ flexWrap: 'wrap', gap: '8px 12px' }}>
+    <header className="topbar" role="banner" style={{ flexWrap: 'nowrap', gap: '8px' }}>
       <button
         type="button"
         className="mobile-brand"

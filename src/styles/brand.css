@@ -2111,24 +2111,53 @@ body:has(dialog[open]) {
     padding-bottom: calc(116px + env(safe-area-inset-bottom, 0px));
   }
   .topbar {
-    min-height: 80px;
-    padding: 12px max(20px, env(safe-area-inset-right, 0px)) 12px max(20px, env(safe-area-inset-left, 0px));
+    min-height: 64px;
+    padding: 12px max(16px, env(safe-area-inset-right, 0px)) 12px max(16px, env(safe-area-inset-left, 0px));
     padding-top: calc(12px + env(safe-area-inset-top, 0px));
+    flex-wrap: nowrap !important;
+    gap: 8px;
   }
   .mobile-brand {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: clamp(32px, 8vw, 36px);
+    font-size: 32px;
     font-weight: 900;
-    letter-spacing: -1.6px;
+    letter-spacing: -1.5px;
     line-height: 1;
+    flex-shrink: 0;
+  }
+  .gamify-stats-bar {
+    gap: 4px !important;
+    flex-shrink: 1;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .gamify-stats-bar::-webkit-scrollbar {
+    display: none;
+  }
+  .gamify-badge {
+    padding: 4px 7px !important;
+    font-size: 12px !important;
+    white-space: nowrap;
+  }
+  .mobile-sync-badge {
+    display: none !important;
+  }
+  .avatar-button {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    font-size: 14px !important;
+    flex-shrink: 0;
   }
   .topbar-date {
     display: none;
   }
   .topbar-actions {
-    gap: 8px;
+    gap: 6px;
+    flex-shrink: 0;
   }
   .content-wrap {
     width: 100%;
