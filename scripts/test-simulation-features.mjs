@@ -298,3 +298,128 @@ test('Group Synergy Milestone: awards 50 XP bonus when all members complete dail
 
   assert.strictEqual(allCompleted, true, '100% group members completed');
 });
+
+// ---------------------------------------------------------
+// 6. DAILY REMINDER NOTIFICATIONS & FRIEND NUDGE TESTS
+// ---------------------------------------------------------
+
+import {
+  shouldTriggerDailyReminder,
+  NUDGE_PRESETS,
+} from '../src/lib/notifications.js';
+
+test('Daily Reminder: does not trigger when notifications are disabled', () => {
+  const result = shouldTriggerDailyReminder({
+    enabled: false,
+    reminderTime: '20:00',
+    now: new Date('2026-11-12T20:30:00'),
+    remainingHabitsCount: 3,
+  });
+  assert.strictEqual(result, false, 'Should be false when notifications are disabled');
+});
+
+test('Daily Reminder: does not trigger when user has completed all habits for today', () => {
+  const result = shouldTriggerDailyReminder({
+    enabled: true,
+    reminderTime: '20:00',
+    now: new Date('2026-11-12T20:30:00'),
+    remainingHabitsCount: 0,
+  });
+  assert.strictEqual(result, false, 'Should be false when no habits remain');
+});
+
+test('Daily Reminder: does not trigger if today was already reminded', () => {
+  const result = shouldTriggerDailyReminder({
+    enabled: true,
+    reminderTime: '20:00',
+    lastReminderDate: '2026-11-12',
+    now: new Date('2026-11-12T20:30:00'),
+    remainingHabitsCount: 2,
+  });
+  assert.strictEqual(result, false, 'Should not trigger twice on the same day');
+});
+
+test('Daily Reminder: does not trigger before the reminder time', () => {
+  const result = shouldTriggerDailyReminder({
+    enabled: true,
+    reminderTime: '20:00',
+    lastReminderDate: null,
+    now: new Date('2026-11-12T18:45:00'),
+    remainingHabitsCount: 2,
+  });
+  assert.strictEqual(result, false, 'Should not trigger before scheduled hour');
+});
+
+test('Daily Reminder: triggers when time is reached and incomplete habits exist', () => {
+  const result = shouldTriggerDailyReminder({
+    enabled: true,
+    reminderTime: '20:00',
+    lastReminderDate: null,
+    now: new Date('2026-11-12T20:05:00'),
+    remainingHabitsCount: 2,
+  });
+  assert.strictEqual(result, true, 'Should trigger when time has arrived and habits remain');
+});
+
+test('Friend Nudge: presets provide friendly motivational messages', () => {
+  assert.ok(NUDGE_PRESETS.length >= 4, 'Has at least 4 nudge presets');
+  assert.ok(NUDGE_PRESETS.some((p) => p.emoji === '👉'), 'Contains 👉 emoji');
+  assert.ok(NUDGE_PRESETS.some((p) => p.emoji === '⚡'), 'Contains ⚡ emoji');
+});
+
+function createMockNudgeStore() {
+  let nudges = [];
+  return {
+    send({ targetMember, senderUser, message, emoji = '👉', groupId = 'g1' }) {
+      const nudge = {
+        id: `nudge-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        targetUserId: targetMember.user_id,
+        targetDisplayName: targetMember.display_name || 'Arkadaşın',
+        senderUserId: senderUser?.id || 'me',
+        senderDisplayName: senderUser?.email ? senderUser.email.split('@')[0] : 'Arkadaşın',
+        message,
+        emoji,
+        groupId,
+        createdAt: new Date().toISOString(),
+        read: false,
+      };
+      nudges.push(nudge);
+      return { success: true, nudge, xpBonus: 5 };
+    },
+    getIncoming(userId) {
+      return nudges.filter((n) => n.targetUserId === userId && !n.read);
+    },
+    dismiss(nudgeId) {
+      nudges = nudges.map((n) => (n.id === nudgeId ? { ...n, read: true } : n));
+    },
+  };
+}
+
+test('Friend Nudge: sending creates nudge, awards 5 XP, and delivers to friend', () => {
+  const store = createMockNudgeStore();
+  const alice = { id: 'u_alice', email: 'alice@example.com' };
+  const bob = { user_id: 'u_bob', display_name: 'Bob' };
+
+  const sendResult = store.send({
+    targetMember: bob,
+    senderUser: alice,
+    message: 'Ritim bozulmasın, serin yanmasın!',
+    emoji: '⚡',
+  });
+
+  assert.strictEqual(sendResult.success, true);
+  assert.strictEqual(sendResult.xpBonus, 5, 'Awards +5 XP for peer motivation');
+  assert.strictEqual(sendResult.nudge.targetUserId, 'u_bob');
+  assert.strictEqual(sendResult.nudge.senderDisplayName, 'alice');
+  assert.strictEqual(sendResult.nudge.emoji, '⚡');
+
+  // Bob checks incoming nudges
+  const bobsNudges = store.getIncoming('u_bob');
+  assert.strictEqual(bobsNudges.length, 1);
+  assert.strictEqual(bobsNudges[0].message, 'Ritim bozulmasın, serin yanmasın!');
+
+  // Bob dismisses the nudge
+  store.dismiss(sendResult.nudge.id);
+  const afterDismiss = store.getIncoming('u_bob');
+  assert.strictEqual(afterDismiss.length, 0, 'Nudge should be marked as read and cleared');
+});

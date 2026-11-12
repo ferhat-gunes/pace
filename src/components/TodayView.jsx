@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { formatTarget } from '../lib/rules';
 import { triggerHaptic, triggerConfetti } from '../lib/celebration';
 import { playPop, playSuccess, playStep } from '../lib/soundFx';
+import { getIncomingNudges, dismissNudge } from '../lib/notifications';
 
 const MONTH_NAMES = [
   'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
@@ -40,6 +41,7 @@ export default function TodayView({
   const [editingHabitId, setEditingHabitId] = useState(null);
   const [editValue, setEditValue] = useState('');
   const [announcement, setAnnouncement] = useState('');
+  const [incomingNudges, setIncomingNudges] = useState(() => getIncomingNudges());
 
   const todayIso = useMemo(() => {
     const d = new Date();
@@ -166,6 +168,55 @@ export default function TodayView({
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {announcement}
       </div>
+
+      {/* Incoming Friend Nudges Banner */}
+      {incomingNudges.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+          {incomingNudges.map((nudge) => (
+            <motion.div
+              key={nudge.id}
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="card-chunky"
+              style={{
+                background: 'var(--orange-soft)',
+                borderColor: 'var(--orange)',
+                borderBottomColor: 'var(--orange-dark)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px',
+                padding: '12px 16px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '26px' }}>{nudge.emoji || '👉'}</span>
+                <div>
+                  <strong style={{ fontSize: '13px', color: 'var(--orange-dark)', display: 'block' }}>
+                    {nudge.senderDisplayName} hedefini tamamlaman için seni dürttü!
+                  </strong>
+                  <span style={{ fontSize: '13px', color: 'var(--ink)', fontWeight: 600 }}>
+                    "{nudge.message}"
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn-3d btn-3d-gray"
+                style={{ minHeight: '34px', padding: '0 14px', fontSize: '12px', borderRadius: '10px' }}
+                onClick={() => {
+                  playPop();
+                  dismissNudge(nudge.id);
+                  setIncomingNudges(getIncomingNudges());
+                }}
+              >
+                Anladım 👍
+              </button>
+            </motion.div>
+          ))}
+        </div>
+      )}
 
       {/* Duolingo Daily Quest Mystery Chest Banner */}
       <motion.div

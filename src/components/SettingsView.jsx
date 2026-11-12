@@ -1,7 +1,14 @@
 import React, { useState } from 'react';
-import { Download, Upload, LogOut, Trash2, Calendar, Globe, CheckCircle2, AlertTriangle, Volume2, VolumeX } from 'lucide-react';
+import { Download, Upload, LogOut, Trash2, Calendar, Globe, CheckCircle2, AlertTriangle, Volume2, VolumeX, Bell, BellOff, Clock } from 'lucide-react';
 import { motion } from 'motion/react';
 import { isSoundEnabled, toggleSound, playPop } from '../lib/soundFx';
+import {
+  getNotificationSettings,
+  saveNotificationSettings,
+  requestNotificationPermission,
+  sendLocalNotification,
+  isNotificationSupported,
+} from '../lib/notifications';
 import * as api from '../lib/api';
 
 export default function SettingsView({
@@ -17,6 +24,7 @@ export default function SettingsView({
   const [isError, setIsError] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [soundActive, setSoundActive] = useState(() => isSoundEnabled());
+  const [notifSettings, setNotifSettings] = useState(() => getNotificationSettings());
   const [themePreference, setThemePreference] = useState(() => {
     try {
       return localStorage.getItem('pace_theme') || 'system';
@@ -24,6 +32,57 @@ export default function SettingsView({
       return 'system';
     }
   });
+
+  const handleRequestPermission = async () => {
+    playPop();
+    const perm = await requestNotificationPermission();
+    const updated = getNotificationSettings();
+    setNotifSettings(updated);
+    if (perm === 'granted') {
+      showNotification('Bildirim izni verildi! Günlük hatırlatmalar aktif.');
+      sendLocalNotification('🎯 PACE Bildirimleri Aktif!', {
+        body: 'Alışkanlıklarını tamamlaman için sana her gün hatırlatacağız.',
+      });
+    } else if (perm === 'denied') {
+      showNotification('Bildirim izni reddedildi. Tarayıcı ayarlarından açabilirsiniz.', true);
+    }
+  };
+
+  const handleToggleNotifications = () => {
+    playPop();
+    if (notifSettings.permission !== 'granted') {
+      handleRequestPermission();
+      return;
+    }
+    const nextEnabled = !notifSettings.enabled;
+    saveNotificationSettings({ enabled: nextEnabled });
+    setNotifSettings((prev) => ({ ...prev, enabled: nextEnabled }));
+    showNotification(nextEnabled ? 'Günlük hatırlatma bildirimleri açıldı.' : 'Hatırlatma bildirimleri kapatıldı.');
+  };
+
+  const handleChangeReminderTime = (time) => {
+    playPop();
+    saveNotificationSettings({ reminderTime: time });
+    setNotifSettings((prev) => ({ ...prev, reminderTime: time }));
+    showNotification(`Hatırlatma saati ${time} olarak ayarlandı.`);
+  };
+
+  const handleTestNotification = async () => {
+    playPop();
+    if (notifSettings.permission !== 'granted') {
+      await handleRequestPermission();
+      return;
+    }
+    const success = await sendLocalNotification('🎯 PACE: Test Bildirimi!', {
+      body: 'Harika! Hatırlatma bildirimleri sorunsuz çalışıyor. Ritim bozulmasın!',
+      tag: 'pace-test-notification',
+    });
+    if (success) {
+      showNotification('Test bildirimi başarıyla gönderildi! 🔔');
+    } else {
+      showNotification('Bildirim gönderilemedi. Lütfen tarayıcı izinlerini kontrol edin.', true);
+    }
+  };
 
   const handleSoundToggle = () => {
     const nextState = toggleSound();
@@ -274,6 +333,154 @@ export default function SettingsView({
             <span id="device-timezone" style={{ fontWeight: 600, color: 'var(--ink)' }}>
               {Intl.DateTimeFormat().resolvedOptions().timeZone}
             </span>
+          </div>
+        </section>
+
+        {/* Hatırlatıcı & Bildirimler */}
+        <section className="settings-section card-chunky">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Bell size={20} color="var(--orange)" />
+              Hatırlatıcı & Bildirimler
+            </h2>
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                padding: '3px 8px',
+                borderRadius: '8px',
+                background: notifSettings.permission === 'granted' && notifSettings.enabled ? 'var(--green-soft)' : 'var(--border)',
+                color: notifSettings.permission === 'granted' && notifSettings.enabled ? 'var(--green-dark)' : 'var(--muted)',
+              }}
+            >
+              {notifSettings.permission === 'granted' && notifSettings.enabled ? 'Aktif 🔔' : 'Pasif 🔕'}
+            </span>
+          </div>
+
+          {/* Permission State Banner if not granted */}
+          {notifSettings.permission !== 'granted' && (
+            <div
+              style={{
+                background: notifSettings.permission === 'denied' ? 'var(--red-soft)' : 'var(--orange-soft)',
+                border: `1.5px solid ${notifSettings.permission === 'denied' ? 'var(--red)' : 'var(--orange)'}`,
+                borderRadius: '14px',
+                padding: '12px 14px',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '10px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                {notifSettings.permission === 'denied' ? <BellOff size={18} color="var(--red)" /> : <Bell size={18} color="var(--orange)" />}
+                <p style={{ margin: 0, fontSize: '13px', color: notifSettings.permission === 'denied' ? 'var(--red-dark)' : 'var(--orange-dark)', fontWeight: 600 }}>
+                  {notifSettings.permission === 'denied'
+                    ? 'Tarayıcı bildirim izni engellendi. Adres çubuğundaki kilit simgesinden izin verebilirsiniz.'
+                    : 'Günlük hedeflerini kaçırmamak ve arkadaşlarının dürtmelerini almak için bildirimleri aç.'}
+                </p>
+              </div>
+              {notifSettings.permission !== 'denied' && (
+                <button
+                  type="button"
+                  className="btn-3d btn-3d-orange"
+                  style={{ minHeight: '38px', padding: '0 14px', fontSize: '12px', borderRadius: '10px' }}
+                  onClick={handleRequestPermission}
+                >
+                  Bildirimleri Aç 🔔
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Notification Toggle Row */}
+          <div className="settings-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+            <div>
+              <strong style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Bell size={18} />
+                Günlük Alışkanlık Hatırlatıcısı
+              </strong>
+              <p style={{ margin: '2px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
+                Günün belirlediğin saatinde tamamlanmamış hedeflerin varsa seni uyarır.
+              </p>
+            </div>
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.94, y: 2 }}
+              className={`btn-3d ${notifSettings.enabled && notifSettings.permission === 'granted' ? 'btn-3d-green' : 'btn-3d-gray'}`}
+              style={{ minHeight: '40px', padding: '0 16px', borderRadius: '12px', fontSize: '13px' }}
+              onClick={handleToggleNotifications}
+            >
+              {notifSettings.enabled && notifSettings.permission === 'granted' ? 'Açık 🔔' : 'Kapalı 🔕'}
+            </motion.button>
+          </div>
+
+          {/* Reminder Time Picker & Presets */}
+          <div className="settings-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '10px', padding: '14px 0', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+              <div>
+                <strong style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Clock size={17} />
+                  Hatırlatma Saati
+                </strong>
+                <p style={{ margin: '2px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
+                  Günün hangi saatinde bildirim almak istersin?
+                </p>
+              </div>
+              <input
+                type="time"
+                value={notifSettings.reminderTime}
+                onChange={(e) => handleChangeReminderTime(e.target.value)}
+                style={{
+                  height: '40px',
+                  padding: '0 12px',
+                  borderRadius: '10px',
+                  border: '1.5px solid var(--border)',
+                  background: 'var(--surface)',
+                  color: 'var(--ink)',
+                  fontWeight: 700,
+                  fontSize: '15px',
+                }}
+              />
+            </div>
+
+            {/* Quick Preset Time Pills */}
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
+              {['19:00', '20:00', '21:00', '22:00'].map((time) => {
+                const isSelected = notifSettings.reminderTime === time;
+                return (
+                  <button
+                    key={time}
+                    type="button"
+                    className={`btn-3d ${isSelected ? 'btn-3d-orange' : 'btn-3d-gray'}`}
+                    style={{ minHeight: '34px', padding: '0 12px', fontSize: '12px', borderRadius: '10px' }}
+                    onClick={() => handleChangeReminderTime(time)}
+                  >
+                    ⏰ {time}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Test Notification Row */}
+          <div className="settings-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0' }}>
+            <div>
+              <strong>Bildirimleri Test Et</strong>
+              <p style={{ margin: '2px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
+                Cihazında bildirim ve ses uyarısının çalıştığını anında doğrula.
+              </p>
+            </div>
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.94, y: 2 }}
+              className="btn-3d btn-3d-blue"
+              style={{ minHeight: '40px', padding: '0 16px', borderRadius: '12px', fontSize: '13px' }}
+              onClick={handleTestNotification}
+            >
+              🔔 Test Gönder
+            </motion.button>
           </div>
         </section>
 

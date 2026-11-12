@@ -3,6 +3,12 @@ import { Plus, Users, UserPlus, Link2, Copy, Check, LogOut, Trash2, X, Heart } f
 import { motion } from 'motion/react';
 import { playPop, playSuccess, playFanfare } from '../lib/soundFx';
 import { triggerHaptic, triggerConfetti } from '../lib/celebration';
+import {
+  NUDGE_PRESETS,
+  sendNudge,
+  getIncomingNudges,
+  dismissNudge,
+} from '../lib/notifications';
 import * as api from '../lib/api';
 
 const WEEKDAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
@@ -21,6 +27,9 @@ export default function GroupsView({
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [cheerModalMember, setCheerModalMember] = useState(null);
+  const [nudgeModalMember, setNudgeModalMember] = useState(null);
+  const [nudgeToast, setNudgeToast] = useState('');
+  const [incomingNudges, setIncomingNudges] = useState(() => getIncomingNudges(user?.id));
   const [cheers, setCheers] = useState(() => {
     try {
       const saved = localStorage.getItem('pace_group_cheers');
@@ -35,6 +44,16 @@ export default function GroupsView({
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupDesc, setNewGroupDesc] = useState('');
   const [newHabitName, setNewHabitName] = useState('');
+
+  const refreshIncomingNudges = () => {
+    setIncomingNudges(getIncomingNudges(user?.id));
+  };
+
+  useEffect(() => {
+    refreshIncomingNudges();
+    const interval = setInterval(refreshIncomingNudges, 12000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   // Handle incoming invite token from deep-link
   useEffect(() => {
@@ -85,6 +104,8 @@ export default function GroupsView({
       if (e.key === 'Escape') {
         setShowCreateModal(false);
         setShowInviteModal(false);
+        setCheerModalMember(null);
+        setNudgeModalMember(null);
         setInvitePreview(null);
         onClearInviteToken?.();
       }
@@ -92,6 +113,26 @@ export default function GroupsView({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClearInviteToken]);
+
+  const handleSendNudge = async (targetMember, emoji, text) => {
+    playSuccess();
+    triggerHaptic('celebration');
+    triggerConfetti();
+
+    await sendNudge({
+      targetMember,
+      senderUser: user,
+      message: text,
+      emoji,
+      groupId: selectedGroupId || 'default',
+    });
+
+    gamification?.addXp?.(5); // +5 XP peer motivation bonus
+    setNudgeModalMember(null);
+    setNudgeToast(`${targetMember.display_name || 'Arkadaşına'} motivasyon dürtmesi gönderildi! (+5 XP)`);
+    setTimeout(() => setNudgeToast(''), 4500);
+  };
+
 
   const activeGroup = groups.find((g) => g.id === selectedGroupId) || groups[0];
 
@@ -163,11 +204,11 @@ export default function GroupsView({
     }
   };
 
-  const members = groupDetail?.members || [
+  const members = groupDetail?.members || activeGroup?.members || [
     { id: 'm1', user_id: user?.id || 'me', display_name: 'Sen', role: 'owner' }
   ];
-  const habits = groupDetail?.habits || [];
-  const checkins = groupDetail?.checkins || [];
+  const habits = groupDetail?.habits || activeGroup?.habits || [];
+  const checkins = groupDetail?.checkins || activeGroup?.checkins || [];
 
   const sendCheer = (targetMember, emoji, text) => {
     playSuccess();
@@ -230,6 +271,96 @@ export default function GroupsView({
           Grup Kur +
         </motion.button>
       </div>
+
+      {/* Nudge Confirmation Toast */}
+      {nudgeToast && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          role="status"
+          className="card-chunky"
+          style={{
+            background: 'var(--green-soft)',
+            borderColor: 'var(--green)',
+            borderBottomColor: 'var(--green-dark)',
+            color: 'var(--green-dark)',
+            padding: '12px 16px',
+            fontWeight: 700,
+            fontSize: '13px',
+            marginBottom: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+          }}
+        >
+          <span style={{ fontSize: '20px' }}>👉</span>
+          <span>{nudgeToast}</span>
+        </motion.div>
+      )}
+
+      {/* Incoming Nudges Banner */}
+      {incomingNudges.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+          {incomingNudges.map((nudge) => (
+            <motion.div
+              key={nudge.id}
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="card-chunky"
+              style={{
+                background: 'var(--orange-soft)',
+                borderColor: 'var(--orange)',
+                borderBottomColor: 'var(--orange-dark)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px',
+                padding: '12px 16px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '26px' }}>{nudge.emoji || '👉'}</span>
+                <div>
+                  <strong style={{ fontSize: '14px', color: 'var(--orange-dark)', display: 'block' }}>
+                    {nudge.senderDisplayName} seni hedefini tamamlaman için dürttü!
+                  </strong>
+                  <span style={{ fontSize: '13px', color: 'var(--ink)', fontWeight: 600 }}>
+                    "{nudge.message}"
+                  </span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="btn-3d btn-3d-green"
+                  style={{ minHeight: '36px', padding: '0 14px', fontSize: '12px', borderRadius: '10px' }}
+                  onClick={() => {
+                    dismissNudge(nudge.id);
+                    refreshIncomingNudges();
+                    window.location.hash = '#view-today';
+                    window.location.reload();
+                  }}
+                >
+                  Tamamla ⚡
+                </button>
+                <button
+                  type="button"
+                  className="btn-3d btn-3d-gray"
+                  style={{ minHeight: '36px', padding: '0 12px', fontSize: '12px', borderRadius: '10px' }}
+                  onClick={() => {
+                    playPop();
+                    dismissNudge(nudge.id);
+                    refreshIncomingNudges();
+                  }}
+                >
+                  Anladım 👍
+                </button>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
 
       {/* Group Navigation Tabs */}
       {groups.length > 0 && (
@@ -432,6 +563,9 @@ export default function GroupsView({
                       }).length;
                       const percentage = Math.round((completedDays / 7) * 100);
                       const memberCheersCount = cheers[selectedGroupId]?.[member.user_id]?.length || 0;
+                      const isMemberCompletedToday = memberCheckins.some(
+                        c => (new Date(c.habit_date).getDay() + 6) % 7 === todayDayIdx && Number(c.value) > 0
+                      );
 
                       return (
                         <tr key={member.id}>
@@ -486,18 +620,33 @@ export default function GroupsView({
                           </td>
                           <td style={{ textAlign: 'center' }}>
                             {member.user_id !== (user?.id || 'me') ? (
-                              <button
-                                type="button"
-                                className="btn-3d btn-3d-gray"
-                                style={{ minHeight: '30px', padding: '0 8px', fontSize: '11px', borderRadius: '8px' }}
-                                title="Arkadaşına tebrik ve alkış gönder"
-                                onClick={() => {
-                                  playPop();
-                                  setCheerModalMember(member);
-                                }}
-                              >
-                                👏 Tebrik Et
-                              </button>
+                              isMemberCompletedToday ? (
+                                <button
+                                  type="button"
+                                  className="btn-3d btn-3d-gray"
+                                  style={{ minHeight: '30px', padding: '0 8px', fontSize: '11px', borderRadius: '8px' }}
+                                  title="Arkadaşına tebrik ve alkış gönder"
+                                  onClick={() => {
+                                    playPop();
+                                    setCheerModalMember(member);
+                                  }}
+                                >
+                                  👏 Tebrik Et
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="btn-3d btn-3d-orange"
+                                  style={{ minHeight: '30px', padding: '0 8px', fontSize: '11px', borderRadius: '8px', fontWeight: 800 }}
+                                  title="Arkadaşını hedefini tamamlaması için dürt!"
+                                  onClick={() => {
+                                    playPop();
+                                    setNudgeModalMember(member);
+                                  }}
+                                >
+                                  Dürt 👉
+                                </button>
+                              )
                             ) : (
                               <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 600 }}>Sen</span>
                             )}
@@ -792,6 +941,84 @@ export default function GroupsView({
               className="button button-quiet"
               style={{ width: '100%', minHeight: '40px' }}
               onClick={() => setCheerModalMember(null)}
+            >
+              Vazgeç
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Friend Nudge Sheet Modal */}
+      {nudgeModalMember && (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="nudge-modal-title"
+          onClick={() => setNudgeModalMember(null)}
+        >
+          <div
+            className="dialog-sheet card-chunky"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '420px', margin: 'auto', textAlign: 'center' }}
+          >
+            <div className="sheet-handle" aria-hidden="true"></div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '-8px' }}>
+              <button
+                type="button"
+                className="modal-close-btn"
+                aria-label="Kapat"
+                onClick={() => {
+                  playPop();
+                  setNudgeModalMember(null);
+                }}
+              >
+                <X size={24} strokeWidth={2.5} />
+              </button>
+            </div>
+
+            <div style={{ fontSize: '40px', marginBottom: '8px' }}>👉</div>
+            <h2 id="nudge-modal-title" style={{ margin: '0 0 6px', fontSize: '18px', color: 'var(--ink)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
+              {nudgeModalMember.display_name} İçin Hatırlatma Dürtmesi
+            </h2>
+            <p style={{ fontSize: '13px', color: 'var(--muted)', margin: '0 0 18px', lineHeight: 1.4 }}>
+              Arkadaşının serisi yanmasın! Eğlenceli ve cesaretlendirici bir dürtme mesajı seç (+5 XP):
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '18px' }}>
+              {NUDGE_PRESETS.map((preset, idx) => (
+                <motion.button
+                  key={idx}
+                  type="button"
+                  whileTap={{ scale: 0.96, y: 2 }}
+                  className="btn-3d btn-3d-orange"
+                  style={{
+                    padding: '12px 14px',
+                    fontSize: '13px',
+                    borderRadius: '14px',
+                    textAlign: 'left',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    width: '100%',
+                  }}
+                  onClick={() => handleSendNudge(nudgeModalMember, preset.emoji, preset.text)}
+                >
+                  <span style={{ fontSize: '20px' }}>{preset.emoji}</span>
+                  <span style={{ flex: 1, fontWeight: 700 }}>{preset.text}</span>
+                </motion.button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              className="button button-quiet"
+              style={{ width: '100%', minHeight: '40px' }}
+              onClick={() => {
+                playPop();
+                setNudgeModalMember(null);
+              }}
             >
               Vazgeç
             </button>

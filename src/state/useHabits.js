@@ -13,7 +13,14 @@ export function useHabits() {
   const [selectedDate, setSelectedDate] = useState(todayString());
   const [habits, setHabits] = useState([]);
   const [checkins, setCheckins] = useState([]);
-  const [groups, setGroups] = useState([]);
+  const [groups, setGroups] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pace_groups_cache');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [user, setUser] = useState(null);
   const [weekStart, setWeekStart] = useState(() => {
     try {
@@ -47,6 +54,9 @@ export function useHabits() {
       const groupsData = await api.request('groups').catch(() => null);
       if (groupsData && groupsData.groups) {
         setGroups(groupsData.groups);
+        try {
+          localStorage.setItem('pace_groups_cache', JSON.stringify(groupsData.groups));
+        } catch {}
       }
       setSyncState('Kaydedildi');
     } catch (err) {

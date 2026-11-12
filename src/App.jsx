@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useHabits } from './state/useHabits.js';
 import { useGamification } from './state/useGamification.js';
 import * as api from './lib/api.js';
+import { checkAndTriggerDailyReminder, updateAppBadge } from './lib/notifications.js';
 import Sidebar from './components/Navigation/Sidebar.jsx';
 import TopBar from './components/Navigation/TopBar.jsx';
 import MobileNav from './components/Navigation/MobileNav.jsx';
@@ -63,6 +64,29 @@ export default function App() {
       }
     } catch (e) {}
   }, []);
+
+  // Sync PWA App Badging and evaluate daily reminder
+  useEffect(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const uncompletedCount = todayHabits.filter((h) => {
+      return !checkins.some(
+        (c) => !c.deleted && c.habit_id === h.id && c.habit_date === todayStr && Number(c.value) > 0
+      );
+    }).length;
+
+    // Update app icon badge with uncompleted count
+    updateAppBadge(uncompletedCount);
+
+    // Initial check for daily reminder
+    checkAndTriggerDailyReminder(todayHabits, checkins);
+
+    // Periodic reminder check every 60 seconds
+    const interval = setInterval(() => {
+      checkAndTriggerDailyReminder(todayHabits, checkins);
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [todayHabits, checkins]);
 
   const handleSignOut = async () => {
     try {
