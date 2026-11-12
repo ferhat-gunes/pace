@@ -1,5 +1,6 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useHabits } from './state/useHabits.js';
+import { useGamification } from './state/useGamification.js';
 import * as api from './lib/api.js';
 import Sidebar from './components/Navigation/Sidebar.jsx';
 import TopBar from './components/Navigation/TopBar.jsx';
@@ -48,6 +49,8 @@ export default function App() {
     loadData,
   } = useHabits();
 
+  const gamification = useGamification(checkins, habits);
+
   // Check URL query parameters for deep linking (e.g. ?join= or ?invite=)
   useEffect(() => {
     try {
@@ -89,6 +92,10 @@ export default function App() {
           user={user}
           onOpenAuth={() => setAuthModalOpen(true)}
           syncState={syncState}
+          streak={gamification.streak}
+          gems={gamification.gems}
+          level={gamification.level}
+          xp={gamification.xp}
         />
 
         <main id="main-content" className="content-wrap" tabIndex={-1}>
@@ -113,6 +120,12 @@ export default function App() {
                   setFilterMode={setFilterMode}
                   onOpenAddModal={() => setHabitModalOpen(true)}
                   weekStart={weekStart}
+                  questTarget={gamification.questTarget}
+                  todayCompletedCount={gamification.todayCompletedCount}
+                  isQuestCompleted={gamification.isQuestCompleted}
+                  isQuestClaimed={gamification.isQuestClaimed}
+                  claimDailyChest={gamification.claimDailyChest}
+                  addXp={gamification.addXp}
                 />
               )}
 
@@ -129,7 +142,11 @@ export default function App() {
 
               <Suspense fallback={<div style={{ padding: '40px', textAlign: 'center', color: 'var(--muted)' }}>Yükleniyor…</div>}>
                 {currentView === 'progress' && (
-                  <ProgressView habits={habits} checkins={checkins} />
+                  <ProgressView
+                    habits={habits}
+                    checkins={checkins}
+                    gamification={gamification}
+                  />
                 )}
 
                 {currentView === 'groups' && (
@@ -171,6 +188,38 @@ export default function App() {
           />
         )}
       </Suspense>
+
+      {gamification.levelCelebrationPending && (
+        <div
+          className="modal-overlay"
+          style={{ zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
+          onClick={gamification.clearLevelCelebration}
+        >
+          <div
+            className="dialog-sheet card-chunky"
+            style={{ maxWidth: '380px', width: '100%', textAlign: 'center', padding: '32px 24px', background: 'var(--surface)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ fontSize: '48px', marginBottom: '8px', animation: 'flamePulse 1.2s infinite ease-in-out' }}>
+              ⚡
+            </div>
+            <h2 style={{ fontSize: '24px', fontFamily: 'var(--font-heading)', fontWeight: 800, color: 'var(--forest)', margin: '0 0 8px' }}>
+              Tebrikler! Seviye {gamification.levelCelebrationPending}!
+            </h2>
+            <p style={{ color: 'var(--muted)', fontSize: '15px', marginBottom: '24px' }}>
+              Düzenli adımların sayesinde yeni bir ligin kapısını araladın! +15 💎 Elmas kazandın.
+            </p>
+            <button
+              type="button"
+              className="btn-3d btn-3d-green"
+              style={{ width: '100%', padding: '16px', fontSize: '16px' }}
+              onClick={gamification.clearLevelCelebration}
+            >
+              Devam Et 🚀
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,5 +1,8 @@
 import React from 'react';
 import { CalendarDays, ListChecks, ChartNoAxesColumnIncreasing, Users, Settings } from 'lucide-react';
+import { motion } from 'motion/react';
+import { playPop } from '../../lib/soundFx';
+import { triggerHaptic } from '../../lib/celebration';
 
 export default function MobileNav({ currentView = 'today', setView }) {
   const items = [
@@ -16,17 +19,28 @@ export default function MobileNav({ currentView = 'today', setView }) {
         const Icon = item.icon;
         const isActive = currentView === item.id;
         return (
-          <button
+          <motion.button
             key={item.id}
             type="button"
             className={`nav-item ${isActive ? 'is-active' : ''}`}
             data-view={item.id}
             aria-current={isActive ? 'page' : undefined}
-            onClick={() => setView?.(item.id)}
+            whileTap={{ scale: 0.88 }}
+            onClick={() => {
+              playPop();
+              triggerHaptic('light');
+              setView?.(item.id);
+            }}
           >
-            <span className="nav-icon"><Icon aria-hidden="true" /></span>
+            <motion.span
+              className="nav-icon"
+              animate={isActive ? { scale: [1, 1.25, 1], rotate: [0, -6, 6, 0] } : { scale: 1 }}
+              transition={{ duration: 0.28, ease: 'easeOut' }}
+            >
+              <Icon aria-hidden="true" />
+            </motion.span>
             <span>{item.label}</span>
-          </button>
+          </motion.button>
         );
       })}
     </nav>

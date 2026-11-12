@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { Download, Upload, LogOut, Trash2, Calendar, Globe, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Download, Upload, LogOut, Trash2, Calendar, Globe, CheckCircle2, AlertTriangle, Volume2, VolumeX } from 'lucide-react';
+import { motion } from 'motion/react';
+import { isSoundEnabled, toggleSound, playPop } from '../lib/soundFx';
 import * as api from '../lib/api';
 
 export default function SettingsView({
@@ -14,6 +16,7 @@ export default function SettingsView({
   const [msg, setMsg] = useState('');
   const [isError, setIsError] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [soundActive, setSoundActive] = useState(() => isSoundEnabled());
   const [themePreference, setThemePreference] = useState(() => {
     try {
       return localStorage.getItem('pace_theme') || 'system';
@@ -22,7 +25,14 @@ export default function SettingsView({
     }
   });
 
+  const handleSoundToggle = () => {
+    const nextState = toggleSound();
+    setSoundActive(nextState);
+    showNotification(nextState ? 'Ses efektleri açıldı.' : 'Ses efektleri kapatıldı.');
+  };
+
   const handleThemeChange = (newTheme) => {
+    playPop();
     setThemePreference(newTheme);
     try {
       if (newTheme === 'dark') {
@@ -50,6 +60,7 @@ export default function SettingsView({
   };
 
   const handleExport = () => {
+    playPop();
     const data = {
       exported_at: new Date().toISOString(),
       user,
@@ -68,6 +79,7 @@ export default function SettingsView({
   };
 
   const handleImportFile = (e) => {
+    playPop();
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -107,38 +119,40 @@ export default function SettingsView({
     <section className="page-view" id="view-settings" aria-labelledby="settings-title">
       <div className="page-heading">
         <div>
-          <h1 id="settings-title">Ayarlar</h1>
-          <p className="section-subtitle">Hesap, tercihler ve veri güvenliği</p>
+          <h1 id="settings-title" style={{ fontFamily: 'var(--font-heading)', fontWeight: 800 }}>Ayarlar</h1>
+          <p className="section-subtitle">Hesap, sesler, tercihler ve veri güvenliği</p>
         </div>
       </div>
 
       {msg && (
-        <div
+        <motion.div
+          initial={{ y: -8, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
           role="status"
           aria-live="polite"
+          className="card-chunky"
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
             background: isError ? 'var(--red-soft)' : 'var(--forest-soft)',
-            border: `1px solid ${isError ? 'var(--red)' : 'var(--forest-border)'}`,
-            borderRadius: '12px',
-            padding: '12px 16px',
+            borderColor: isError ? 'var(--red)' : 'var(--forest-border)',
+            borderBottomColor: isError ? 'var(--red)' : 'var(--forest)',
             marginBottom: '20px',
             color: isError ? 'var(--red)' : 'var(--forest-dark)',
-            fontWeight: 600,
+            fontWeight: 700,
             fontSize: '14px',
           }}
         >
           {isError ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}
           <span>{msg}</span>
-        </div>
+        </motion.div>
       )}
 
-      <div className="settings-layout">
-        <section className="settings-section">
-          <h2>Hesap Bilgileri</h2>
-          <div className="settings-row">
+      <div className="settings-layout" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <section className="settings-section card-chunky">
+          <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, margin: '0 0 16px', fontSize: '18px' }}>Hesap Bilgileri</h2>
+          <div className="settings-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <strong id="account-email" style={{ fontSize: '15px' }}>
                 {user?.email || 'Örnek Kullanıcı (Çevrimdışı)'}
@@ -147,20 +161,45 @@ export default function SettingsView({
                 {user?.email && user.email !== 'demo@pace.app' ? 'Giriş yapıldı' : 'Verileriniz bu cihazda saklanıyor'}
               </p>
             </div>
-            <button
+            <motion.button
               type="button"
-              className="button button-quiet"
-              style={{ minHeight: '40px' }}
-              onClick={onSignOut}
+              whileTap={{ scale: 0.95, y: 2 }}
+              className="btn-3d btn-3d-gray"
+              style={{ minHeight: '40px', padding: '0 16px', borderRadius: '12px', fontSize: '13px' }}
+              onClick={() => {
+                playPop();
+                onSignOut();
+              }}
             >
-              <LogOut size={16} style={{ marginRight: '6px' }} />
+              <LogOut size={15} style={{ marginRight: '6px' }} />
               Çıkış yap
-            </button>
+            </motion.button>
           </div>
         </section>
 
-        <section className="settings-section">
-          <h2>Tercihler</h2>
+        <section className="settings-section card-chunky">
+          <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, margin: '0 0 16px', fontSize: '18px' }}>Tercihler & Deneyim</h2>
+
+          <div className="settings-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+            <div>
+              <strong style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {soundActive ? <Volume2 size={18} /> : <VolumeX size={18} />}
+                Dokunsal Oyun Sesleri
+              </strong>
+              <p style={{ margin: '2px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
+                Tamamlama, sandık açma ve buton dokunma sesleri.
+              </p>
+            </div>
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.94, y: 2 }}
+              className={`btn-3d ${soundActive ? 'btn-3d-green' : 'btn-3d-gray'}`}
+              style={{ minHeight: '40px', padding: '0 16px', borderRadius: '12px', fontSize: '13px' }}
+              onClick={handleSoundToggle}
+            >
+              {soundActive ? 'Açık 🔊' : 'Kapalı 🔇'}
+            </motion.button>
+          </div>
           <label className="settings-row" htmlFor="week-start-select">
             <div>
               <strong>Haftanın ilk günü</strong>
@@ -227,8 +266,8 @@ export default function SettingsView({
           </div>
         </section>
 
-        <section className="settings-section">
-          <h2>Verilerin ve Yedekleme</h2>
+        <section className="settings-section card-chunky">
+          <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, margin: '0 0 16px', fontSize: '18px' }}>Verilerin ve Yedekleme</h2>
           <div className="settings-row">
             <div>
               <strong>Yedekleme & Geri Yükleme</strong>
@@ -237,23 +276,24 @@ export default function SettingsView({
               </p>
             </div>
             <div className="heading-actions" style={{ display: 'flex', gap: '8px' }}>
-              <button
+              <motion.button
                 type="button"
-                className="button button-quiet"
-                style={{ minHeight: '44px', padding: '0 16px' }}
+                whileTap={{ scale: 0.95, y: 2 }}
+                className="btn-3d btn-3d-gray"
+                style={{ minHeight: '44px', padding: '0 16px', borderRadius: '12px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                 onClick={handleExport}
                 aria-label="Yedeği JSON olarak dışa aktar"
               >
-                <Download size={16} style={{ marginRight: '6px' }} />
+                <Download size={16} />
                 Dışa aktar
-              </button>
+              </motion.button>
               <label
                 htmlFor="backup-upload-input"
-                className="button button-quiet"
-                style={{ cursor: 'pointer', minHeight: '44px', padding: '0 16px', display: 'inline-flex', alignItems: 'center' }}
+                className="btn-3d btn-3d-gray"
+                style={{ cursor: 'pointer', minHeight: '44px', padding: '0 16px', borderRadius: '12px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                 aria-label="JSON yedeğini yükle"
               >
-                <Upload size={16} style={{ marginRight: '6px' }} />
+                <Upload size={16} />
                 <span>Yedeği yükle</span>
                 <input
                   id="backup-upload-input"
@@ -266,7 +306,7 @@ export default function SettingsView({
             </div>
           </div>
 
-          <div className="settings-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', padding: '16px 0' }}>
+          <div className="settings-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', padding: '16px 0', borderTop: '1px solid var(--border)' }}>
             <div>
               <strong style={{ color: 'var(--red)' }}>Hesabı ve Verileri Sil</strong>
               <p style={{ margin: '2px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
@@ -277,16 +317,16 @@ export default function SettingsView({
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <button
                   type="button"
-                  className="button button-quiet"
-                  style={{ minHeight: '44px', padding: '0 14px' }}
+                  className="btn-3d btn-3d-gray"
+                  style={{ minHeight: '40px', padding: '0 14px', borderRadius: '12px', fontSize: '13px' }}
                   onClick={() => setConfirmDelete(false)}
                 >
                   Vazgeç
                 </button>
                 <button
                   type="button"
-                  className="button button-danger"
-                  style={{ minHeight: '44px', padding: '0 16px' }}
+                  className="btn-3d btn-3d-danger"
+                  style={{ minHeight: '40px', padding: '0 16px', borderRadius: '12px', fontSize: '13px' }}
                   onClick={handleDeleteAccount}
                 >
                   Evet, Kalıcı Olarak Sil
@@ -295,8 +335,8 @@ export default function SettingsView({
             ) : (
               <button
                 type="button"
-                className="button button-danger-quiet"
-                style={{ minHeight: '44px', padding: '0 16px' }}
+                className="btn-3d btn-3d-danger"
+                style={{ minHeight: '40px', padding: '0 16px', borderRadius: '12px', fontSize: '13px' }}
                 onClick={() => setConfirmDelete(true)}
               >
                 Hesabı Sil

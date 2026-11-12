@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
+import { playPop, playSuccess } from '../lib/soundFx';
+import { triggerHaptic } from '../lib/celebration';
 
 const PRESETS = [
   { name: 'Kitap oku', tracking: 'quantity', target: 20, unit: 'sayfa' },
@@ -30,6 +33,9 @@ export default function HabitModal({ isOpen, onClose, onAddHabit }) {
     e.preventDefault();
     if (!name.trim()) return;
 
+    playSuccess();
+    triggerHaptic('success');
+
     onAddHabit?.({
       name: name.trim().slice(0, 60),
       tracking,
@@ -46,6 +52,8 @@ export default function HabitModal({ isOpen, onClose, onAddHabit }) {
   };
 
   const applyPreset = (preset) => {
+    playPop();
+    triggerHaptic('light');
     setName(preset.name);
     setTracking(preset.tracking);
     setTarget(preset.target);
@@ -58,23 +66,32 @@ export default function HabitModal({ isOpen, onClose, onAddHabit }) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="habit-modal-title"
-      onClick={onClose}
+      onClick={() => {
+        playPop();
+        onClose?.();
+      }}
     >
-      <div
-        className="dialog-sheet habit-dialog"
+      <motion.div
+        initial={{ y: 50, opacity: 0, scale: 0.96 }}
+        animate={{ y: 0, opacity: 1, scale: 1 }}
+        transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+        className="dialog-sheet habit-dialog card-chunky"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sheet-handle" aria-hidden="true"></div>
 
         <div className="dialog-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 0 16px', borderBottom: '1px solid var(--border)' }}>
-          <h2 id="habit-modal-title" style={{ margin: 0, fontSize: '20px', color: 'var(--forest)' }}>
-            Yeni Alışkanlık Ekle
+          <h2 id="habit-modal-title" style={{ margin: 0, fontSize: '20px', color: 'var(--forest)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
+            ✨ Yeni Alışkanlık Ekle
           </h2>
           <button
             type="button"
             className="button-icon icon-button"
             aria-label="Kapat"
-            onClick={onClose}
+            onClick={() => {
+              playPop();
+              onClose?.();
+            }}
           >
             ✕
           </button>
@@ -82,20 +99,21 @@ export default function HabitModal({ isOpen, onClose, onAddHabit }) {
 
         {/* Quick starter presets */}
         <div style={{ marginTop: '16px', marginBottom: '8px' }}>
-          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '8px' }}>
+          <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted)', display: 'block', marginBottom: '8px' }}>
             Hızlı Şablonlar
           </span>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             {PRESETS.map((p) => (
-              <button
+              <motion.button
                 key={p.name}
                 type="button"
-                className="button button-quiet"
-                style={{ minHeight: '34px', padding: '0 12px', fontSize: '12px', borderRadius: '8px' }}
+                whileTap={{ scale: 0.94, y: 2 }}
+                className="btn-3d btn-3d-gray"
+                style={{ minHeight: '38px', padding: '0 14px', fontSize: '13px', borderRadius: '12px' }}
                 onClick={() => applyPreset(p)}
               >
                 + {p.name}
-              </button>
+              </motion.button>
             ))}
           </div>
         </div>
@@ -124,7 +142,11 @@ export default function HabitModal({ isOpen, onClose, onAddHabit }) {
                 aria-checked={tracking === 'check'}
                 className={`segmented-item ${tracking === 'check' ? 'is-selected' : ''}`}
                 style={{ flex: 1, minHeight: '44px' }}
-                onClick={() => setTracking('check')}
+                onClick={() => {
+                  playPop();
+                  triggerHaptic('light');
+                  setTracking('check');
+                }}
               >
                 Tek Seferlik (Evet/Hayır)
               </button>
@@ -134,7 +156,11 @@ export default function HabitModal({ isOpen, onClose, onAddHabit }) {
                 aria-checked={tracking === 'quantity'}
                 className={`segmented-item ${tracking === 'quantity' ? 'is-selected' : ''}`}
                 style={{ flex: 1, minHeight: '44px' }}
-                onClick={() => setTracking('quantity')}
+                onClick={() => {
+                  playPop();
+                  triggerHaptic('light');
+                  setTracking('quantity');
+                }}
               >
                 Miktar / Süre
               </button>
@@ -176,25 +202,30 @@ export default function HabitModal({ isOpen, onClose, onAddHabit }) {
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '24px' }}>
-            <button
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '24px' }}>
+            <motion.button
               type="button"
-              className="button button-quiet"
-              style={{ minHeight: '48px', padding: '0 20px' }}
-              onClick={onClose}
+              whileTap={{ scale: 0.95, y: 2 }}
+              className="btn-3d btn-3d-gray"
+              style={{ minHeight: '48px', padding: '0 20px', borderRadius: '16px' }}
+              onClick={() => {
+                playPop();
+                onClose?.();
+              }}
             >
               İptal
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               type="submit"
-              className="button button-primary"
-              style={{ minHeight: '48px', padding: '0 24px' }}
+              whileTap={{ scale: 0.95, y: 3 }}
+              className="btn-3d btn-3d-green"
+              style={{ minHeight: '48px', padding: '0 24px', borderRadius: '16px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
             >
-              Alışkanlığı Kaydet
-            </button>
+              Alışkanlığı Kaydet 🚀
+            </motion.button>
           </div>
         </form>
-      </div>
+      </motion.div>
     </div>
   );
 }

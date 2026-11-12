@@ -3178,3 +3178,292 @@ html[data-theme="dark"] .segmented-item.is-selected,
   border-color: var(--forest-border);
 }
 
+/* =========================================================
+   DUOLINGO-STYLE GAMIFIED 3D DESIGN SYSTEM & CLAYMORPHISM
+   ========================================================= */
+
+/* 1. 3D Chunky Pressable Buttons */
+.btn-3d {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  border-radius: 18px;
+  border: none;
+  cursor: pointer;
+  user-select: none;
+  text-decoration: none;
+  transition: transform 0.08s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.08s cubic-bezier(0.4, 0, 0.2, 1), filter 0.12s ease;
+  will-change: transform, box-shadow;
+  outline: none;
+}
+.btn-3d:active {
+  transform: translateY(4px) !important;
+}
+
+/* 3D Green (Primary Success / Duolingo Green) */
+.btn-3d-green {
+  background: #58CC02;
+  color: #FFFFFF !important;
+  box-shadow: 0 5px 0 #46A302, 0 8px 16px rgba(88, 204, 2, 0.25);
+}
+.btn-3d-green:hover {
+  filter: brightness(1.04);
+}
+.btn-3d-green:active {
+  box-shadow: 0 1px 0 #46A302, 0 2px 4px rgba(88, 204, 2, 0.2);
+}
+
+/* 3D Orange (Streak / Fire / Boost) */
+.btn-3d-orange {
+  background: #FF9600;
+  color: #FFFFFF !important;
+  box-shadow: 0 5px 0 #D47A00, 0 8px 16px rgba(255, 150, 0, 0.25);
+}
+.btn-3d-orange:hover {
+  filter: brightness(1.04);
+}
+.btn-3d-orange:active {
+  box-shadow: 0 1px 0 #D47A00, 0 2px 4px rgba(255, 150, 0, 0.2);
+}
+
+/* 3D Blue (Quantity / Info / Action) */
+.btn-3d-blue {
+  background: #1CB0F6;
+  color: #FFFFFF !important;
+  box-shadow: 0 5px 0 #1899D6, 0 8px 16px rgba(28, 176, 246, 0.25);
+}
+.btn-3d-blue:hover {
+  filter: brightness(1.04);
+}
+.btn-3d-blue:active {
+  box-shadow: 0 1px 0 #1899D6, 0 2px 4px rgba(28, 176, 246, 0.2);
+}
+
+/* 3D Purple (Epic / Gems / Special) */
+.btn-3d-purple {
+  background: #CE82FF;
+  color: #FFFFFF !important;
+  box-shadow: 0 5px 0 #A85CE5, 0 8px 16px rgba(206, 130, 255, 0.25);
+}
+.btn-3d-purple:hover {
+  filter: brightness(1.04);
+}
+.btn-3d-purple:active {
+  box-shadow: 0 1px 0 #A85CE5, 0 2px 4px rgba(206, 130, 255, 0.2);
+}
+
+/* 3D Gray (Neutral / Secondary / Stepper) */
+.btn-3d-gray {
+  background: var(--surface);
+  color: var(--ink) !important;
+  border: 2px solid var(--border);
+  box-shadow: 0 4px 0 var(--border), 0 6px 12px rgba(0, 0, 0, 0.03);
+}
+.btn-3d-gray:hover {
+  background: var(--surface-alt);
+}
+.btn-3d-gray:active {
+  box-shadow: 0 0 0 var(--border);
+}
+
+/* 3D Danger (Red / Remove) */
+.btn-3d-danger {
+  background: #FF4B4B;
+  color: #FFFFFF !important;
+  box-shadow: 0 5px 0 #EA2B2B, 0 8px 16px rgba(255, 75, 75, 0.25);
+}
+.btn-3d-danger:active {
+  box-shadow: 0 1px 0 #EA2B2B;
+}
+
+/* 2. Chunky Cards (Rounded-3xl with 3D bottom depth) */
+.card-chunky {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-bottom: 5px solid var(--border);
+  border-radius: 24px;
+  padding: 16px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.03);
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.card-chunky:hover {
+  border-color: var(--border-strong);
+}
+.card-chunky.is-complete {
+  border-color: #A5E474;
+  border-bottom-color: #58CC02;
+  background: linear-gradient(180deg, var(--surface) 0%, rgba(88, 204, 2, 0.06) 100%);
+}
+
+/* 3. Gamification Badges in Header */
+.gamify-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 13px;
+  user-select: none;
+  cursor: default;
+  transition: transform 0.12s ease;
+}
+.gamify-badge:active {
+  transform: scale(0.95);
+}
+
+/* Streak Flame Badge */
+.flame-badge {
+  background: #FFF4E5;
+  border: 2px solid #FFD099;
+  color: #D47A00;
+  box-shadow: 0 2px 0 #FFD099;
+}
+.flame-icon-pulse {
+  animation: flamePulse 1.6s infinite ease-in-out;
+  display: inline-block;
+  transform-origin: bottom center;
+}
+@keyframes flamePulse {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  30% { transform: scale(1.22) rotate(-5deg); }
+  60% { transform: scale(1.15) rotate(4deg); }
+}
+
+/* Gems Badge */
+.gem-badge {
+  background: #EBF8FF;
+  border: 2px solid #BAE3FF;
+  color: #1899D6;
+  box-shadow: 0 2px 0 #BAE3FF;
+}
+
+/* XP Level Badge */
+.xp-badge {
+  background: #FFFCE5;
+  border: 2px solid #FFE885;
+  color: #8C6A00;
+  box-shadow: 0 2px 0 #FFE885;
+}
+
+/* Sound Toggle Button */
+.sound-toggle-btn {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  box-shadow: 0 3px 0 var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--ink);
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+.sound-toggle-btn:active {
+  transform: translateY(3px);
+  box-shadow: 0 0 0 var(--border);
+}
+
+/* 4. Daily Quest Banner (Duolingo Style Gift Box) */
+.daily-quest-banner {
+  background: linear-gradient(135deg, #FFF9E6 0%, #FFF1CC 100%);
+  border: 2.5px solid #FFD875;
+  border-bottom: 6px solid #E5B840;
+  border-radius: 26px;
+  padding: 16px 18px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  box-shadow: 0 6px 20px rgba(229, 184, 64, 0.18);
+  position: relative;
+  overflow: hidden;
+}
+.quest-title {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 15px;
+  color: #7A5700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.quest-progress-wrap {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.quest-bar {
+  flex: 1;
+  height: 10px;
+  background: rgba(229, 184, 64, 0.35);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.quest-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #FF9600 0%, #FFC800 100%);
+  border-radius: 999px;
+  transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.quest-count-text {
+  font-size: 12px;
+  font-weight: 800;
+  color: #8C6A00;
+  white-space: nowrap;
+}
+.quest-chest-btn {
+  flex-shrink: 0;
+  animation: chestBounce 2s infinite ease-in-out;
+}
+@keyframes chestBounce {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-4px) rotate(4deg); }
+}
+
+/* Dark Theme Duolingo Adaptations */
+html[data-theme="dark"] .flame-badge,
+[data-theme="dark"] .flame-badge {
+  background: #3B2411;
+  border-color: #733F11;
+  color: #FFB366;
+  box-shadow: 0 2px 0 #733F11;
+}
+html[data-theme="dark"] .gem-badge,
+[data-theme="dark"] .gem-badge {
+  background: #112836;
+  border-color: #174E6F;
+  color: #66C7FF;
+  box-shadow: 0 2px 0 #174E6F;
+}
+html[data-theme="dark"] .xp-badge,
+[data-theme="dark"] .xp-badge {
+  background: #332B10;
+  border-color: #6E5C18;
+  color: #FFE680;
+  box-shadow: 0 2px 0 #6E5C18;
+}
+html[data-theme="dark"] .daily-quest-banner,
+[data-theme="dark"] .daily-quest-banner {
+  background: linear-gradient(135deg, #2D2713 0%, #241F0C 100%);
+  border-color: #6E5C18;
+  border-bottom-color: #4D3F0A;
+}
+html[data-theme="dark"] .quest-title {
+  color: #FFE680;
+}
+html[data-theme="dark"] .quest-count-text {
+  color: #E6CE73;
+}
+
+

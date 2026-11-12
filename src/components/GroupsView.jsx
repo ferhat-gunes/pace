@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Users, UserPlus, Link2, Copy, Check, LogOut, Trash2 } from 'lucide-react';
+import { motion } from 'motion/react';
+import { playPop, playSuccess } from '../lib/soundFx';
 import * as api from '../lib/api';
 
 const WEEKDAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
@@ -162,21 +164,25 @@ export default function GroupsView({
     <section className="page-view" id="view-groups" aria-labelledby="groups-title">
       <div className="page-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h1 id="groups-title" style={{ margin: 0, fontSize: 'clamp(22px, 4vw, 28px)', color: 'var(--forest)' }}>
+          <h1 id="groups-title" style={{ margin: 0, fontSize: 'clamp(22px, 4vw, 28px)', color: 'var(--forest)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
             Ortak Takip & Gruplar
           </h1>
           <p className="section-subtitle" style={{ color: 'var(--muted)', fontSize: '13px', margin: '4px 0 0' }}>
             Arkadaşlarınla birbirini teşvik et, ortak ritmini yakala.
           </p>
         </div>
-        <button
+        <motion.button
           type="button"
-          className="button button-primary"
-          style={{ minHeight: '44px', padding: '0 20px', fontSize: '14px' }}
-          onClick={() => setShowCreateModal(true)}
+          whileTap={{ scale: 0.95, y: 2 }}
+          className="btn-3d btn-3d-green"
+          style={{ minHeight: '44px', padding: '0 20px', fontSize: '14px', borderRadius: '14px' }}
+          onClick={() => {
+            playPop();
+            setShowCreateModal(true);
+          }}
         >
           Grup Kur +
-        </button>
+        </motion.button>
       </div>
 
       {/* Group Navigation Tabs */}
@@ -192,7 +198,10 @@ export default function GroupsView({
                 aria-selected={isSelected}
                 className={`segmented-item ${isSelected ? 'is-selected' : ''}`}
                 style={{ flex: 1, minWidth: '120px', minHeight: '42px', fontSize: '14px' }}
-                onClick={() => setSelectedGroupId(g.id)}
+                onClick={() => {
+                  playPop();
+                  setSelectedGroupId(g.id);
+                }}
               >
                 {g.name}
               </button>
@@ -203,32 +212,36 @@ export default function GroupsView({
 
       {/* Empty State */}
       {groups.length === 0 ? (
-        <div className="empty-state panel-card" style={{ padding: '48px 24px', textAlign: 'center' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: 'var(--forest-soft)', color: 'var(--forest)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-            <Users size={24} />
+        <div className="empty-state card-chunky" style={{ padding: '48px 24px', textAlign: 'center' }}>
+          <div style={{ width: '54px', height: '54px', borderRadius: '18px', background: 'var(--forest-soft)', color: 'var(--forest)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <Users size={26} />
           </div>
-          <h2 style={{ fontSize: '18px', color: 'var(--forest)', marginBottom: '8px', fontFamily: 'var(--font-heading)' }}>
+          <h2 style={{ fontSize: '20px', color: 'var(--forest)', marginBottom: '8px', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
             Henüz bir gruba üye değilsin
           </h2>
-          <p style={{ color: 'var(--muted)', fontSize: '14px', marginBottom: '20px', maxWidth: '380px', margin: '0 auto 20px' }}>
+          <p style={{ color: 'var(--muted)', fontSize: '14px', marginBottom: '24px', maxWidth: '380px', margin: '0 auto 24px' }}>
             Arkadaşlarınla birlikte ortak hedefler belirleyip birbirinizin ilerlemesini takip edin.
           </p>
-          <button
+          <motion.button
             type="button"
-            className="button button-primary"
-            style={{ minHeight: '48px', padding: '0 24px' }}
-            onClick={() => setShowCreateModal(true)}
+            whileTap={{ scale: 0.95, y: 2 }}
+            className="btn-3d btn-3d-green"
+            style={{ minHeight: '48px', padding: '0 24px', borderRadius: '16px' }}
+            onClick={() => {
+              playPop();
+              setShowCreateModal(true);
+            }}
           >
             İlk Grubunu Kur +
-          </button>
+          </motion.button>
         </div>
       ) : (
         <div className="group-content">
           {activeGroup && (
-            <div className="panel-card" style={{ marginBottom: '24px' }}>
+            <div className="card-chunky" style={{ marginBottom: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '20px' }}>
                 <div>
-                  <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--forest)' }}>
+                  <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--forest)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
                     {activeGroup.name}
                   </h2>
                   {activeGroup.description && (
@@ -242,15 +255,19 @@ export default function GroupsView({
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <button
+                  <motion.button
                     type="button"
-                    className="button button-quiet"
-                    style={{ minHeight: '44px', padding: '0 16px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                    onClick={handleOpenInviteModal}
+                    whileTap={{ scale: 0.95, y: 2 }}
+                    className="btn-3d btn-3d-gray"
+                    style={{ minHeight: '40px', padding: '0 16px', borderRadius: '12px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    onClick={() => {
+                      playPop();
+                      handleOpenInviteModal();
+                    }}
                   >
                     <UserPlus size={16} />
                     <span>Arkadaş Davet Et</span>
-                  </button>
+                  </motion.button>
 
                   <button
                     type="button"

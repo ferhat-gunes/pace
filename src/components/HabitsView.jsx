@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Archive, RotateCcw, AlertCircle } from 'lucide-react';
+import { motion } from 'motion/react';
+import { playPop, playSuccess } from '../lib/soundFx';
 import { formatTarget } from '../lib/rules';
 
 export default function HabitsView({
@@ -17,6 +19,7 @@ export default function HabitsView({
   const archivedHabits = habits.filter((h) => Boolean(h.archived_at));
 
   const handleArchiveConfirm = (id) => {
+    playPop();
     archiveHabit?.(id);
     setConfirmArchiveId(null);
   };
@@ -25,37 +28,43 @@ export default function HabitsView({
     <section className="page-view" id="view-habits" aria-labelledby="habits-title">
       <div className="page-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h1 id="habits-title" style={{ margin: 0, fontSize: 'clamp(22px, 4vw, 28px)', color: 'var(--forest)' }}>
+          <h1 id="habits-title" style={{ margin: 0, fontSize: 'clamp(22px, 4vw, 28px)', color: 'var(--forest)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
             Alışkanlıklar
           </h1>
           <p className="section-subtitle" style={{ color: 'var(--muted)', fontSize: '13px', margin: '4px 0 0' }}>
             {activeHabits.length} aktif rutin
           </p>
         </div>
-        <button
+        <motion.button
           type="button"
-          className="button button-primary add-habit-trigger"
+          whileTap={{ scale: 0.95, y: 2 }}
+          className="btn-3d btn-3d-green add-habit-trigger"
           aria-label="Yeni alışkanlık ekle"
-          style={{ minHeight: '44px', padding: '0 20px', fontSize: '14px' }}
-          onClick={onOpenAddModal}
+          style={{ minHeight: '44px', padding: '0 20px', fontSize: '14px', borderRadius: '14px' }}
+          onClick={() => {
+            playPop();
+            onOpenAddModal();
+          }}
         >
           Alışkanlık Ekle +
-        </button>
+        </motion.button>
       </div>
 
       {/* Undo Toast Notification */}
       {lastArchivedHabit && (
-        <div
+        <motion.div
+          initial={{ y: -10, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
           role="status"
           aria-live="polite"
+          className="card-chunky"
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             background: 'var(--forest-soft)',
-            border: '1px solid var(--forest-border)',
-            borderRadius: '12px',
-            padding: '12px 16px',
+            borderColor: 'var(--forest-border)',
+            borderBottomColor: 'var(--forest)',
             marginBottom: '16px',
             color: 'var(--forest-dark)',
           }}
@@ -68,76 +77,80 @@ export default function HabitsView({
             type="button"
             className="button button-quiet"
             style={{ fontWeight: 700, color: 'var(--forest-dark)', minHeight: '40px' }}
-            onClick={() => restoreHabit?.(lastArchivedHabit.id)}
+            onClick={() => {
+              playSuccess();
+              restoreHabit?.(lastArchivedHabit.id);
+            }}
           >
             <RotateCcw size={14} style={{ marginRight: '6px' }} />
             Geri Al
           </button>
-        </div>
+        </motion.div>
       )}
 
       {/* Active Habits List */}
       {activeHabits.length === 0 ? (
-        <div className="empty-state panel-card" style={{ padding: '48px 24px', textAlign: 'center' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: 'var(--forest-soft)', color: 'var(--forest)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+        <div className="empty-state card-chunky" style={{ padding: '48px 24px', textAlign: 'center' }}>
+          <div style={{ width: '54px', height: '54px', borderRadius: '18px', background: 'var(--forest-soft)', color: 'var(--forest)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: '26px' }}>
             📋
           </div>
-          <h2 style={{ fontSize: '18px', color: 'var(--forest)', marginBottom: '8px', fontFamily: 'var(--font-heading)' }}>
+          <h2 style={{ fontSize: '20px', color: 'var(--forest)', marginBottom: '8px', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
             Henüz aktif bir alışkanlık yok
           </h2>
-          <p style={{ color: 'var(--muted)', fontSize: '14px', marginBottom: '20px' }}>
+          <p style={{ color: 'var(--muted)', fontSize: '14px', marginBottom: '24px' }}>
             Kendine küçük ve sakin bir hedef belirleyerek başla.
           </p>
-          <button
+          <motion.button
             type="button"
-            className="button button-primary add-habit-trigger"
-            style={{ minHeight: '48px', padding: '0 24px' }}
-            onClick={onOpenAddModal}
+            whileTap={{ scale: 0.95, y: 2 }}
+            className="btn-3d btn-3d-green add-habit-trigger"
+            style={{ minHeight: '48px', padding: '0 24px', borderRadius: '16px' }}
+            onClick={() => {
+              playPop();
+              onOpenAddModal();
+            }}
           >
             İlk Alışkanlığını Ekle +
-          </button>
+          </motion.button>
         </div>
       ) : (
-        <div id="all-habits-list" className="habit-list" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div id="all-habits-list" className="habit-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {activeHabits.map((h) => (
-            <div
+            <motion.div
               key={h.id}
-              className="habit-row"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="habit-row card-chunky"
               style={{
                 minHeight: '64px',
-                background: 'var(--surface)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius)',
-                padding: '14px 16px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 gap: '12px',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
               }}
             >
               <div className="habit-main">
-                <strong className="habit-name" style={{ fontSize: '15px', color: 'var(--ink)' }}>{h.name}</strong>
-                <span className="habit-meta" style={{ color: 'var(--muted)', fontSize: '12px', display: 'block', marginTop: '2px' }}>
+                <strong className="habit-name" style={{ fontSize: '16px', color: 'var(--ink)', fontFamily: 'var(--font-heading)' }}>{h.name}</strong>
+                <span className="habit-meta" style={{ color: 'var(--muted)', fontSize: '12px', display: 'block', marginTop: '2px', fontWeight: 600 }}>
                   {formatTarget(h)}
                 </span>
               </div>
               <div className="habit-actions">
                 {confirmArchiveId === h.id ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '12px', color: 'var(--muted)' }}>Emin misin?</span>
+                    <span style={{ fontSize: '12px', color: 'var(--muted)', fontWeight: 600 }}>Emin misin?</span>
                     <button
                       type="button"
-                      className="button button-quiet"
-                      style={{ fontSize: '13px', padding: '0 12px', minHeight: '44px' }}
+                      className="btn-3d btn-3d-gray"
+                      style={{ fontSize: '12px', padding: '0 12px', minHeight: '38px', borderRadius: '10px' }}
                       onClick={() => setConfirmArchiveId(null)}
                     >
                       Vazgeç
                     </button>
                     <button
                       type="button"
-                      className="button button-danger-quiet"
-                      style={{ fontSize: '13px', padding: '0 14px', minHeight: '44px' }}
+                      className="btn-3d btn-3d-danger"
+                      style={{ fontSize: '12px', padding: '0 12px', minHeight: '38px', borderRadius: '10px' }}
                       onClick={() => handleArchiveConfirm(h.id)}
                     >
                       Evet, Arşivle
@@ -146,16 +159,19 @@ export default function HabitsView({
                 ) : (
                   <button
                     type="button"
-                    className="button button-quiet"
-                    style={{ fontSize: '13px', padding: '0 16px', minHeight: '44px' }}
+                    className="btn-3d btn-3d-gray"
+                    style={{ fontSize: '12px', padding: '0 14px', minHeight: '38px', borderRadius: '10px' }}
                     aria-label={`${h.name} alışkanlığını arşivle`}
-                    onClick={() => setConfirmArchiveId(h.id)}
+                    onClick={() => {
+                      playPop();
+                      setConfirmArchiveId(h.id);
+                    }}
                   >
                     Arşivle
                   </button>
                 )}
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
       )}

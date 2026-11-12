@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Plus, Check, Minus, ChevronLeft, ChevronRight, RotateCcw, Sparkles } from 'lucide-react';
+import { Plus, Check, Minus, ChevronLeft, ChevronRight, RotateCcw, Sparkles, Gift } from 'lucide-react';
+import { motion } from 'motion/react';
 import { formatTarget } from '../lib/rules';
 import { triggerHaptic, triggerConfetti } from '../lib/celebration';
+import { playPop, playSuccess, playStep } from '../lib/soundFx';
 
 const MONTH_NAMES = [
   'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
@@ -24,6 +26,13 @@ export default function TodayView({
   setFilterMode,
   onOpenAddModal,
   weekStart = 1,
+  // Gamification props
+  questTarget = 3,
+  todayCompletedCount = 0,
+  isQuestCompleted = false,
+  isQuestClaimed = false,
+  claimDailyChest,
+  addXp,
 }) {
   const [editingHabitId, setEditingHabitId] = useState(null);
   const [editValue, setEditValue] = useState('');
@@ -80,6 +89,7 @@ export default function TodayView({
   }, [selectedDate, todayIso, checkins, weekStart]);
 
   const changeWeek = (offsetDays) => {
+    playPop();
     const cur = new Date(selectedDate + 'T12:00:00');
     cur.setDate(cur.getDate() + offsetDays);
     const newIso = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
@@ -87,6 +97,7 @@ export default function TodayView({
   };
 
   const handleStartEdit = (habitId, currentVal) => {
+    playPop();
     setEditingHabitId(habitId);
     setEditValue(String(currentVal));
   };
@@ -95,6 +106,7 @@ export default function TodayView({
     const n = Math.max(0, Math.min(1000000, Number(editValue) || 0));
     logCheckin?.(habitId, n);
     setEditingHabitId(null);
+    playPop();
     setAnnouncement(`Miktar güncellendi: ${n}`);
   };
 
@@ -104,9 +116,19 @@ export default function TodayView({
     const target = Number(habit.target) || 1;
     const nextVal = Math.max(0, current + delta);
     logCheckin?.(habit.id, nextVal);
+
+    if (delta > 0) {
+      playStep(true);
+      addXp?.(3);
+    } else {
+      playStep(false);
+    }
+
     if (nextVal >= target && current < target) {
+      playSuccess();
       triggerHaptic('success');
       triggerConfetti(e?.clientX, e?.clientY);
+      addXp?.(15);
     } else {
       triggerHaptic('light');
     }
@@ -122,6 +144,61 @@ export default function TodayView({
         {announcement}
       </div>
 
+      {/* Duolingo Daily Quest Mystery Chest Banner */}
+      <motion.div
+        className="daily-quest-banner"
+        initial={{ opacity: 0, y: -12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="quest-title">
+            <span role="img" aria-label="Kupa">🏆</span>
+            <span>Günün Görevi</span>
+          </div>
+          <div style={{ fontSize: '13px', color: 'var(--ink)', fontWeight: 600, marginTop: '2px' }}>
+            {isQuestClaimed
+              ? 'Günün hediye sandığı açıldı! Tebrikler! ⭐'
+              : isQuestCompleted
+              ? 'Tüm hedefler tamamlandı! Sandığını açabilirsin! 🎉'
+              : `${questTarget} alışkanlığını tamamla, sandığı aç!`}
+          </div>
+
+          <div className="quest-progress-wrap">
+            <div className="quest-bar">
+              <div
+                className="quest-bar-fill"
+                style={{
+                  width: `${Math.min(100, Math.round((todayCompletedCount / questTarget) * 100))}%`,
+                }}
+              />
+            </div>
+            <span className="quest-count-text">
+              {todayCompletedCount}/{questTarget}
+            </span>
+          </div>
+        </div>
+
+        {/* Interactive Chest Button */}
+        <motion.button
+          type="button"
+          className={`btn-3d ${isQuestCompleted && !isQuestClaimed ? 'btn-3d-orange quest-chest-btn' : isQuestClaimed ? 'btn-3d-gray' : 'btn-3d-gray'}`}
+          style={{
+            padding: '10px 14px',
+            fontSize: '13px',
+            borderRadius: '16px',
+            opacity: isQuestCompleted && !isQuestClaimed ? 1 : isQuestClaimed ? 0.75 : 0.85,
+          }}
+          disabled={!isQuestCompleted || isQuestClaimed}
+          onClick={claimDailyChest}
+          whileTap={isQuestCompleted && !isQuestClaimed ? { scale: 0.9, y: 4 } : {}}
+          aria-label={isQuestCompleted && !isQuestClaimed ? 'Günün Sandığını Aç (+40 XP & +10 Elmas)' : 'Günün Görevi'}
+        >
+          <Gift size={20} />
+          <span>{isQuestClaimed ? 'Açıldı' : isQuestCompleted ? 'AÇ!' : 'Sandık'}</span>
+        </motion.button>
+      </motion.div>
+
       {/* Header with stacked mobile layout */}
       <div className="today-heading-wrap" style={{ marginBottom: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px' }}>
@@ -129,7 +206,7 @@ export default function TodayView({
             <h1 id="page-title" style={{ margin: 0, fontSize: 'clamp(20px, 4vw, 26px)', color: 'var(--forest)' }}>
               <span id="selected-date-label">{dateHeading}</span>
             </h1>
-            <span id="today-completion" className="completion-summary" aria-live="polite" style={{ fontSize: '13px', color: 'var(--muted)', fontWeight: 500, display: 'block', marginTop: '2px' }}>
+            <span id="today-completion" className="completion-summary" aria-live="polite" style={{ fontSize: '13px', color: 'var(--muted)', fontWeight: 600, display: 'block', marginTop: '2px' }}>
               {completionStats.total > 0
                 ? `${completionStats.completed} / ${completionStats.total} tamamlandı (%${completionStats.percentage})`
                 : 'Bu gün için planlanan alışkanlık yok'}
@@ -139,24 +216,30 @@ export default function TodayView({
           {/* Desktop "Alışkanlık Ekle" Button */}
           <button
             type="button"
-            className="button button-primary add-habit-trigger"
+            className="btn-3d btn-3d-green add-habit-trigger"
             aria-label="Yeni alışkanlık ekle"
-            onClick={onOpenAddModal}
-            style={{ display: 'none' }} /* Desktop-only media rule handles visibility */
+            onClick={() => {
+              playPop();
+              onOpenAddModal?.();
+            }}
+            style={{ display: 'none', padding: '10px 20px', fontSize: '14px' }}
           >
             Alışkanlık Ekle +
           </button>
         </div>
 
         {/* Filter bar & Jump to today */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', gap: '8px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', gap: '8px' }}>
           <div className="segmented-control" role="tablist" aria-label="Alışkanlık filtreleme">
             <button
               type="button"
               role="tab"
               className={`segmented-item ${filterMode === 'planned' ? 'is-selected' : ''}`}
               aria-selected={filterMode === 'planned'}
-              onClick={() => setFilterMode?.('planned')}
+              onClick={() => {
+                playPop();
+                setFilterMode?.('planned');
+              }}
             >
               Planlı
             </button>
@@ -165,23 +248,30 @@ export default function TodayView({
               role="tab"
               className={`segmented-item ${filterMode === 'all' ? 'is-selected' : ''}`}
               aria-selected={filterMode === 'all'}
-              onClick={() => setFilterMode?.('all')}
+              onClick={() => {
+                playPop();
+                setFilterMode?.('all');
+              }}
             >
               Tümü
             </button>
           </div>
 
           {selectedDate !== todayIso && (
-            <button
+            <motion.button
               type="button"
-              className="button button-quiet"
-              style={{ minHeight: '38px', padding: '0 12px', fontSize: '13px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-              onClick={() => setSelectedDate?.(todayIso)}
+              className="btn-3d btn-3d-gray"
+              style={{ minHeight: '38px', padding: '0 12px', fontSize: '12px' }}
+              onClick={() => {
+                playPop();
+                setSelectedDate?.(todayIso);
+              }}
+              whileTap={{ scale: 0.94, y: 2 }}
               title="Bugüne dön"
             >
               <RotateCcw size={14} />
               <span>Bugün</span>
-            </button>
+            </motion.button>
           )}
         </div>
       </div>
@@ -189,44 +279,50 @@ export default function TodayView({
       {/* Week Navigation Controls */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <button
+          <motion.button
             type="button"
-            className="button button-quiet"
-            style={{ width: '40px', height: '40px', minWidth: '40px', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px' }}
+            className="btn-3d btn-3d-gray"
+            style={{ width: '40px', height: '40px', minWidth: '40px', padding: 0, borderRadius: '12px' }}
             aria-label="Önceki hafta"
+            whileTap={{ scale: 0.9, y: 2 }}
             onClick={() => changeWeek(-7)}
           >
             <ChevronLeft size={18} />
-          </button>
-          <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--muted)' }}>
+          </motion.button>
+          <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--muted)', userSelect: 'none' }}>
             Haftalık Takvim
           </span>
-          <button
+          <motion.button
             type="button"
-            className="button button-quiet"
-            style={{ width: '40px', height: '40px', minWidth: '40px', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px' }}
+            className="btn-3d btn-3d-gray"
+            style={{ width: '40px', height: '40px', minWidth: '40px', padding: 0, borderRadius: '12px' }}
             aria-label="Sonraki hafta"
+            whileTap={{ scale: 0.9, y: 2 }}
             onClick={() => changeWeek(7)}
           >
             <ChevronRight size={18} />
-          </button>
+          </motion.button>
         </div>
 
         {selectedDate !== todayIso && (
-          <button
+          <motion.button
             type="button"
-            className="button button-quiet"
-            style={{ minHeight: '38px', padding: '0 12px', fontSize: '12px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px', borderRadius: '10px' }}
-            onClick={() => setSelectedDate?.(todayIso)}
+            className="btn-3d btn-3d-gray"
+            style={{ minHeight: '36px', padding: '0 10px', fontSize: '12px', borderRadius: '12px' }}
+            onClick={() => {
+              playPop();
+              setSelectedDate?.(todayIso);
+            }}
+            whileTap={{ scale: 0.94, y: 2 }}
             title="Bugüne dön"
           >
             <RotateCcw size={13} />
             <span>Bugün</span>
-          </button>
+          </motion.button>
         )}
       </div>
 
-      {/* 7-Day Strip Full Width Grid */}
+      {/* 7-Day Strip Full Width Grid with Chunky Touch */}
       <div
         className="week-strip"
         id="week-strip"
@@ -243,7 +339,7 @@ export default function TodayView({
         {weekDays.map((day) => {
           const isSelected = day.iso === selectedDate;
           return (
-            <button
+            <motion.button
               key={day.iso}
               type="button"
               role="tab"
@@ -251,23 +347,28 @@ export default function TodayView({
               aria-selected={isSelected}
               aria-current={day.isToday ? 'date' : undefined}
               aria-label={`${day.dayNum} ${day.dayName}${day.isToday ? ', Bugün' : ''}`}
-              onClick={() => setSelectedDate?.(day.iso)}
+              whileTap={{ scale: 0.92, y: 2 }}
+              onClick={() => {
+                playPop();
+                setSelectedDate?.(day.iso);
+              }}
               style={{
-                minHeight: '52px',
+                minHeight: '54px',
                 padding: '6px 2px',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                borderRadius: '10px',
-                background: isSelected ? 'var(--orange-dark)' : 'var(--surface)',
+                borderRadius: '14px',
+                background: isSelected ? '#FF9600' : 'var(--surface)',
                 color: isSelected ? '#FFFFFF' : 'var(--ink)',
-                border: isSelected ? '1px solid var(--orange-dark)' : '1px solid var(--border)',
+                border: isSelected ? '2px solid #D47A00' : '2px solid var(--border)',
+                borderBottom: isSelected ? '4px solid #D47A00' : '3px solid var(--border)',
                 cursor: 'pointer',
-                transition: 'all 0.15s ease',
+                transition: 'all 0.12s ease',
               }}
             >
-              <span className="week-day-name" style={{ fontSize: '11px', fontWeight: 600, opacity: isSelected ? 0.9 : 0.7 }}>
+              <span className="week-day-name" style={{ fontSize: '11px', fontWeight: 700, opacity: isSelected ? 0.95 : 0.7 }}>
                 {day.dayName}
               </span>
               <strong className="week-day-num" style={{ fontSize: '15px', fontWeight: 800 }}>
@@ -277,58 +378,70 @@ export default function TodayView({
                 <span
                   style={{
                     display: 'block',
-                    width: '4px',
-                    height: '4px',
+                    width: '5px',
+                    height: '5px',
                     borderRadius: '50%',
-                    background: isSelected ? '#FFFFFF' : 'var(--sage)',
+                    background: isSelected ? '#FFFFFF' : '#58CC02',
                     marginTop: '2px',
                   }}
                   aria-hidden="true"
                 />
               )}
-            </button>
+            </motion.button>
           );
         })}
       </div>
 
       {/* Completion Celebration Card */}
       {isAllDone && (
-        <div className="celebration-card" role="status">
+        <motion.div
+          className="celebration-card"
+          role="status"
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', damping: 15 }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '4px' }}>
-            <Sparkles size={20} color="var(--orange-dark)" />
-            <strong style={{ fontSize: '16px', color: 'var(--forest)' }}>Harika bir ritim!</strong>
+            <Sparkles size={22} color="#FF9600" />
+            <strong style={{ fontSize: '17px', color: 'var(--forest)', fontFamily: 'var(--font-heading)' }}>
+              Harika bir ritim! 🌟
+            </strong>
           </div>
-          <p style={{ margin: 0, fontSize: '13px', color: 'var(--muted)' }}>
-            Bugün için planlanan tüm alışkanlıklarını tamamladın. Dinlenmeyi hak ettin.
+          <p style={{ margin: 0, fontSize: '13px', color: 'var(--muted)', fontWeight: 600 }}>
+            Bugün için planlanan tüm alışkanlıklarını tamamladın. +25 Bonus XP kazandın!
           </p>
-        </div>
+        </motion.div>
       )}
 
       {/* Habit List */}
       {todayHabits.length === 0 ? (
-        <div className="empty-state panel-card" style={{ padding: '48px 24px', textAlign: 'center' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: 'var(--forest-soft)', color: 'var(--forest)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+        <div className="empty-state card-chunky" style={{ padding: '48px 24px', textAlign: 'center' }}>
+          <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'var(--forest-soft)', color: 'var(--forest)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: '28px' }}>
             🌱
           </div>
-          <h2 style={{ fontSize: '18px', color: 'var(--forest)', marginBottom: '8px', fontFamily: 'var(--font-heading)' }}>
+          <h2 style={{ fontSize: '19px', color: 'var(--forest)', marginBottom: '8px', fontFamily: 'var(--font-heading)' }}>
             {filterMode === 'planned' ? 'Bu gün için planlanan alışkanlık yok' : 'Henüz hiç alışkanlık yok'}
           </h2>
-          <p style={{ color: 'var(--muted)', fontSize: '14px', marginBottom: '20px', maxWidth: '360px', margin: '0 auto 20px' }}>
+          <p style={{ color: 'var(--muted)', fontSize: '14px', marginBottom: '20px', maxWidth: '360px', margin: '0 auto 20px', fontWeight: 500 }}>
             Kendini zorlamadan, kendi ritminde küçük adımlarla başla.
           </p>
 
-          <button
+          <motion.button
             type="button"
-            className="button button-primary"
+            className="btn-3d btn-3d-green"
             style={{ minHeight: '48px', padding: '0 24px', fontSize: '15px' }}
-            onClick={onOpenAddModal}
+            whileTap={{ scale: 0.94, y: 4 }}
+            onClick={() => {
+              playPop();
+              onOpenAddModal?.();
+            }}
           >
             Alışkanlık Ekle +
-          </button>
+          </motion.button>
         </div>
       ) : (
-        <div id="today-list" className="habit-list" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {todayHabits.map((h) => {
+        <div id="today-list" className="habit-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {todayHabits.map((h, index) => {
             const checkin = checkins.find(
               (c) => !c.deleted && c.habit_id === h.id && c.habit_date === selectedDate
             );
@@ -337,22 +450,17 @@ export default function TodayView({
             const isDone = h.tracking === 'check' ? value >= 1 : value >= target;
 
             return (
-              <div
+              <motion.div
                 key={h.id}
-                className={`habit-row ${h.tracking === 'check' ? 'is-check' : 'is-quantity'} ${isDone ? 'is-complete' : ''}`}
+                className={`habit-row card-chunky ${h.tracking === 'check' ? 'is-check' : 'is-quantity'} ${isDone ? 'is-complete' : ''}`}
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, delay: index * 0.05 }}
                 style={{
-                  minHeight: '64px',
-                  background: 'var(--surface)',
-                  border: isDone ? '1px solid var(--forest-border)' : '1px solid var(--border)',
-                  borderLeft: isDone ? '4px solid var(--forest)' : '4px solid transparent',
-                  borderRadius: 'var(--radius)',
-                  padding: '14px 16px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   gap: '12px',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
-                  transition: 'all 0.18s ease',
                 }}
               >
                 <div
@@ -379,14 +487,15 @@ export default function TodayView({
                     <strong
                       className="habit-name"
                       style={{
-                        fontSize: '15px',
-                        fontWeight: 700,
+                        fontSize: '16px',
+                        fontWeight: 800,
                         color: 'var(--ink)',
                         display: 'block',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
                         width: '100%',
+                        fontFamily: 'var(--font-heading)',
                       }}
                     >
                       {h.name}
@@ -396,6 +505,7 @@ export default function TodayView({
                       style={{
                         color: 'var(--muted)',
                         fontSize: '12px',
+                        fontWeight: 600,
                         display: 'block',
                         whiteSpace: 'nowrap',
                       }}
@@ -411,8 +521,8 @@ export default function TodayView({
                           display: 'flex',
                           justifyContent: 'space-between',
                           fontSize: '11px',
-                          fontWeight: 600,
-                          color: isDone ? 'var(--forest)' : 'var(--muted)',
+                          fontWeight: 700,
+                          color: isDone ? '#46A302' : 'var(--muted)',
                           marginBottom: '3px',
                         }}
                       >
@@ -422,18 +532,23 @@ export default function TodayView({
                       <div
                         style={{
                           width: '100%',
-                          height: '5px',
-                          background: 'var(--sage-track)',
+                          height: '8px',
+                          background: 'var(--surface-alt)',
                           borderRadius: '999px',
                           overflow: 'hidden',
+                          border: '1px solid var(--border)',
                         }}
                       >
-                        <div
+                        <motion.div
+                          initial={false}
+                          animate={{ width: `${Math.min(100, (value / target) * 100)}%` }}
+                          transition={{ type: 'spring', stiffness: 200, damping: 20 }}
                           style={{
                             height: '100%',
-                            width: `${Math.min(100, (value / target) * 100)}%`,
-                            background: isDone ? 'var(--forest)' : 'var(--orange-dark)',
-                            transition: 'width 0.25s ease',
+                            background: isDone
+                              ? 'linear-gradient(90deg, #58CC02 0%, #46A302 100%)'
+                              : 'linear-gradient(90deg, #FF9600 0%, #FFC800 100%)',
+                            borderRadius: '999px',
                           }}
                         />
                       </div>
@@ -441,31 +556,30 @@ export default function TodayView({
                   )}
                 </div>
 
+                {/* Chunky 3D Action Controls */}
                 <div className="habit-actions" style={{ flexShrink: 0 }}>
                   {h.tracking === 'check' ? (
-                    <button
+                    <motion.button
                       type="button"
-                      className={`button ${isDone ? 'button-complete' : 'button-quiet'}`}
+                      className={`btn-3d ${isDone ? 'btn-3d-green' : 'btn-3d-gray'}`}
                       style={{
                         minHeight: '44px',
-                        minWidth: '96px',
-                        fontSize: '14px',
-                        fontWeight: 700,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                        borderRadius: '12px',
+                        minWidth: '100px',
+                        fontSize: '13px',
                       }}
+                      whileTap={{ scale: 0.92, y: 4 }}
                       aria-pressed={isDone}
                       aria-label={isDone ? `${h.name} tamamlandı, geri almak için tıkla` : `${h.name} tamamlandı olarak işaretle`}
                       onClick={(e) => {
                         const nextVal = isDone ? 0 : 1;
                         logCheckin?.(h.id, nextVal);
                         if (nextVal > 0) {
+                          playSuccess();
                           triggerHaptic('success');
                           triggerConfetti(e?.clientX, e?.clientY);
+                          addXp?.(15);
                         } else {
+                          playPop();
                           triggerHaptic('light');
                         }
                         setAnnouncement(nextVal > 0 ? `${h.name} tamamlandı` : `${h.name} geri alındı`);
@@ -473,24 +587,26 @@ export default function TodayView({
                     >
                       {isDone ? (
                         <>
-                          <Check size={16} />
-                          <span>Tamam</span>
+                          <Check size={18} strokeWidth={3} />
+                          <span>TAMAM!</span>
                         </>
                       ) : (
-                        <span>Tamamla</span>
+                        <span>TAMAMLA</span>
                       )}
-                    </button>
+                    </motion.button>
                   ) : (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <button
+                      <motion.button
                         type="button"
-                        className="button button-quiet button-icon"
+                        className="btn-3d btn-3d-gray"
+                        style={{ width: '42px', height: '42px', minWidth: '42px', borderRadius: '14px', padding: 0 }}
                         aria-label={`${h.name} miktarını 1 azalt`}
-                        onClick={() => handleQuickStep(h, -1)}
+                        onClick={(e) => handleQuickStep(h, -1, e)}
+                        whileTap={{ scale: 0.88, y: 3 }}
                         disabled={value <= 0}
                       >
-                        <Minus size={16} />
-                      </button>
+                        <Minus size={18} strokeWidth={3} />
+                      </motion.button>
 
                       {editingHabitId === h.id ? (
                         <input
@@ -505,81 +621,93 @@ export default function TodayView({
                           }}
                           style={{
                             width: '56px',
-                            height: '44px',
+                            height: '42px',
                             textAlign: 'center',
-                            borderRadius: '10px',
-                            border: '2px solid var(--orange-dark)',
-                            fontWeight: 700,
+                            borderRadius: '14px',
+                            border: '2px solid #FF9600',
+                            fontWeight: 800,
                             fontSize: '16px',
                             background: 'var(--surface)',
+                            color: 'var(--ink)',
                           }}
                           aria-label={`${h.name} miktarı`}
                         />
                       ) : (
-                        <button
+                        <motion.button
                           type="button"
-                          className="button button-quiet"
+                          className="btn-3d btn-3d-gray"
                           onClick={() => handleStartEdit(h.id, value)}
+                          whileTap={{ scale: 0.94 }}
                           title="Doğrudan sayı girmek için tıkla"
                           style={{
-                            minWidth: '44px',
-                            height: '44px',
+                            minWidth: '46px',
+                            height: '42px',
                             padding: '0 8px',
                             textAlign: 'center',
-                            fontWeight: 700,
+                            fontWeight: 800,
                             fontSize: '15px',
-                            borderRadius: '10px',
+                            borderRadius: '14px',
                           }}
                           aria-label={`${h.name} güncel miktar: ${value}, değiştirmek için tıkla`}
                         >
                           {value}
-                        </button>
+                        </motion.button>
                       )}
 
-                      <button
+                      <motion.button
                         type="button"
-                        className="button button-primary button-icon"
+                        className="btn-3d btn-3d-orange"
+                        style={{ width: '42px', height: '42px', minWidth: '42px', borderRadius: '14px', padding: 0 }}
                         aria-label={`${h.name} miktarını 1 artır`}
                         onClick={(e) => handleQuickStep(h, 1, e)}
+                        whileTap={{ scale: 0.88, y: 3 }}
                       >
-                        <Plus size={16} />
-                      </button>
+                        <Plus size={18} strokeWidth={3} />
+                      </motion.button>
 
                       {/* Smart complete shortcut if under target by > 1 */}
                       {!isDone && target - value > 1 && (
-                        <button
+                        <motion.button
                           type="button"
-                          className="button button-quiet"
-                          style={{ minHeight: '44px', padding: '0 10px', fontSize: '12px', fontWeight: 700, color: 'var(--forest)' }}
+                          className="btn-3d btn-3d-blue"
+                          style={{ minHeight: '42px', padding: '0 10px', fontSize: '13px', borderRadius: '14px' }}
                           title={`Kalan ${target - value} ${h.unit || ''} tamamla`}
+                          whileTap={{ scale: 0.88, y: 3 }}
                           onClick={(e) => {
                             logCheckin?.(h.id, target);
+                            playSuccess();
                             triggerHaptic('success');
                             triggerConfetti(e?.clientX, e?.clientY);
+                            addXp?.(15);
                             setAnnouncement(`${h.name} hedefe ulaştı: ${target}`);
                           }}
                         >
                           +{target - value}
-                        </button>
+                        </motion.button>
                       )}
                     </div>
                   )}
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>
       )}
 
-      {/* Thumb-zone Floating Action Button on mobile */}
-      <button
+      {/* Thumb-zone 3D Floating Action Button on mobile */}
+      <motion.button
         type="button"
-        className="mobile-fab"
+        className="mobile-fab btn-3d btn-3d-orange"
         aria-label="Yeni alışkanlık ekle"
-        onClick={onOpenAddModal}
+        whileTap={{ scale: 0.88, y: 4 }}
+        whileHover={{ scale: 1.05 }}
+        onClick={() => {
+          playPop();
+          onOpenAddModal?.();
+        }}
       >
-        <Plus size={26} strokeWidth={2.5} />
-      </button>
+        <Plus size={28} strokeWidth={3} />
+      </motion.button>
     </section>
   );
 }
