@@ -96,12 +96,15 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
         <button
           type="button"
-          className="button-icon icon-button"
+          className="modal-close-btn"
           aria-label="Kapat"
           style={{ position: 'absolute', top: '16px', right: '16px' }}
-          onClick={onClose}
+          onClick={() => {
+            playPop();
+            onClose();
+          }}
         >
-          <X size={20} />
+          <X size={24} strokeWidth={2.5} />
         </button>
 
         <div className="auth-brand">

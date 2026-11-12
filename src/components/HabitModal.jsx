@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
+import { X } from 'lucide-react';
 import { playPop, playSuccess } from '../lib/soundFx';
 import { triggerHaptic } from '../lib/celebration';
 
-const PRESETS = [
-  { name: 'Kitap oku', tracking: 'quantity', target: 10, unit: 'sayfa' },
-  { name: 'Su iç', tracking: 'quantity', target: 8, unit: 'bardak' },
-  { name: 'Yürüyüş yap', tracking: 'quantity', target: 20, unit: 'dakika' },
-  { name: 'Meditasyon', tracking: 'check', target: 1, unit: '' },
-  { name: 'Günün Günlüğü', tracking: 'check', target: 1, unit: '' },
-  { name: 'Erken Uyan', tracking: 'check', target: 1, unit: '' },
+const DAYS = [
+  { id: 1, label: 'Pzt', name: 'Pazartesi' },
+  { id: 2, label: 'Sal', name: 'Salı' },
+  { id: 3, label: 'Çar', name: 'Çarşamba' },
+  { id: 4, label: 'Per', name: 'Perşembe' },
+  { id: 5, label: 'Cum', name: 'Cuma' },
+  { id: 6, label: 'Cmt', name: 'Cumartesi' },
+  { id: 0, label: 'Paz', name: 'Pazar' },
 ];
 
 export default function HabitModal({ isOpen, onClose, onAddHabit, existingHabitsCount = 0 }) {
@@ -17,7 +19,7 @@ export default function HabitModal({ isOpen, onClose, onAddHabit, existingHabits
   const [tracking, setTracking] = useState('check'); // 'check' | 'quantity'
   const [target, setTarget] = useState(1);
   const [unit, setUnit] = useState('dakika');
-  const [scheduleType, setScheduleType] = useState('daily');
+  const [selectedDays, setSelectedDays] = useState([1, 2, 3, 4, 5, 6, 0]);
 
   // Handle ESC key for modal dismissal
   useEffect(() => {
@@ -31,6 +33,35 @@ export default function HabitModal({ isOpen, onClose, onAddHabit, existingHabits
 
   if (!isOpen) return null;
 
+  const toggleDay = (dayId) => {
+    playPop();
+    triggerHaptic('light');
+    if (selectedDays.includes(dayId)) {
+      if (selectedDays.length === 1) return; // En az bir gün seçili kalmalı
+      setSelectedDays(selectedDays.filter((d) => d !== dayId));
+    } else {
+      setSelectedDays([...selectedDays, dayId]);
+    }
+  };
+
+  const selectAllDays = () => {
+    playPop();
+    triggerHaptic('light');
+    setSelectedDays([1, 2, 3, 4, 5, 6, 0]);
+  };
+
+  const selectWeekdays = () => {
+    playPop();
+    triggerHaptic('light');
+    setSelectedDays([1, 2, 3, 4, 5]);
+  };
+
+  const selectWeekend = () => {
+    playPop();
+    triggerHaptic('light');
+    setSelectedDays([6, 0]);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!name.trim()) return;
@@ -38,13 +69,16 @@ export default function HabitModal({ isOpen, onClose, onAddHabit, existingHabits
     playSuccess();
     triggerHaptic('success');
 
-    let schedule = { type: 'daily' };
-    if (scheduleType === 'weekdays') {
+    let schedule;
+    if (selectedDays.length === 7) {
+      schedule = { type: 'daily' };
+    } else if (
+      selectedDays.length === 5 &&
+      [1, 2, 3, 4, 5].every((d) => selectedDays.includes(d))
+    ) {
       schedule = { type: 'weekdays', days: [1, 2, 3, 4, 5] };
-    } else if (scheduleType === 'rest_day_sunday') {
-      schedule = { type: 'specific_days', days: [1, 2, 3, 4, 5, 6] };
-    } else if (scheduleType === 'rest_day_saturday') {
-      schedule = { type: 'specific_days', days: [1, 2, 3, 4, 5, 7] };
+    } else {
+      schedule = { type: 'weekdays', days: [...selectedDays] };
     }
 
     onAddHabit?.({
@@ -59,17 +93,15 @@ export default function HabitModal({ isOpen, onClose, onAddHabit, existingHabits
 
     setName('');
     setTarget(1);
+    setSelectedDays([1, 2, 3, 4, 5, 6, 0]);
     onClose();
   };
 
-  const applyPreset = (preset) => {
-    playPop();
-    triggerHaptic('light');
-    setName(preset.name);
-    setTracking(preset.tracking);
-    setTarget(preset.target);
-    setUnit(preset.unit || 'dakika');
-  };
+  const isAllDays = selectedDays.length === 7;
+  const isWeekdaysOnly =
+    selectedDays.length === 5 && [1, 2, 3, 4, 5].every((d) => selectedDays.includes(d));
+  const isWeekendOnly =
+    selectedDays.length === 2 && [6, 0].every((d) => selectedDays.includes(d));
 
   return (
     <div
@@ -91,47 +123,44 @@ export default function HabitModal({ isOpen, onClose, onAddHabit, existingHabits
       >
         <div className="sheet-handle" aria-hidden="true"></div>
 
-        <div className="dialog-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 0 16px', borderBottom: '1px solid var(--border)' }}>
-          <h2 id="habit-modal-title" style={{ margin: 0, fontSize: '20px', color: 'var(--ink)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
-            ✨ Yeni Alışkanlık Ekle
+        <div
+          className="dialog-header"
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '0 0 16px',
+            borderBottom: '1px solid var(--border)',
+          }}
+        >
+          <h2
+            id="habit-modal-title"
+            style={{
+              margin: 0,
+              fontSize: '20px',
+              color: 'var(--ink)',
+              fontFamily: 'var(--font-heading)',
+              fontWeight: 900,
+            }}
+          >
+            Yeni Alışkanlık Ekle
           </h2>
           <button
             type="button"
-            className="button-icon icon-button"
+            className="modal-close-btn"
             aria-label="Kapat"
             onClick={() => {
               playPop();
               onClose?.();
             }}
           >
-            ✕
+            <X size={24} strokeWidth={2.5} />
           </button>
         </div>
 
-        {/* Quick starter presets */}
-        <div style={{ marginTop: '16px', marginBottom: '8px' }}>
-          <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted)', display: 'block', marginBottom: '8px' }}>
-            Hızlı Şablonlar
-          </span>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-            {PRESETS.map((p) => (
-              <motion.button
-                key={p.name}
-                type="button"
-                whileTap={{ scale: 0.94, y: 2 }}
-                className="btn-3d btn-3d-gray"
-                style={{ minHeight: '38px', padding: '0 14px', fontSize: '13px', borderRadius: '12px' }}
-                onClick={() => applyPreset(p)}
-              >
-                + {p.name}
-              </motion.button>
-            ))}
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} style={{ marginTop: '12px' }}>
+        <form onSubmit={handleSubmit} style={{ marginTop: '16px' }}>
           <label className="field" style={{ display: 'block', marginBottom: '16px' }}>
-            <span style={{ fontWeight: 700, fontSize: '13px' }}>Alışkanlık Adı</span>
+            <span style={{ fontWeight: 800, fontSize: '13px', color: 'var(--ink)' }}>Alışkanlık Adı</span>
             <input
               className="form-input"
               style={{ width: '100%', height: '48px', padding: '0 12px', marginTop: '6px', fontSize: '16px' }}
@@ -145,7 +174,9 @@ export default function HabitModal({ isOpen, onClose, onAddHabit, existingHabits
           </label>
 
           <fieldset className="field" style={{ border: 0, padding: 0, margin: '0 0 16px' }}>
-            <legend style={{ fontWeight: 700, fontSize: '13px', marginBottom: '8px' }}>Hedef Biçimi</legend>
+            <legend style={{ fontWeight: 800, fontSize: '13px', color: 'var(--ink)', marginBottom: '8px' }}>
+              Hedef Biçimi
+            </legend>
             <div className="segmented-control" role="radiogroup" aria-label="Hedef Biçimi" style={{ width: '100%' }}>
               <button
                 type="button"
@@ -181,7 +212,7 @@ export default function HabitModal({ isOpen, onClose, onAddHabit, existingHabits
           {tracking === 'quantity' && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
               <label className="field">
-                <span style={{ fontWeight: 700, fontSize: '13px' }}>Günlük Hedef</span>
+                <span style={{ fontWeight: 800, fontSize: '13px', color: 'var(--ink)' }}>Günlük Hedef</span>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -195,7 +226,7 @@ export default function HabitModal({ isOpen, onClose, onAddHabit, existingHabits
                 />
               </label>
               <label className="field">
-                <span style={{ fontWeight: 700, fontSize: '13px' }}>Birim</span>
+                <span style={{ fontWeight: 800, fontSize: '13px', color: 'var(--ink)' }}>Birim</span>
                 <select
                   className="form-select"
                   style={{ width: '100%', height: '48px', padding: '0 12px', marginTop: '6px', fontSize: '16px' }}
@@ -214,24 +245,135 @@ export default function HabitModal({ isOpen, onClose, onAddHabit, existingHabits
             </div>
           )}
 
-          {/* Cadence & Rest Day Selector */}
-          <label className="field" style={{ display: 'block', marginBottom: '16px' }}>
-            <span style={{ fontWeight: 700, fontSize: '13px' }}>Planlama & Dinlenme Günü</span>
-            <select
-              className="form-select"
-              style={{ width: '100%', height: '48px', padding: '0 12px', marginTop: '6px', fontSize: '15px' }}
-              value={scheduleType}
-              onChange={(e) => setScheduleType(e.target.value)}
+          {/* Haftanın Günleri Seçimi & Planlama */}
+          <div className="field" style={{ marginBottom: '20px' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '8px',
+                marginBottom: '10px',
+              }}
             >
-              <option value="daily">Her Gün (Haftada 7 Gün)</option>
-              <option value="weekdays">Hafta İçi (5 Gün — Hafta Sonu Dinlenme ☕)</option>
-              <option value="rest_day_sunday">Haftada 6 Gün (Pazar Dinlenme Günü ☕)</option>
-              <option value="rest_day_saturday">Haftada 6 Gün (Cumartesi Dinlenme Günü ☕)</option>
-            </select>
-            <span style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '4px', display: 'block' }}>
+              <span style={{ fontWeight: 800, fontSize: '13px', color: 'var(--ink)' }}>
+                Planlama: Haftanın Günleri
+              </span>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  type="button"
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    padding: '4px 9px',
+                    borderRadius: '8px',
+                    border: '1.5px solid var(--border)',
+                    background: isAllDays ? 'var(--primary-soft, #DCFCE7)' : 'var(--surface-alt)',
+                    color: isAllDays ? 'var(--primary-dark, #15803D)' : 'var(--muted)',
+                    cursor: 'pointer',
+                  }}
+                  onClick={selectAllDays}
+                >
+                  Her Gün
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    padding: '4px 9px',
+                    borderRadius: '8px',
+                    border: '1.5px solid var(--border)',
+                    background: isWeekdaysOnly ? 'var(--primary-soft, #DCFCE7)' : 'var(--surface-alt)',
+                    color: isWeekdaysOnly ? 'var(--primary-dark, #15803D)' : 'var(--muted)',
+                    cursor: 'pointer',
+                  }}
+                  onClick={selectWeekdays}
+                >
+                  Hafta İçi
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    padding: '4px 9px',
+                    borderRadius: '8px',
+                    border: '1.5px solid var(--border)',
+                    background: isWeekendOnly ? 'var(--primary-soft, #DCFCE7)' : 'var(--surface-alt)',
+                    color: isWeekendOnly ? 'var(--primary-dark, #15803D)' : 'var(--muted)',
+                    cursor: 'pointer',
+                  }}
+                  onClick={selectWeekend}
+                >
+                  Hafta Sonu
+                </button>
+              </div>
+            </div>
+
+            {/* 7-Day Interactive Buttons Grid */}
+            <div
+              className="weekday-picker"
+              role="group"
+              aria-label="Haftanın Günleri"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(7, 1fr)',
+                gap: '6px',
+              }}
+            >
+              {DAYS.map((day) => {
+                const isSelected = selectedDays.includes(day.id);
+                return (
+                  <motion.button
+                    key={day.id}
+                    type="button"
+                    aria-pressed={isSelected}
+                    aria-label={day.name}
+                    className={`btn-3d ${isSelected ? 'btn-3d-green is-selected' : 'btn-3d-gray'}`}
+                    style={{
+                      height: '46px',
+                      borderRadius: '12px',
+                      fontSize: '13px',
+                      fontWeight: 800,
+                      padding: 0,
+                    }}
+                    whileTap={{ scale: 0.92, y: 2 }}
+                    onClick={() => toggleDay(day.id)}
+                  >
+                    {day.label}
+                  </motion.button>
+                );
+              })}
+            </div>
+
+            {/* Summary Indicator & Rest Day Note */}
+            <div
+              style={{
+                marginTop: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: '12px',
+              }}
+            >
+              <span style={{ color: 'var(--ink)', fontWeight: 800 }}>
+                {isAllDays && '🗓️ Her Gün (Haftada 7 gün planlandı)'}
+                {isWeekdaysOnly && '💼 Hafta İçi (5 gün — Hafta sonu serin korunur ☕)'}
+                {isWeekendOnly && '🎉 Hafta Sonu (2 gün — Cmt & Paz)'}
+                {!isAllDays && !isWeekdaysOnly && !isWeekendOnly && (
+                  `🎯 Haftada ${selectedDays.length} gün: ${DAYS.filter((d) => selectedDays.includes(d.id)).map((d) => d.label).join(', ')}`
+                )}
+              </span>
+              <span style={{ color: 'var(--muted)', fontSize: '11px', fontWeight: 700 }}>
+                {7 - selectedDays.length > 0 ? `${7 - selectedDays.length} gün dinlenme ☕` : 'Dinlenme yok'}
+              </span>
+            </div>
+            <span style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '4px', display: 'block', lineHeight: 1.4 }}>
               Dinlenme günlerinde serin asla yanmaz; hedeflerini suçluluk duymadan sürdürebilirsin.
             </span>
-          </label>
+          </div>
 
           {/* 3-Habit Behavioral Psychology Rule Banner */}
           {existingHabitsCount >= 3 && (

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Plus, Check, Minus, ChevronLeft, ChevronRight, RotateCcw, Sparkles, Gift } from 'lucide-react';
+import { Plus, Check, Minus, ChevronLeft, ChevronRight, RotateCcw, Gift } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatTarget } from '../lib/rules';
 import { triggerHaptic, triggerConfetti } from '../lib/celebration';
@@ -504,9 +504,9 @@ export default function TodayView({
           transition={{ type: 'spring', damping: 15 }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '4px' }}>
-            <Sparkles size={22} color="#FF9600" />
+            <span style={{ fontSize: '22px' }}>🏆</span>
             <strong style={{ fontSize: '17px', color: 'var(--ink)', fontFamily: 'var(--font-heading)' }}>
-              Harika bir ritim! 🌟
+              Harika bir ritim!
             </strong>
           </div>
           <p style={{ margin: 0, fontSize: '13px', color: 'var(--muted)', fontWeight: 600 }}>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Users, UserPlus, Link2, Copy, Check, LogOut, Trash2, Sparkles, Heart } from 'lucide-react';
+import { Plus, Users, UserPlus, Link2, Copy, Check, LogOut, Trash2, X, Heart } from 'lucide-react';
 import { motion } from 'motion/react';
 import { playPop, playSuccess, playFanfare } from '../lib/soundFx';
 import { triggerHaptic, triggerConfetti } from '../lib/celebration';
@@ -534,11 +534,14 @@ export default function GroupsView({
               </h2>
               <button
                 type="button"
-                className="button-icon icon-button"
+                className="modal-close-btn"
                 aria-label="Kapat"
-                onClick={() => setShowCreateModal(false)}
+                onClick={() => {
+                  playPop();
+                  setShowCreateModal(false);
+                }}
               >
-                ✕
+                <X size={24} strokeWidth={2.5} />
               </button>
             </div>
 
@@ -621,11 +624,14 @@ export default function GroupsView({
               </h2>
               <button
                 type="button"
-                className="button-icon icon-button"
+                className="modal-close-btn"
                 aria-label="Kapat"
-                onClick={() => setShowInviteModal(false)}
+                onClick={() => {
+                  playPop();
+                  setShowInviteModal(false);
+                }}
               >
-                ✕
+                <X size={24} strokeWidth={2.5} />
               </button>
             </div>
 

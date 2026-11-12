@@ -103,9 +103,10 @@ export default function PwaInstallBanner() {
           type="button"
           className="button button-quiet pwa-btn-dismiss"
           aria-label="Kapat"
+          style={{ width: '40px', height: '40px', minWidth: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
           onClick={handleDismiss}
         >
-          <X size={18} />
+          <X size={22} strokeWidth={2.5} />
         </button>
       </div>
     </aside>

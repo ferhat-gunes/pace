@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Flame, Gem, Zap } from 'lucide-react';
+import { Flame, Gem, Zap, X } from 'lucide-react';
 import { playPop } from '../../lib/soundFx';
 
 export default function TopBar({
@@ -130,11 +130,14 @@ export default function TopBar({
               </div>
               <button
                 type="button"
-                className="button-icon icon-button"
+                className="modal-close-btn"
                 aria-label="Kapat"
-                onClick={() => setShowShieldModal(false)}
+                onClick={() => {
+                  playPop();
+                  setShowShieldModal(false);
+                }}
               >
-                ✕
+                <X size={24} strokeWidth={2.5} />
               </button>
             </div>
 

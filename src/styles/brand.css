@@ -1665,9 +1665,9 @@ dialog::backdrop {
 }
 
 .weekday-picker button.is-selected {
-  background: var(--orange);
-  border-color: var(--orange);
-  color: #FFFFFF;
+  background: #58CC02 !important;
+  border-color: #46A302 !important;
+  color: #FFFFFF !important;
 }
 
 .advanced-options {
@@ -3020,6 +3020,43 @@ html[data-theme="dark"] .segmented-item.is-selected,
   align-items: center;
   justify-content: center;
   border-radius: 12px;
+}
+
+/* Tactile Modal Close Button with Accessible 44px Touch Target & Prominent 24px Icon */
+.modal-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-alt);
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: 0 2px 0 var(--border);
+  transition: transform 0.1s ease, background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.1s ease;
+  user-select: none;
+}
+
+.modal-close-btn:hover {
+  background: var(--border-soft, #e2e8f0);
+  border-color: var(--muted);
+  color: var(--ink);
+}
+
+.modal-close-btn:active {
+  transform: translateY(2px) scale(0.94);
+  box-shadow: 0 0 0 transparent;
+}
+
+.modal-close-btn svg {
+  width: 24px;
+  height: 24px;
+  stroke-width: 2.5;
 }
 
 /* Segmented Control Component */

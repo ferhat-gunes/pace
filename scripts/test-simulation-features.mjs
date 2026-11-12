@@ -208,10 +208,13 @@ function isHabitDueOnDate(schedule, dateIso) {
     return true;
   }
   if (schedule.type === 'weekdays') {
+    if (Array.isArray(schedule.days)) {
+      return schedule.days.includes(isoDay) || schedule.days.includes(date.getDay());
+    }
     return isoDay >= 1 && isoDay <= 5;
   }
   if (schedule.type === 'specific_days' && Array.isArray(schedule.days)) {
-    return schedule.days.includes(isoDay);
+    return schedule.days.includes(isoDay) || schedule.days.includes(date.getDay());
   }
   return true;
 }
