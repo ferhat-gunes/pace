@@ -166,6 +166,7 @@ export default function GroupsView({
   const members = groupDetail?.members || [
     { id: 'm1', user_id: user?.id || 'me', display_name: 'Sen', role: 'owner' }
   ];
+  const habits = groupDetail?.habits || [];
   const checkins = groupDetail?.checkins || [];
 
   const sendCheer = (targetMember, emoji, text) => {
