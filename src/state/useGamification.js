@@ -15,13 +15,24 @@ export function useGamification(checkins = [], habits = []) {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        return {
+          xp: parsed.xp ?? 120,
+          gems: parsed.gems ?? 35,
+          claimedDates: parsed.claimedDates || {},
+          streakFreezes: parsed.streakFreezes ?? 2, // 2 initial streak shields
+          usedFreezeDates: parsed.usedFreezeDates || {},
+          lastActiveDate: parsed.lastActiveDate || null,
+          levelCelebrationPending: null,
+        };
       }
     } catch {}
     return {
       xp: 120,
       gems: 35,
       claimedDates: {}, // { '2026-11-10': true }
+      streakFreezes: 2, // 2 free streak shields for all users
+      usedFreezeDates: {},
       lastActiveDate: null,
       levelCelebrationPending: null,
     };
@@ -34,9 +45,11 @@ export function useGamification(checkins = [], habits = []) {
     } catch {}
   }, [data]);
 
-  // Calculate real consecutive streak from checkins history
-  const streak = useMemo(() => {
-    if (!checkins || checkins.length === 0) return 1;
+  // Calculate real consecutive streak with Streak Freeze & Rest Day support
+  const { streak, isStreakFrozenToday, usedFreezeDates } = useMemo(() => {
+    if (!checkins || checkins.length === 0) {
+      return { streak: 1, isStreakFrozenToday: false, usedFreezeDates: data.usedFreezeDates || {} };
+    }
 
     // Set of active dates with at least 1 positive checkin
     const activeDates = new Set();
@@ -53,13 +66,49 @@ export function useGamification(checkins = [], habits = []) {
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = yesterday.toISOString().split('T')[0];
 
-    // If neither today nor yesterday has a checkin, streak is 0 (or baseline 1 for encouragement)
+    const freezes = { ...(data.usedFreezeDates || {}) };
+    let availableFreezes = data.streakFreezes || 0;
+    let freezeUsedForYesterday = Boolean(freezes[yesterdayStr]);
+
+    // If yesterday was missed and not yet frozen, but user has an available shield, auto-protect yesterday!
+    if (!activeDates.has(yesterdayStr) && !freezes[yesterdayStr] && availableFreezes > 0) {
+      // Check if there was an active streak before yesterday
+      const twoDaysAgo = new Date(yesterday);
+      twoDaysAgo.setDate(twoDaysAgo.getDate() - 1);
+      const twoDaysAgoStr = twoDaysAgo.toISOString().split('T')[0];
+
+      if (activeDates.has(twoDaysAgoStr) || freezes[twoDaysAgoStr]) {
+        freezes[yesterdayStr] = true;
+        freezeUsedForYesterday = true;
+        // Schedule update to deduct freeze
+        setTimeout(() => {
+          setData((prev) => {
+            if (prev.usedFreezeDates?.[yesterdayStr]) return prev;
+            return {
+              ...prev,
+              streakFreezes: Math.max(0, (prev.streakFreezes || 1) - 1),
+              usedFreezeDates: {
+                ...(prev.usedFreezeDates || {}),
+                [yesterdayStr]: true,
+              },
+            };
+          });
+        }, 50);
+      }
+    }
+
+    // Determine start date for streak count
     let currentStreak = 0;
-    let checkDate = new Date(activeDates.has(todayStr) ? today : yesterday);
+    let checkDate = new Date(today);
+
+    // If today has no checkin, start evaluating from yesterday
+    if (!activeDates.has(todayStr) && !freezes[todayStr]) {
+      checkDate = new Date(yesterday);
+    }
 
     while (true) {
       const dateStr = checkDate.toISOString().split('T')[0];
-      if (activeDates.has(dateStr)) {
+      if (activeDates.has(dateStr) || freezes[dateStr]) {
         currentStreak++;
         checkDate.setDate(checkDate.getDate() - 1);
       } else {
@@ -67,8 +116,12 @@ export function useGamification(checkins = [], habits = []) {
       }
     }
 
-    return Math.max(1, currentStreak);
-  }, [checkins]);
+    return {
+      streak: Math.max(1, currentStreak),
+      isStreakFrozenToday: freezeUsedForYesterday,
+      usedFreezeDates: freezes,
+    };
+  }, [checkins, data.usedFreezeDates, data.streakFreezes]);
 
   // XP, Level and Level Progress calculations (100 XP per level)
   const xp = data.xp || 0;
@@ -167,8 +220,56 @@ export function useGamification(checkins = [], habits = []) {
     setData((prev) => ({ ...prev, levelCelebrationPending: null }));
   }, []);
 
+  // Purchase extra Streak Freeze with Gems (e.g. 25 gems)
+  const buyStreakFreeze = useCallback((cost = 25) => {
+    if ((data.gems || 0) < cost) {
+      return { success: false, message: 'Yetersiz elmas! Görevleri tamamlayarak elmas kazanabilirsin.' };
+    }
+
+    playSuccess();
+    triggerHaptic('success');
+    try {
+      confetti({
+        particleCount: 40,
+        spread: 60,
+        origin: { y: 0.6 },
+        colors: ['#38BDF8', '#818CF8', '#FFFFFF'],
+      });
+    } catch {}
+
+    setData((prev) => ({
+      ...prev,
+      gems: (prev.gems || 0) - cost,
+      streakFreezes: (prev.streakFreezes || 0) + 1,
+    }));
+
+    return { success: true, message: 'Seri Kurtarma Kalkanı satın alındı! 🛡️' };
+  }, [data.gems]);
+
+  // Award group synergy milestone bonus (when entire group checks in on the same day)
+  const awardGroupBonus = useCallback((bonusXp = 50) => {
+    playFanfare();
+    triggerHaptic('celebration');
+    try {
+      confetti({
+        particleCount: 55,
+        spread: 75,
+        origin: { y: 0.5 },
+        colors: ['#FFC800', '#58CC02', '#38BDF8'],
+      });
+    } catch {}
+
+    setData((prev) => ({
+      ...prev,
+      xp: (prev.xp || 0) + bonusXp,
+      gems: (prev.gems || 0) + 5,
+    }));
+  }, []);
+
   return {
     streak,
+    streakFreezes: data.streakFreezes || 0,
+    isStreakFrozenToday,
     xp,
     level,
     levelProgress,
@@ -179,6 +280,8 @@ export function useGamification(checkins = [], habits = []) {
     isQuestClaimed,
     addXp,
     addGems,
+    buyStreakFreeze,
+    awardGroupBonus,
     claimDailyChest,
     levelCelebrationPending: data.levelCelebrationPending,
     clearLevelCelebration,

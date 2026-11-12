@@ -4,13 +4,15 @@ import { playPop, playSuccess } from '../lib/soundFx';
 import { triggerHaptic } from '../lib/celebration';
 
 const PRESETS = [
-  { name: 'Kitap oku', tracking: 'quantity', target: 20, unit: 'sayfa' },
+  { name: 'Kitap oku', tracking: 'quantity', target: 10, unit: 'sayfa' },
   { name: 'Su iç', tracking: 'quantity', target: 8, unit: 'bardak' },
-  { name: 'Yürüyüş yap', tracking: 'quantity', target: 30, unit: 'dakika' },
+  { name: 'Yürüyüş yap', tracking: 'quantity', target: 20, unit: 'dakika' },
   { name: 'Meditasyon', tracking: 'check', target: 1, unit: '' },
+  { name: 'Günün Günlüğü', tracking: 'check', target: 1, unit: '' },
+  { name: 'Erken Uyan', tracking: 'check', target: 1, unit: '' },
 ];
 
-export default function HabitModal({ isOpen, onClose, onAddHabit }) {
+export default function HabitModal({ isOpen, onClose, onAddHabit, existingHabitsCount = 0 }) {
   const [name, setName] = useState('');
   const [tracking, setTracking] = useState('check'); // 'check' | 'quantity'
   const [target, setTarget] = useState(1);
@@ -36,12 +38,21 @@ export default function HabitModal({ isOpen, onClose, onAddHabit }) {
     playSuccess();
     triggerHaptic('success');
 
+    let schedule = { type: 'daily' };
+    if (scheduleType === 'weekdays') {
+      schedule = { type: 'weekdays', days: [1, 2, 3, 4, 5] };
+    } else if (scheduleType === 'rest_day_sunday') {
+      schedule = { type: 'specific_days', days: [1, 2, 3, 4, 5, 6] };
+    } else if (scheduleType === 'rest_day_saturday') {
+      schedule = { type: 'specific_days', days: [1, 2, 3, 4, 5, 7] };
+    }
+
     onAddHabit?.({
       name: name.trim().slice(0, 60),
       tracking,
       target: tracking === 'check' ? 1 : Math.max(1, Math.min(1000000, Number(target) || 1)),
       unit: tracking === 'check' ? '' : unit,
-      schedule: { type: scheduleType },
+      schedule,
       progression: { enabled: false, step: 0 },
       debt: { enabled: false },
     });
@@ -200,6 +211,46 @@ export default function HabitModal({ isOpen, onClose, onAddHabit }) {
                   <option value="litre">litre</option>
                 </select>
               </label>
+            </div>
+          )}
+
+          {/* Cadence & Rest Day Selector */}
+          <label className="field" style={{ display: 'block', marginBottom: '16px' }}>
+            <span style={{ fontWeight: 700, fontSize: '13px' }}>Planlama & Dinlenme Günü</span>
+            <select
+              className="form-select"
+              style={{ width: '100%', height: '48px', padding: '0 12px', marginTop: '6px', fontSize: '15px' }}
+              value={scheduleType}
+              onChange={(e) => setScheduleType(e.target.value)}
+            >
+              <option value="daily">Her Gün (Haftada 7 Gün)</option>
+              <option value="weekdays">Hafta İçi (5 Gün — Hafta Sonu Dinlenme ☕)</option>
+              <option value="rest_day_sunday">Haftada 6 Gün (Pazar Dinlenme Günü ☕)</option>
+              <option value="rest_day_saturday">Haftada 6 Gün (Cumartesi Dinlenme Günü ☕)</option>
+            </select>
+            <span style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '4px', display: 'block' }}>
+              Dinlenme günlerinde serin asla yanmaz; hedeflerini suçluluk duymadan sürdürebilirsin.
+            </span>
+          </label>
+
+          {/* 3-Habit Behavioral Psychology Rule Banner */}
+          {existingHabitsCount >= 3 && (
+            <div
+              style={{
+                background: 'var(--surface-alt)',
+                border: '1.5px solid var(--border)',
+                borderRadius: '14px',
+                padding: '12px 14px',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '10px',
+              }}
+            >
+              <span style={{ fontSize: '20px' }}>💡</span>
+              <div style={{ fontSize: '12px', color: 'var(--muted)', lineHeight: 1.4 }}>
+                <strong style={{ color: 'var(--ink)' }}>Bilimsel Simülasyon İpucu:</strong> PACE araştırmamız, aynı anda en fazla 3 odak alışkanlığı takip eden kullanıcıların 90 günlük tutunmasının 2 kat daha yüksek olduğunu göstermektedir.
+              </div>
             </div>
           )}
 

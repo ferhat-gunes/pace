@@ -3436,8 +3436,32 @@ html[data-theme="dark"] .segmented-item.is-selected,
   30% { transform: scale(1.22) rotate(-5deg); }
   60% { transform: scale(1.15) rotate(4deg); }
 }
-
-/* Gems Badge */
+/* Streak Shield Badge */
+.shield-badge {
+  background: #F0F9FF;
+  border: 2px solid #BAE6FD;
+  color: #0284C7;
+  box-shadow: 0 2px 0 #BAE6FD;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.shield-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 0 #BAE6FD;
+}
+.shield-badge:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 #BAE6FD;
+}
+.shield-badge-active {
+  background: #E0F2FE;
+  border-color: #38BDF8;
+  color: #0369A1;
+  animation: shieldGlow 2s infinite ease-in-out;
+}
+@keyframes shieldGlow {
+  0%, 100% { box-shadow: 0 2px 0 #38BDF8, 0 0 6px rgba(56, 189, 248, 0.4); }
+  50% { box-shadow: 0 2px 0 #38BDF8, 0 0 12px rgba(56, 189, 248, 0.7); }
+}
 .gem-badge {
   background: #EBF8FF;
   border: 2px solid #BAE3FF;
@@ -3554,6 +3578,19 @@ html[data-theme="dark"] .xp-badge,
   border-color: #6E5C18;
   color: #FFE680;
   box-shadow: 0 2px 0 #6E5C18;
+}
+html[data-theme="dark"] .shield-badge,
+[data-theme="dark"] .shield-badge {
+  background: #0B2538;
+  border-color: #075985;
+  color: #7DD3FC;
+  box-shadow: 0 2px 0 #03456B;
+}
+html[data-theme="dark"] .shield-badge-active,
+[data-theme="dark"] .shield-badge-active {
+  background: #0C3854;
+  border-color: #38BDF8;
+  color: #BAE6FD;
 }
 html[data-theme="dark"] .daily-quest-banner,
 [data-theme="dark"] .daily-quest-banner {

@@ -33,6 +33,9 @@ export default function TodayView({
   isQuestClaimed = false,
   claimDailyChest,
   addXp,
+  streakFreezes = 2,
+  isStreakFrozenToday = false,
+  streak = 1,
 }) {
   const [editingHabitId, setEditingHabitId] = useState(null);
   const [editValue, setEditValue] = useState('');
@@ -42,6 +45,26 @@ export default function TodayView({
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }, []);
+
+  const yesterdayIso = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }, []);
+
+  const yesterdayIncompleteCount = useMemo(() => {
+    if (selectedDate !== todayIso || !habits || habits.length === 0) return 0;
+    let missed = 0;
+    habits.forEach((h) => {
+      const c = checkins.find((ci) => !ci.deleted && ci.habit_id === h.id && ci.habit_date === yesterdayIso);
+      const val = c ? Number(c.value) : 0;
+      const target = Number(h.target) || 1;
+      if (h.tracking === 'check' ? val < 1 : val < target) {
+        missed++;
+      }
+    });
+    return missed;
+  }, [habits, checkins, selectedDate, todayIso, yesterdayIso]);
 
   // Format dynamic date title
   const dateHeading = useMemo(() => {
@@ -275,6 +298,112 @@ export default function TodayView({
           )}
         </div>
       </div>
+
+      {/* Streak Freeze Alert Banner */}
+      {isStreakFrozenToday && selectedDate === todayIso && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{
+            background: 'var(--blue-soft, #E0F2FE)',
+            border: '1.5px solid var(--blue, #38BDF8)',
+            borderRadius: '16px',
+            padding: '12px 16px',
+            marginBottom: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '24px' }}>🛡️</span>
+            <div>
+              <strong style={{ fontSize: '13px', color: 'var(--blue-dark, #0369A1)', display: 'block' }}>
+                Seri Kurtarma Kalkanı Devrede!
+              </strong>
+              <span style={{ fontSize: '12px', color: 'var(--ink)' }}>
+                Dün check-in yapamadın ama kalkanın serini korudu ({streak} gün). Bugün devam et!
+              </span>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Grace Period / Yesterday Missed Reminder */}
+      {yesterdayIncompleteCount > 0 && selectedDate === todayIso && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{
+            background: 'var(--orange-soft, #FEF3C7)',
+            border: '1.5px solid var(--orange, #F59E0B)',
+            borderRadius: '16px',
+            padding: '12px 16px',
+            marginBottom: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '10px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '22px' }}>⏱️</span>
+            <div>
+              <strong style={{ fontSize: '13px', color: 'var(--orange-dark, #B45309)', display: 'block' }}>
+                Telafi Fırsatı
+              </strong>
+              <span style={{ fontSize: '12px', color: 'var(--ink)' }}>
+                Dünden tamamlanmamış {yesterdayIncompleteCount} alışkanlığın var.
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn-3d btn-3d-orange"
+            style={{ padding: '6px 14px', fontSize: '12px', minHeight: '36px', borderRadius: '12px' }}
+            onClick={() => {
+              playPop();
+              setSelectedDate?.(yesterdayIso);
+            }}
+          >
+            Dünü Telafi Et ⏱️
+          </button>
+        </motion.div>
+      )}
+
+      {/* Yesterday Active Grace Period Banner */}
+      {selectedDate === yesterdayIso && (
+        <div
+          style={{
+            background: 'var(--surface-alt)',
+            border: '1px solid var(--border)',
+            borderRadius: '14px',
+            padding: '10px 14px',
+            marginBottom: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px',
+          }}
+        >
+          <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--orange-dark)' }}>
+            ⏱️ Telafi Modu: Dünkü eksiklerini tamamlayarak serini koruyabilirsin.
+          </span>
+          <button
+            type="button"
+            className="btn-3d btn-3d-gray"
+            style={{ minHeight: '32px', padding: '0 10px', fontSize: '11px', borderRadius: '10px' }}
+            onClick={() => {
+              playPop();
+              setSelectedDate?.(todayIso);
+            }}
+          >
+            Bugüne Dön
+          </button>
+        </div>
+      )}
 
       {/* Week Navigation Controls */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>

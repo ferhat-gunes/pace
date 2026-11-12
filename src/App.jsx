@@ -93,6 +93,9 @@ export default function App() {
           onOpenAuth={() => setAuthModalOpen(true)}
           syncState={syncState}
           streak={gamification.streak}
+          streakFreezes={gamification.streakFreezes}
+          isStreakFrozenToday={gamification.isStreakFrozenToday}
+          buyStreakFreeze={gamification.buyStreakFreeze}
           gems={gamification.gems}
           level={gamification.level}
           xp={gamification.xp}
@@ -126,6 +129,9 @@ export default function App() {
                   isQuestClaimed={gamification.isQuestClaimed}
                   claimDailyChest={gamification.claimDailyChest}
                   addXp={gamification.addXp}
+                  streakFreezes={gamification.streakFreezes}
+                  isStreakFrozenToday={gamification.isStreakFrozenToday}
+                  streak={gamification.streak}
                 />
               )}
 
@@ -150,7 +156,14 @@ export default function App() {
                 )}
 
                 {currentView === 'groups' && (
-                  <GroupsView groups={groups} user={user} loadData={loadData} initialInviteToken={inviteToken} onClearInviteToken={() => setInviteToken(null)} />
+                  <GroupsView
+                    groups={groups}
+                    user={user}
+                    loadData={loadData}
+                    initialInviteToken={inviteToken}
+                    onClearInviteToken={() => setInviteToken(null)}
+                    gamification={gamification}
+                  />
                 )}
 
                 {currentView === 'settings' && (
@@ -177,6 +190,7 @@ export default function App() {
         isOpen={isHabitModalOpen}
         onClose={() => setHabitModalOpen(false)}
         onAddHabit={addHabit}
+        existingHabitsCount={habits.length}
       />
 
       <Suspense fallback={null}>
