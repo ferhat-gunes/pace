@@ -223,7 +223,7 @@ export default function ProgressView({ habits = [], checkins = [], gamification 
         </div>
 
         <div className="stat-card card-chunky">
-          <div className="stat-icon is-sage">
+          <div className="stat-icon is-primary">
             <TrendingUp size={24} />
           </div>
           <div>

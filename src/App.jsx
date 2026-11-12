@@ -227,7 +227,7 @@ export default function App() {
             <div style={{ fontSize: '48px', marginBottom: '8px', animation: 'flamePulse 1.2s infinite ease-in-out' }}>
               ⚡
             </div>
-            <h2 style={{ fontSize: '24px', fontFamily: 'var(--font-heading)', fontWeight: 800, color: 'var(--forest)', margin: '0 0 8px' }}>
+            <h2 style={{ fontSize: '24px', fontFamily: 'var(--font-heading)', fontWeight: 800, color: 'var(--ink)', margin: '0 0 8px' }}>
               Tebrikler! Seviye {gamification.levelCelebrationPending}!
             </h2>
             <p style={{ color: 'var(--muted)', fontSize: '15px', marginBottom: '24px' }}>
