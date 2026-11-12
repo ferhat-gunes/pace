@@ -3084,7 +3084,7 @@ html[data-theme="dark"] .segmented-item.is-selected,
 .modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: 2500;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3113,13 +3113,14 @@ html[data-theme="dark"] .segmented-item.is-selected,
   .modal-overlay {
     align-items: flex-end;
     padding: 0;
+    z-index: 2500;
   }
   .dialog-sheet {
     width: 100% !important;
     max-width: 100% !important;
-    max-height: 85vh;
+    max-height: 88vh;
     border-radius: 24px 24px 0 0 !important;
-    padding: 20px 20px calc(28px + env(safe-area-inset-bottom, 16px)) !important;
+    padding: 20px 20px calc(40px + env(safe-area-inset-bottom, 20px)) !important;
     animation: slideUpSheet 0.28s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .sheet-handle {
