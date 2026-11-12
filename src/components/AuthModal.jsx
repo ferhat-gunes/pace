@@ -105,7 +105,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
         </button>
 
         <div className="auth-brand">
-          <span style={{ fontFamily: 'var(--font-heading)', fontSize: '28px', fontWeight: 800, color: 'var(--forest)' }}>
+          <span style={{ fontFamily: 'var(--font-heading)', fontSize: '28px', fontWeight: 800, color: 'var(--ink)' }}>
             pace
           </span>
           <p className="auth-lead" style={{ marginTop: '4px', color: 'var(--muted)', fontSize: '14px' }}>
@@ -184,19 +184,19 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
               <span>{generatedCode}</span>
               <button
                 type="button"
-                className="button button-quiet"
-                style={{ height: '36px', padding: '0 10px', fontSize: '12px' }}
+                className="btn-3d btn-3d-gray"
+                style={{ height: '36px', padding: '0 12px', fontSize: '12px', borderRadius: '10px' }}
                 onClick={handleCopyCode}
                 aria-label="Kodu kopyala"
               >
-                {copied ? <Check size={14} color="var(--forest)" /> : <Copy size={14} />}
+                {copied ? <Check size={14} color="var(--green)" /> : <Copy size={14} />}
                 <span style={{ marginLeft: '4px' }}>{copied ? 'Kopyalandı' : 'Kopyala'}</span>
               </button>
             </div>
             <button
               type="button"
-              className="button button-primary"
-              style={{ width: '100%', minHeight: '48px' }}
+              className="btn-3d btn-3d-green"
+              style={{ width: '100%', minHeight: '48px', borderRadius: '14px' }}
               onClick={() => {
                 setGeneratedCode('');
                 onClose();
@@ -264,7 +264,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
             <button
               type="submit"
-              className="button button-primary"
+              className="btn-3d btn-3d-green"
               id="auth-submit"
               disabled={loading}
               style={{ width: '100%', minHeight: '48px', marginTop: '8px', fontSize: '15px' }}

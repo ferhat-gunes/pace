@@ -124,8 +124,8 @@ export default function TopBar({
               fontWeight: 700,
               padding: '2px 8px',
               borderRadius: '8px',
-              background: syncState === 'Kaydedildi' ? 'var(--forest-soft)' : 'var(--orange-soft)',
-              color: syncState === 'Kaydedildi' ? 'var(--forest)' : 'var(--orange-dark)',
+              background: syncState === 'Kaydedildi' ? 'var(--green-soft)' : 'var(--orange-soft)',
+              color: syncState === 'Kaydedildi' ? 'var(--green-dark)' : 'var(--orange-dark)',
             }}
             aria-live="polite"
           >

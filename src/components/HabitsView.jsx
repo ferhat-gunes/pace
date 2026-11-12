@@ -28,7 +28,7 @@ export default function HabitsView({
     <section className="page-view" id="view-habits" aria-labelledby="habits-title">
       <div className="page-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h1 id="habits-title" style={{ margin: 0, fontSize: 'clamp(22px, 4vw, 28px)', color: 'var(--forest)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
+          <h1 id="habits-title" style={{ margin: 0, fontSize: 'clamp(22px, 4vw, 28px)', color: 'var(--ink)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
             Alışkanlıklar
           </h1>
           <p className="section-subtitle" style={{ color: 'var(--muted)', fontSize: '13px', margin: '4px 0 0' }}>
@@ -62,11 +62,11 @@ export default function HabitsView({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            background: 'var(--forest-soft)',
-            borderColor: 'var(--forest-border)',
-            borderBottomColor: 'var(--forest)',
+            background: 'var(--green-soft)',
+            borderColor: 'var(--green-soft)',
+            borderBottomColor: 'var(--green)',
             marginBottom: '16px',
-            color: 'var(--forest-dark)',
+            color: 'var(--green-dark)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
@@ -75,8 +75,8 @@ export default function HabitsView({
           </div>
           <button
             type="button"
-            className="button button-quiet"
-            style={{ fontWeight: 700, color: 'var(--forest-dark)', minHeight: '40px' }}
+            className="btn-3d btn-3d-gray"
+            style={{ fontWeight: 700, color: 'var(--green-dark)', minHeight: '36px', padding: '0 12px', borderRadius: '10px' }}
             onClick={() => {
               playSuccess();
               restoreHabit?.(lastArchivedHabit.id);
@@ -91,10 +91,10 @@ export default function HabitsView({
       {/* Active Habits List */}
       {activeHabits.length === 0 ? (
         <div className="empty-state card-chunky" style={{ padding: '48px 24px', textAlign: 'center' }}>
-          <div style={{ width: '54px', height: '54px', borderRadius: '18px', background: 'var(--forest-soft)', color: 'var(--forest)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: '26px' }}>
+          <div style={{ width: '54px', height: '54px', borderRadius: '18px', background: 'var(--primary-soft)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: '26px' }}>
             📋
           </div>
-          <h2 style={{ fontSize: '20px', color: 'var(--forest)', marginBottom: '8px', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
+          <h2 style={{ fontSize: '20px', color: 'var(--ink)', marginBottom: '8px', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
             Henüz aktif bir alışkanlık yok
           </h2>
           <p style={{ color: 'var(--muted)', fontSize: '14px', marginBottom: '24px' }}>
@@ -214,13 +214,14 @@ export default function HabitsView({
                 <div className="habit-actions">
                   <button
                     type="button"
-                    className="button button-quiet"
+                    className="btn-3d btn-3d-gray"
                     style={{
                       fontSize: '13px',
                       padding: '0 14px',
-                      minHeight: '44px',
-                      color: 'var(--forest)',
-                      fontWeight: 600,
+                      minHeight: '40px',
+                      color: 'var(--primary)',
+                      fontWeight: 700,
+                      borderRadius: '12px',
                     }}
                     aria-label={`${h.name} alışkanlığını arşivden çıkar ve geri yükle`}
                     onClick={() => restoreHabit?.(h.id)}

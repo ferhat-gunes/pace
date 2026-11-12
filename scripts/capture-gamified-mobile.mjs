@@ -28,7 +28,18 @@ async function capture() {
   });
   console.log('Saved pace-gamified-today-light.png');
 
-  // 2. Open Daily Chest celebration (click claim if available or interact with a habit)
+  // 2. Open Habit Modal to verify numeric keypad attributes and clean styling
+  await page.locator('.mobile-fab').click();
+  await page.waitForTimeout(350);
+  await page.screenshot({
+    path: path.join(ARTIFACTS_DIR, 'pace-gamified-habit-modal.png'),
+    fullPage: false,
+  });
+  console.log('Saved pace-gamified-habit-modal.png');
+  await page.locator('.dialog-sheet button[aria-label="Kapat"]').click();
+  await page.waitForTimeout(250);
+
+  // 3. Interact with a habit button
   const habitBtn = page.locator('.btn-3d-green').first();
   if (await habitBtn.isVisible()) {
     await habitBtn.click();
@@ -41,9 +52,9 @@ async function capture() {
   });
   console.log('Saved pace-gamified-interaction.png');
 
-  // 3. Switch to Progress view (Level League banner & stats)
+  // 4. Switch to Progress view (Level League banner & stats)
   await page.locator('.mobile-nav button[data-view="progress"]').click();
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(400);
 
   await page.screenshot({
     path: path.join(ARTIFACTS_DIR, 'pace-gamified-progress.png'),
@@ -51,7 +62,17 @@ async function capture() {
   });
   console.log('Saved pace-gamified-progress.png');
 
-  // 4. Toggle dark theme and capture Today in dark
+  // 5. Switch to Groups view
+  await page.locator('.mobile-nav button[data-view="groups"]').click();
+  await page.waitForTimeout(400);
+
+  await page.screenshot({
+    path: path.join(ARTIFACTS_DIR, 'pace-gamified-groups.png'),
+    fullPage: false,
+  });
+  console.log('Saved pace-gamified-groups.png');
+
+  // 6. Toggle dark theme and capture Today in dark
   await page.locator('.mobile-nav button[data-view="today"]').click();
   await page.locator('.theme-toggle-btn').click();
   await page.waitForTimeout(400);

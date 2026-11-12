@@ -203,7 +203,7 @@ export default function TodayView({
       <div className="today-heading-wrap" style={{ marginBottom: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px' }}>
           <div>
-            <h1 id="page-title" style={{ margin: 0, fontSize: 'clamp(20px, 4vw, 26px)', color: 'var(--forest)' }}>
+            <h1 id="page-title" style={{ margin: 0, fontSize: 'clamp(20px, 4vw, 26px)', color: 'var(--ink)' }}>
               <span id="selected-date-label">{dateHeading}</span>
             </h1>
             <span id="today-completion" className="completion-summary" aria-live="polite" style={{ fontSize: '13px', color: 'var(--muted)', fontWeight: 600, display: 'block', marginTop: '2px' }}>
@@ -222,7 +222,7 @@ export default function TodayView({
               playPop();
               onOpenAddModal?.();
             }}
-            style={{ display: 'none', padding: '10px 20px', fontSize: '14px' }}
+            style={{ padding: '10px 20px', fontSize: '14px' }}
           >
             Alışkanlık Ekle +
           </button>
@@ -403,7 +403,7 @@ export default function TodayView({
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '4px' }}>
             <Sparkles size={22} color="#FF9600" />
-            <strong style={{ fontSize: '17px', color: 'var(--forest)', fontFamily: 'var(--font-heading)' }}>
+            <strong style={{ fontSize: '17px', color: 'var(--ink)', fontFamily: 'var(--font-heading)' }}>
               Harika bir ritim! 🌟
             </strong>
           </div>
@@ -416,10 +416,10 @@ export default function TodayView({
       {/* Habit List */}
       {todayHabits.length === 0 ? (
         <div className="empty-state card-chunky" style={{ padding: '48px 24px', textAlign: 'center' }}>
-          <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'var(--forest-soft)', color: 'var(--forest)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: '28px' }}>
+          <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'var(--primary-soft)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: '28px' }}>
             🌱
           </div>
-          <h2 style={{ fontSize: '19px', color: 'var(--forest)', marginBottom: '8px', fontFamily: 'var(--font-heading)' }}>
+          <h2 style={{ fontSize: '19px', color: 'var(--ink)', marginBottom: '8px', fontFamily: 'var(--font-heading)' }}>
             {filterMode === 'planned' ? 'Bu gün için planlanan alışkanlık yok' : 'Henüz hiç alışkanlık yok'}
           </h2>
           <p style={{ color: 'var(--muted)', fontSize: '14px', marginBottom: '20px', maxWidth: '360px', margin: '0 auto 20px', fontWeight: 500 }}>
@@ -610,25 +610,28 @@ export default function TodayView({
 
                       {editingHabitId === h.id ? (
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="decimal"
+                          pattern="[0-9]*"
                           autoFocus
                           value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
+                          onChange={(e) => setEditValue(e.target.value.replace(/[^0-9.]/g, ''))}
                           onBlur={() => handleSaveEdit(h.id)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') handleSaveEdit(h.id);
                             if (e.key === 'Escape') setEditingHabitId(null);
                           }}
                           style={{
-                            width: '56px',
+                            width: '62px',
                             height: '42px',
                             textAlign: 'center',
                             borderRadius: '14px',
-                            border: '2px solid #FF9600',
+                            border: '2.5px solid var(--primary)',
                             fontWeight: 800,
-                            fontSize: '16px',
+                            fontSize: '17px',
                             background: 'var(--surface)',
                             color: 'var(--ink)',
+                            boxShadow: '0 4px 14px rgba(28, 176, 246, 0.25)',
                           }}
                           aria-label={`${h.name} miktarı`}
                         />

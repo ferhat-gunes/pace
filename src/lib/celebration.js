@@ -42,14 +42,14 @@ export function triggerConfetti(originX, originY) {
   const startX = originX ?? width / 2;
   const startY = originY ?? height / 2;
 
-  // PACE brand color palette sparkles
+  // PACE gamified vibrant sparkle palette
   const colors = [
-    '#D45D24', // Warm orange
-    '#B94F1A', // Deep orange
-    '#244C3A', // Forest
-    '#A8B59A', // Sage
-    '#F4F0E6', // Cream
-    '#E58B4A', // Soft amber
+    '#58CC02', // Vibrant green
+    '#1CB0F6', // Electric blue
+    '#FF9600', // Bright orange
+    '#FFC800', // Gold yellow
+    '#CE82FF', // Vivid purple
+    '#FF4B4B', // Energetic coral
   ];
 
   const particleCount = 28;

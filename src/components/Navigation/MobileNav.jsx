@@ -14,7 +14,7 @@ export default function MobileNav({ currentView = 'today', setView }) {
   ];
 
   return (
-    <nav className="mobile-nav astryx-mobile-nav" data-astryx-component="mobile-nav" aria-label="Ana gezinme">
+    <nav className="mobile-nav" aria-label="Ana gezinme">
       {items.map((item) => {
         const Icon = item.icon;
         const isActive = currentView === item.id;
@@ -25,21 +25,29 @@ export default function MobileNav({ currentView = 'today', setView }) {
             className={`nav-item ${isActive ? 'is-active' : ''}`}
             data-view={item.id}
             aria-current={isActive ? 'page' : undefined}
-            whileTap={{ scale: 0.88 }}
+            whileTap={{ scale: 0.92, y: 1 }}
+            transition={{ type: 'spring', stiffness: 500, damping: 25 }}
             onClick={() => {
               playPop();
               triggerHaptic('light');
               setView?.(item.id);
             }}
           >
+            {isActive && (
+              <motion.div
+                layoutId="active-pill-bubble"
+                className="nav-active-pill"
+                transition={{ type: 'spring', stiffness: 450, damping: 30 }}
+              />
+            )}
             <motion.span
               className="nav-icon"
-              animate={isActive ? { scale: [1, 1.25, 1], rotate: [0, -6, 6, 0] } : { scale: 1 }}
-              transition={{ duration: 0.28, ease: 'easeOut' }}
+              animate={isActive ? { scale: [1, 1.22, 1], rotate: [0, -6, 6, 0] } : { scale: 1 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
             >
-              <Icon aria-hidden="true" />
+              <Icon aria-hidden="true" size={22} />
             </motion.span>
-            <span>{item.label}</span>
+            <span className="nav-label">{item.label}</span>
           </motion.button>
         );
       })}

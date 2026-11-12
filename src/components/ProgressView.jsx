@@ -90,7 +90,7 @@ export default function ProgressView({ habits = [], checkins = [], gamification 
     <section className="page-view" id="view-progress" aria-labelledby="progress-title">
       <div className="page-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h1 id="progress-title" style={{ margin: 0, fontSize: 'clamp(22px, 4vw, 28px)', color: 'var(--forest)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
+          <h1 id="progress-title" style={{ margin: 0, fontSize: 'clamp(22px, 4vw, 28px)', color: 'var(--ink)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
             İlerleme & Ritim
           </h1>
           <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '4px 0 0' }}>
@@ -233,7 +233,7 @@ export default function ProgressView({ habits = [], checkins = [], gamification 
         </div>
 
         <div className="stat-card card-chunky">
-          <div className="stat-icon is-forest">
+          <div className="stat-icon is-green">
             <Zap size={24} />
           </div>
           <div>
@@ -283,7 +283,7 @@ export default function ProgressView({ habits = [], checkins = [], gamification 
                   <td style={{ textAlign: 'center' }}>{item.completedCount}</td>
                   <td style={{ textAlign: 'center' }}>{item.logsCount}</td>
                   <td style={{ textAlign: 'center' }}>
-                    <span style={{ fontWeight: 700, color: item.completionRate >= 80 ? 'var(--forest)' : 'var(--orange-dark)' }}>
+                    <span style={{ fontWeight: 700, color: item.completionRate >= 80 ? 'var(--green-dark)' : 'var(--orange-dark)' }}>
                       %{item.completionRate}
                     </span>
                   </td>

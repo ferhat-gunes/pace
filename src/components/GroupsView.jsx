@@ -164,7 +164,7 @@ export default function GroupsView({
     <section className="page-view" id="view-groups" aria-labelledby="groups-title">
       <div className="page-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h1 id="groups-title" style={{ margin: 0, fontSize: 'clamp(22px, 4vw, 28px)', color: 'var(--forest)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
+          <h1 id="groups-title" style={{ margin: 0, fontSize: 'clamp(22px, 4vw, 28px)', color: 'var(--ink)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
             Ortak Takip & Gruplar
           </h1>
           <p className="section-subtitle" style={{ color: 'var(--muted)', fontSize: '13px', margin: '4px 0 0' }}>
@@ -213,10 +213,10 @@ export default function GroupsView({
       {/* Empty State */}
       {groups.length === 0 ? (
         <div className="empty-state card-chunky" style={{ padding: '48px 24px', textAlign: 'center' }}>
-          <div style={{ width: '54px', height: '54px', borderRadius: '18px', background: 'var(--forest-soft)', color: 'var(--forest)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+          <div style={{ width: '54px', height: '54px', borderRadius: '18px', background: 'var(--primary-soft)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
             <Users size={26} />
           </div>
-          <h2 style={{ fontSize: '20px', color: 'var(--forest)', marginBottom: '8px', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
+          <h2 style={{ fontSize: '20px', color: 'var(--ink)', marginBottom: '8px', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
             Henüz bir gruba üye değilsin
           </h2>
           <p style={{ color: 'var(--muted)', fontSize: '14px', marginBottom: '24px', maxWidth: '380px', margin: '0 auto 24px' }}>
@@ -241,7 +241,7 @@ export default function GroupsView({
             <div className="card-chunky" style={{ marginBottom: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '20px' }}>
                 <div>
-                  <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--forest)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
+                  <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--ink)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
                     {activeGroup.name}
                   </h2>
                   {activeGroup.description && (
@@ -249,7 +249,7 @@ export default function GroupsView({
                       {activeGroup.description}
                     </p>
                   )}
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--forest-dark)', marginTop: '4px', display: 'inline-block' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--muted)', marginTop: '4px', display: 'inline-block' }}>
                     {members.length} Üye • {habits.length} Ortak Alışkanlık
                   </span>
                 </div>
@@ -329,7 +329,7 @@ export default function GroupsView({
                               <td key={dayIdx} style={{ textAlign: 'center' }}>
                                 {hasLog ? (
                                   <span>
-                                    <span aria-hidden="true" style={{ color: 'var(--forest)', fontWeight: 800 }}>✓</span>
+                                    <span aria-hidden="true" style={{ color: 'var(--green)', fontWeight: 800 }}>✓</span>
                                     <span className="sr-only">Tamamlandı</span>
                                   </span>
                                 ) : (
@@ -342,7 +342,7 @@ export default function GroupsView({
                             );
                           })}
                           <td style={{ textAlign: 'center' }}>
-                            <strong style={{ color: percentage >= 70 ? 'var(--forest)' : 'var(--orange-dark)' }}>
+                            <strong style={{ color: percentage >= 70 ? 'var(--green-dark)' : 'var(--orange-dark)' }}>
                               %{percentage}
                             </strong>
                           </td>
@@ -373,7 +373,7 @@ export default function GroupsView({
             <div className="sheet-handle" aria-hidden="true"></div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h2 id="create-group-title" style={{ margin: 0, color: 'var(--forest)', fontSize: '20px' }}>
+              <h2 id="create-group-title" style={{ margin: 0, color: 'var(--ink)', fontSize: '20px' }}>
                 Yeni Grup Kur
               </h2>
               <button
@@ -433,8 +433,8 @@ export default function GroupsView({
                 </button>
                 <button
                   type="submit"
-                  className="button button-primary"
-                  style={{ minHeight: '48px', padding: '0 24px' }}
+                  className="btn-3d btn-3d-green"
+                  style={{ minHeight: '48px', padding: '0 24px', borderRadius: '16px' }}
                 >
                   Grup Oluştur
                 </button>
@@ -460,7 +460,7 @@ export default function GroupsView({
             <div className="sheet-handle" aria-hidden="true"></div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h2 id="invite-modal-title" style={{ margin: 0, color: 'var(--forest)', fontSize: '20px' }}>
+              <h2 id="invite-modal-title" style={{ margin: 0, color: 'var(--ink)', fontSize: '20px' }}>
                 Arkadaşlarını Davet Et
               </h2>
               <button
@@ -486,8 +486,8 @@ export default function GroupsView({
               />
               <button
                 type="button"
-                className="button button-primary"
-                style={{ minHeight: '48px', padding: '0 16px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                className="btn-3d btn-3d-green"
+                style={{ minHeight: '48px', padding: '0 16px', display: 'inline-flex', alignItems: 'center', gap: '6px', borderRadius: '14px' }}
                 onClick={handleCopyInviteLink}
               >
                 {copied ? <Check size={16} /> : <Copy size={16} />}
@@ -498,8 +498,8 @@ export default function GroupsView({
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button
                 type="button"
-                className="button button-quiet"
-                style={{ minHeight: '48px', padding: '0 20px' }}
+                className="btn-3d btn-3d-gray"
+                style={{ minHeight: '44px', padding: '0 20px', borderRadius: '14px' }}
                 onClick={() => setShowInviteModal(false)}
               >
                 Kapat
@@ -532,7 +532,7 @@ export default function GroupsView({
                 <Users size={28} />
               </div>
 
-              <h2 id="join-preview-title" style={{ fontSize: '20px', color: 'var(--forest)', margin: '0 0 8px' }}>
+              <h2 id="join-preview-title" style={{ fontSize: '20px', color: 'var(--ink)', margin: '0 0 8px' }}>
                 "{invitePreview.group_name}" Grubuna Katıl
               </h2>
 
@@ -544,8 +544,8 @@ export default function GroupsView({
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '20px' }}>
                 <button
                   type="button"
-                  className="button button-quiet"
-                  style={{ minHeight: '48px', padding: '0 20px' }}
+                  className="btn-3d btn-3d-gray"
+                  style={{ minHeight: '48px', padding: '0 20px', borderRadius: '14px' }}
                   onClick={() => {
                     setInvitePreview(null);
                     onClearInviteToken?.();
@@ -555,8 +555,8 @@ export default function GroupsView({
                 </button>
                 <button
                   type="button"
-                  className="button button-primary"
-                  style={{ minHeight: '48px', padding: '0 24px' }}
+                  className="btn-3d btn-3d-green"
+                  style={{ minHeight: '48px', padding: '0 24px', borderRadius: '14px' }}
                   onClick={handleAcceptInvite}
                 >
                   Gruba Katıl

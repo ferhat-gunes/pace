@@ -81,7 +81,7 @@ export default function HabitModal({ isOpen, onClose, onAddHabit }) {
         <div className="sheet-handle" aria-hidden="true"></div>
 
         <div className="dialog-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 0 16px', borderBottom: '1px solid var(--border)' }}>
-          <h2 id="habit-modal-title" style={{ margin: 0, fontSize: '20px', color: 'var(--forest)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
+          <h2 id="habit-modal-title" style={{ margin: 0, fontSize: '20px', color: 'var(--ink)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
             ✨ Yeni Alışkanlık Ekle
           </h2>
           <button
@@ -172,13 +172,14 @@ export default function HabitModal({ isOpen, onClose, onAddHabit }) {
               <label className="field">
                 <span style={{ fontWeight: 700, fontSize: '13px' }}>Günlük Hedef</span>
                 <input
-                  type="number"
-                  min="1"
-                  max="1000000"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   className="form-input"
                   style={{ width: '100%', height: '48px', padding: '0 12px', marginTop: '6px', fontSize: '16px' }}
                   value={target}
-                  onChange={(e) => setTarget(e.target.value)}
+                  onChange={(e) => setTarget(e.target.value.replace(/[^0-9]/g, ''))}
+                  placeholder="10"
                   required
                 />
               </label>

@@ -36,7 +36,7 @@ export class ErrorBoundary extends React.Component {
           }}
         >
           <div style={{ fontSize: '36px', marginBottom: '16px' }}>🌱</div>
-          <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '20px', color: 'var(--forest)', marginBottom: '8px' }}>
+          <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '20px', color: 'var(--ink)', marginBottom: '8px' }}>
             Beklenmeyen bir durum oluştu
           </h2>
           <p style={{ color: 'var(--muted)', fontSize: '14px', lineHeight: 1.5, marginBottom: '24px' }}>
@@ -44,7 +44,7 @@ export class ErrorBoundary extends React.Component {
           </p>
           <button
             type="button"
-            className="button button-primary"
+            className="btn-3d btn-3d-green"
             onClick={this.handleReload}
             style={{ minHeight: '44px', padding: '0 24px', fontSize: '15px' }}
           >
