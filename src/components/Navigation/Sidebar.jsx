@@ -11,8 +11,34 @@ export default function Sidebar({ currentView = 'today', setView, syncState = 'B
 
   return (
     <aside className="sidebar astryx-side-nav" data-astryx-component="side-nav" aria-label="Ana gezinme">
-      <a className="brand" href="#today" onClick={(e) => { e.preventDefault(); setView?.('today'); }} aria-label="PACE ana sayfa">
-        <span>pace</span>
+      <a
+        className="brand"
+        href="#today"
+        onClick={(e) => { e.preventDefault(); setView?.('today'); }}
+        aria-label="PACE ana sayfa"
+        style={{ display: 'flex', alignItems: 'center', gap: '10px' }}
+      >
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '36px',
+            height: '36px',
+            borderRadius: '12px',
+            background: 'linear-gradient(135deg, #58CC02 0%, #1CB0F6 100%)',
+            boxShadow: '0 3px 0 #1899D6',
+            color: '#FFFFFF',
+            fontSize: '20px',
+            fontWeight: 900,
+          }}
+          aria-hidden="true"
+        >
+          ⚡
+        </span>
+        <span style={{ fontSize: '28px', fontWeight: 900, letterSpacing: '-1px', color: 'var(--ink)' }}>
+          pace
+        </span>
       </a>
 
       <nav className="nav-list">

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Sun, Moon, Flame, Gem, Zap, Volume2, VolumeX } from 'lucide-react';
-import { isSoundEnabled, toggleSound, playPop } from '../../lib/soundFx';
+import React, { useState } from 'react';
+import { Flame, Gem, Zap } from 'lucide-react';
+import { playPop } from '../../lib/soundFx';
 
 export default function TopBar({
   setView,
@@ -16,49 +16,8 @@ export default function TopBar({
   xp = 0,
 }) {
   const initial = user?.email ? user.email[0].toUpperCase() : 'P';
-  const [soundOn, setSoundOn] = useState(() => isSoundEnabled());
   const [showShieldModal, setShowShieldModal] = useState(false);
   const [shieldFeedback, setShieldFeedback] = useState(null);
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof document !== 'undefined') {
-      return document.documentElement.getAttribute('data-theme') === 'dark';
-    }
-    return false;
-  });
-
-  useEffect(() => {
-    try {
-      const savedTheme = localStorage.getItem('pace_theme');
-      if (savedTheme === 'dark') {
-        document.documentElement.setAttribute('data-theme', 'dark');
-        setIsDark(true);
-      } else if (savedTheme === 'light') {
-        document.documentElement.removeAttribute('data-theme');
-        setIsDark(false);
-      } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        document.documentElement.setAttribute('data-theme', 'dark');
-        setIsDark(true);
-      }
-    } catch {}
-  }, []);
-
-  const toggleTheme = () => {
-    playPop();
-    const nextDark = !isDark;
-    setIsDark(nextDark);
-    if (nextDark) {
-      document.documentElement.setAttribute('data-theme', 'dark');
-      try { localStorage.setItem('pace_theme', 'dark'); } catch {}
-    } else {
-      document.documentElement.removeAttribute('data-theme');
-      try { localStorage.setItem('pace_theme', 'light'); } catch {}
-    }
-  };
-
-  const handleToggleSound = () => {
-    const next = toggleSound();
-    setSoundOn(next);
-  };
 
   return (
     <header className="topbar" role="banner" style={{ flexWrap: 'wrap', gap: '8px 12px' }}>
@@ -71,8 +30,29 @@ export default function TopBar({
           playPop();
           setView?.('today');
         }}
+        style={{ cursor: 'pointer', userSelect: 'none' }}
       >
-        <span>pace</span>
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '32px',
+            height: '32px',
+            borderRadius: '10px',
+            background: 'linear-gradient(135deg, #58CC02 0%, #1CB0F6 100%)',
+            boxShadow: '0 3px 0 #1899D6',
+            color: '#FFFFFF',
+            fontSize: '18px',
+            fontWeight: 900,
+          }}
+          aria-hidden="true"
+        >
+          ⚡
+        </span>
+        <span style={{ fontSize: '24px', fontWeight: 900, letterSpacing: '-0.8px', color: 'var(--ink)' }}>
+          pace
+        </span>
       </button>
 
       {/* Gamification Stats Bar */}
@@ -292,28 +272,6 @@ export default function TopBar({
             {syncState}
           </span>
         )}
-
-        {/* Sound toggle button */}
-        <button
-          type="button"
-          className="sound-toggle-btn"
-          aria-label={soundOn ? 'Sesi Kapat' : 'Sesi Aç'}
-          title={soundOn ? 'Sesi Kapat' : 'Sesi Aç'}
-          onClick={handleToggleSound}
-        >
-          {soundOn ? <Volume2 size={18} /> : <VolumeX size={18} />}
-        </button>
-
-        {/* Theme toggle button */}
-        <button
-          type="button"
-          className="theme-toggle-btn"
-          aria-label={isDark ? 'Açık temaya geç' : 'Karanlık temaya geç'}
-          title={isDark ? 'Açık temaya geç' : 'Karanlık temaya geç'}
-          onClick={toggleTheme}
-        >
-          {isDark ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
 
         {/* User avatar */}
         <button

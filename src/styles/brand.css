@@ -186,6 +186,11 @@ html, body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.35s cubic-bezier(0.4, 0, 0.2, 1), color 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-chunky, .dialog-sheet, .topbar, .sidebar, .mobile-nav, .week-day, .btn-3d {
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 html {
@@ -300,17 +305,18 @@ svg {
 .brand, .mobile-brand, .auth-brand, .startup-brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   color: var(--ink);
   font-family: var(--font-heading);
-  font-size: 26px;
-  font-weight: 800;
-  letter-spacing: -0.8px;
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: -1.2px;
   text-decoration: none;
 }
 
 .brand {
-  margin: 0 8px 40px;
+  margin: 0 8px 36px;
+  font-size: 30px;
 }
 
 .sidebar .brand {
@@ -2102,7 +2108,11 @@ body:has(dialog[open]) {
   }
   .mobile-brand {
     display: flex;
-    font-size: 24px;
+    align-items: center;
+    gap: 8px;
+    font-size: 27px;
+    font-weight: 900;
+    letter-spacing: -1.2px;
   }
   .topbar-date {
     display: none;

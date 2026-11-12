@@ -279,23 +279,6 @@ export default function TodayView({
               Tümü
             </button>
           </div>
-
-          {selectedDate !== todayIso && (
-            <motion.button
-              type="button"
-              className="btn-3d btn-3d-gray"
-              style={{ minHeight: '38px', padding: '0 12px', fontSize: '12px' }}
-              onClick={() => {
-                playPop();
-                setSelectedDate?.(todayIso);
-              }}
-              whileTap={{ scale: 0.94, y: 2 }}
-              title="Bugüne dön"
-            >
-              <RotateCcw size={14} />
-              <span>Bugün</span>
-            </motion.button>
-          )}
         </div>
       </div>
 
@@ -380,28 +363,17 @@ export default function TodayView({
             background: 'var(--surface-alt)',
             border: '1px solid var(--border)',
             borderRadius: '14px',
-            padding: '10px 14px',
+            padding: '12px 16px',
             marginBottom: '16px',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '8px',
+            gap: '10px',
           }}
         >
-          <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--orange-dark)' }}>
-            ⏱️ Telafi Modu: Dünkü eksiklerini tamamlayarak serini koruyabilirsin.
+          <span style={{ fontSize: '18px' }}>⏱️</span>
+          <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--orange-dark)', lineHeight: 1.4 }}>
+            Telafi Modu: Dünkü eksiklerini tamamlayarak serini koruyabilirsin.
           </span>
-          <button
-            type="button"
-            className="btn-3d btn-3d-gray"
-            style={{ minHeight: '32px', padding: '0 10px', fontSize: '11px', borderRadius: '10px' }}
-            onClick={() => {
-              playPop();
-              setSelectedDate?.(todayIso);
-            }}
-          >
-            Bugüne Dön
-          </button>
         </div>
       )}
 
@@ -436,8 +408,8 @@ export default function TodayView({
         {selectedDate !== todayIso && (
           <motion.button
             type="button"
-            className="btn-3d btn-3d-gray"
-            style={{ minHeight: '36px', padding: '0 10px', fontSize: '12px', borderRadius: '12px' }}
+            className="btn-3d btn-3d-orange"
+            style={{ minHeight: '36px', padding: '0 12px', fontSize: '12px', borderRadius: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             onClick={() => {
               playPop();
               setSelectedDate?.(todayIso);
@@ -446,7 +418,7 @@ export default function TodayView({
             title="Bugüne dön"
           >
             <RotateCcw size={13} />
-            <span>Bugün</span>
+            <span>Bugüne Dön</span>
           </motion.button>
         )}
       </div>
@@ -476,7 +448,7 @@ export default function TodayView({
               aria-selected={isSelected}
               aria-current={day.isToday ? 'date' : undefined}
               aria-label={`${day.dayNum} ${day.dayName}${day.isToday ? ', Bugün' : ''}`}
-              whileTap={{ scale: 0.92, y: 2 }}
+              whileTap={{ scale: 0.90, y: 2 }}
               onClick={() => {
                 playPop();
                 setSelectedDate?.(day.iso);
@@ -489,12 +461,13 @@ export default function TodayView({
                 alignItems: 'center',
                 justifyContent: 'center',
                 borderRadius: '14px',
-                background: isSelected ? '#FF9600' : 'var(--surface)',
+                background: isSelected ? 'var(--orange, #FF9600)' : 'var(--surface)',
                 color: isSelected ? '#FFFFFF' : 'var(--ink)',
-                border: isSelected ? '2px solid #D47A00' : '2px solid var(--border)',
-                borderBottom: isSelected ? '4px solid #D47A00' : '3px solid var(--border)',
+                border: isSelected ? '2px solid var(--orange-dark, #D47A00)' : '2px solid var(--border)',
+                borderBottom: isSelected ? '4px solid var(--orange-dark, #D47A00)' : '3px solid var(--border)',
                 cursor: 'pointer',
-                transition: 'all 0.12s ease',
+                transition: 'background 0.15s ease, border-color 0.15s ease, transform 0.1s ease',
+                position: 'relative',
               }}
             >
               <span className="week-day-name" style={{ fontSize: '11px', fontWeight: 700, opacity: isSelected ? 0.95 : 0.7 }}>
@@ -510,7 +483,7 @@ export default function TodayView({
                     width: '5px',
                     height: '5px',
                     borderRadius: '50%',
-                    background: isSelected ? '#FFFFFF' : '#58CC02',
+                    background: isSelected ? '#FFFFFF' : 'var(--green, #58CC02)',
                     marginTop: '2px',
                   }}
                   aria-hidden="true"

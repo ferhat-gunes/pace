@@ -226,32 +226,43 @@ export default function SettingsView({
             </select>
           </label>
 
-          <label className="settings-row" htmlFor="theme-select">
+          <div className="settings-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '10px', padding: '14px 0', borderBottom: '1px solid var(--border)' }}>
             <div>
-              <strong>Görünüm Teması</strong>
+              <strong style={{ fontSize: '15px' }}>Görünüm Teması</strong>
               <p style={{ margin: '2px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
-                Açık krem, koyu gece veya sistem tercihi.
+                Akıcı renk geçişiyle açık mod, koyu gece veya sistem modu.
               </p>
             </div>
-            <select
-              id="theme-select"
-              value={themePreference}
-              onChange={(e) => handleThemeChange(e.target.value)}
-              style={{
-                height: '40px',
-                padding: '0 12px',
-                borderRadius: '8px',
-                border: '1px solid var(--border)',
-                background: 'var(--surface)',
-                color: 'var(--ink)',
-                fontWeight: 600,
-              }}
-            >
-              <option value="light">Açık (Krem)</option>
-              <option value="dark">Koyu (Gece)</option>
-              <option value="system">Sistem</option>
-            </select>
-          </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '4px' }}>
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.94, y: 2 }}
+                className={`btn-3d ${themePreference === 'light' ? 'btn-3d-green' : 'btn-3d-gray'}`}
+                style={{ minHeight: '44px', padding: '8px 4px', fontSize: '13px', borderRadius: '12px' }}
+                onClick={() => handleThemeChange('light')}
+              >
+                ☀️ Açık
+              </motion.button>
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.94, y: 2 }}
+                className={`btn-3d ${themePreference === 'dark' ? 'btn-3d-green' : 'btn-3d-gray'}`}
+                style={{ minHeight: '44px', padding: '8px 4px', fontSize: '13px', borderRadius: '12px' }}
+                onClick={() => handleThemeChange('dark')}
+              >
+                🌙 Koyu
+              </motion.button>
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.94, y: 2 }}
+                className={`btn-3d ${themePreference === 'system' ? 'btn-3d-green' : 'btn-3d-gray'}`}
+                style={{ minHeight: '44px', padding: '8px 4px', fontSize: '13px', borderRadius: '12px' }}
+                onClick={() => handleThemeChange('system')}
+              >
+                ⚙️ Otomatik
+              </motion.button>
+            </div>
+          </div>
 
           <div className="settings-row">
             <div>

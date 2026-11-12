@@ -1,4 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useHabits } from './state/useHabits.js';
 import { useGamification } from './state/useGamification.js';
 import * as api from './lib/api.js';
@@ -109,76 +110,85 @@ export default function App() {
               <div style={{ fontSize: '16px', fontWeight: 600 }}>Alışkanlıklar yükleniyor…</div>
             </div>
           ) : (
-            <>
-              {currentView === 'today' && (
-                <TodayView
-                  selectedDate={selectedDate}
-                  setSelectedDate={setSelectedDate}
-                  todayHabits={todayHabits}
-                  habits={habits}
-                  checkins={checkins}
-                  logCheckin={logCheckin}
-                  completionStats={completionStats}
-                  filterMode={filterMode}
-                  setFilterMode={setFilterMode}
-                  onOpenAddModal={() => setHabitModalOpen(true)}
-                  weekStart={weekStart}
-                  questTarget={gamification.questTarget}
-                  todayCompletedCount={gamification.todayCompletedCount}
-                  isQuestCompleted={gamification.isQuestCompleted}
-                  isQuestClaimed={gamification.isQuestClaimed}
-                  claimDailyChest={gamification.claimDailyChest}
-                  addXp={gamification.addXp}
-                  streakFreezes={gamification.streakFreezes}
-                  isStreakFrozenToday={gamification.isStreakFrozenToday}
-                  streak={gamification.streak}
-                />
-              )}
-
-              {currentView === 'habits' && (
-                <HabitsView
-                  habits={habits}
-                  onOpenAddModal={() => setHabitModalOpen(true)}
-                  archiveHabit={archiveHabit}
-                  restoreHabit={restoreHabit}
-                  lastArchivedHabit={lastArchivedHabit}
-                  setLastArchivedHabit={setLastArchivedHabit}
-                />
-              )}
-
-              <Suspense fallback={<div style={{ padding: '40px', textAlign: 'center', color: 'var(--muted)' }}>Yükleniyor…</div>}>
-                {currentView === 'progress' && (
-                  <ProgressView
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentView}
+                initial={{ opacity: 0, y: 8, scale: 0.99 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -6, scale: 0.99 }}
+                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                style={{ width: '100%' }}
+              >
+                {currentView === 'today' && (
+                  <TodayView
+                    selectedDate={selectedDate}
+                    setSelectedDate={setSelectedDate}
+                    todayHabits={todayHabits}
                     habits={habits}
                     checkins={checkins}
-                    gamification={gamification}
-                  />
-                )}
-
-                {currentView === 'groups' && (
-                  <GroupsView
-                    groups={groups}
-                    user={user}
-                    loadData={loadData}
-                    initialInviteToken={inviteToken}
-                    onClearInviteToken={() => setInviteToken(null)}
-                    gamification={gamification}
-                  />
-                )}
-
-                {currentView === 'settings' && (
-                  <SettingsView
-                    user={user}
-                    habits={habits}
-                    checkins={checkins}
+                    logCheckin={logCheckin}
+                    completionStats={completionStats}
+                    filterMode={filterMode}
+                    setFilterMode={setFilterMode}
+                    onOpenAddModal={() => setHabitModalOpen(true)}
                     weekStart={weekStart}
-                    updateWeekStart={updateWeekStart}
-                    importBackup={importBackup}
-                    onSignOut={handleSignOut}
+                    questTarget={gamification.questTarget}
+                    todayCompletedCount={gamification.todayCompletedCount}
+                    isQuestCompleted={gamification.isQuestCompleted}
+                    isQuestClaimed={gamification.isQuestClaimed}
+                    claimDailyChest={gamification.claimDailyChest}
+                    addXp={gamification.addXp}
+                    streakFreezes={gamification.streakFreezes}
+                    isStreakFrozenToday={gamification.isStreakFrozenToday}
+                    streak={gamification.streak}
                   />
                 )}
-              </Suspense>
-            </>
+
+                {currentView === 'habits' && (
+                  <HabitsView
+                    habits={habits}
+                    onOpenAddModal={() => setHabitModalOpen(true)}
+                    archiveHabit={archiveHabit}
+                    restoreHabit={restoreHabit}
+                    lastArchivedHabit={lastArchivedHabit}
+                    setLastArchivedHabit={setLastArchivedHabit}
+                  />
+                )}
+
+                <Suspense fallback={<div style={{ padding: '40px', textAlign: 'center', color: 'var(--muted)' }}>Yükleniyor…</div>}>
+                  {currentView === 'progress' && (
+                    <ProgressView
+                      habits={habits}
+                      checkins={checkins}
+                      gamification={gamification}
+                    />
+                  )}
+
+                  {currentView === 'groups' && (
+                    <GroupsView
+                      groups={groups}
+                      user={user}
+                      loadData={loadData}
+                      initialInviteToken={inviteToken}
+                      onClearInviteToken={() => setInviteToken(null)}
+                      gamification={gamification}
+                    />
+                  )}
+
+                  {currentView === 'settings' && (
+                    <SettingsView
+                      user={user}
+                      habits={habits}
+                      checkins={checkins}
+                      weekStart={weekStart}
+                      updateWeekStart={updateWeekStart}
+                      importBackup={importBackup}
+                      onSignOut={handleSignOut}
+                    />
+                  )}
+                </Suspense>
+              </motion.div>
+            </AnimatePresence>
           )}
           </ErrorBoundary>
         </main>
