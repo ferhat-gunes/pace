@@ -308,15 +308,24 @@ svg {
   gap: 10px;
   color: var(--ink);
   font-family: var(--font-heading);
-  font-size: 28px;
+  font-size: 34px;
   font-weight: 900;
-  letter-spacing: -1.2px;
+  letter-spacing: -1.5px;
+  line-height: 1;
   text-decoration: none;
 }
 
 .brand {
   margin: 0 8px 36px;
-  font-size: 30px;
+  font-size: 38px;
+  letter-spacing: -1.8px;
+}
+
+.brand span, .mobile-brand span {
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
 }
 
 .sidebar .brand {
@@ -2110,9 +2119,10 @@ body:has(dialog[open]) {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 27px;
+    font-size: clamp(32px, 8vw, 36px);
     font-weight: 900;
-    letter-spacing: -1.2px;
+    letter-spacing: -1.6px;
+    line-height: 1;
   }
   .topbar-date {
     display: none;

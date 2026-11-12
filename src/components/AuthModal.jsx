@@ -105,7 +105,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
         </button>
 
         <div className="auth-brand">
-          <span style={{ fontFamily: 'var(--font-heading)', fontSize: '28px', fontWeight: 800, color: 'var(--ink)' }}>
+          <span style={{ fontFamily: 'var(--font-heading)', fontSize: '34px', fontWeight: 900, letterSpacing: '-1.5px', lineHeight: 1, color: 'var(--ink)' }}>
             pace
           </span>
           <p className="auth-lead" style={{ marginTop: '4px', color: 'var(--muted)', fontSize: '14px' }}>
