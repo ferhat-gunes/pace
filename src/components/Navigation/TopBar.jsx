@@ -32,27 +32,7 @@ export default function TopBar({
         }}
         style={{ cursor: 'pointer', userSelect: 'none' }}
       >
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '32px',
-            height: '32px',
-            borderRadius: '10px',
-            background: 'linear-gradient(135deg, #58CC02 0%, #1CB0F6 100%)',
-            boxShadow: '0 3px 0 #1899D6',
-            color: '#FFFFFF',
-            fontSize: '18px',
-            fontWeight: 900,
-          }}
-          aria-hidden="true"
-        >
-          ⚡
-        </span>
-        <span style={{ fontSize: '24px', fontWeight: 900, letterSpacing: '-0.8px', color: 'var(--ink)' }}>
-          pace
-        </span>
+        <span>pace</span>
       </button>
 
       {/* Gamification Stats Bar */}
