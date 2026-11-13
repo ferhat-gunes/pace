@@ -271,6 +271,14 @@ export default function TodayView({
                 ? 'Bu gün için planlanan alışkanlık yok'
                 : 'Hadi ilk rutinini seçelim'}
             </span>
+            {completionStats.total > 0 && (
+              <div className="today-momentum-bar" aria-hidden="true">
+                <div
+                  className="today-momentum-fill"
+                  style={{ width: `${Math.min(100, completionStats.percentage)}%` }}
+                />
+              </div>
+            )}
           </div>
 
           <button
@@ -385,7 +393,7 @@ export default function TodayView({
               role="tab"
               disabled={isFuture}
               aria-disabled={isFuture}
-              className={`week-day ${isSelected ? 'is-selected' : ''}`}
+              className={`week-day ${isSelected ? 'is-selected' : ''} ${day.isToday ? 'is-today' : ''}`}
               aria-selected={isSelected}
               aria-current={day.isToday ? 'date' : undefined}
               aria-label={`${day.dayNum} ${day.dayName}${day.isToday ? ', Bugün' : ''}${isFuture ? ', Gelecek tarih' : ''}`}
@@ -405,8 +413,16 @@ export default function TodayView({
                 borderRadius: '12px',
                 background: isSelected ? 'var(--orange, #FF9600)' : 'var(--surface)',
                 color: isSelected ? '#FFFFFF' : 'var(--ink)',
-                border: isSelected ? '2px solid var(--orange-dark, #D47A00)' : '1.5px solid var(--border)',
-                borderBottom: isSelected ? '3px solid var(--orange-dark, #D47A00)' : '3px solid var(--border)',
+                border: isSelected
+                  ? '2px solid var(--orange-dark, #D47A00)'
+                  : day.isToday
+                  ? '1.5px solid var(--orange, #FF9600)'
+                  : '1.5px solid var(--border)',
+                borderBottom: isSelected
+                  ? '3px solid var(--orange-dark, #D47A00)'
+                  : day.isToday
+                  ? '3px solid var(--orange, #FF9600)'
+                  : '3px solid var(--border)',
                 cursor: isFuture ? 'not-allowed' : 'pointer',
                 opacity: isFuture ? 0.45 : 1,
                 transition: 'background 0.15s ease, border-color 0.15s ease, transform 0.1s ease',
@@ -677,15 +693,11 @@ export default function TodayView({
             return (
               <motion.div
                 key={h.id}
-                className={`habit-row card-chunky ${h.tracking === 'check' ? 'is-check' : 'is-quantity'} ${isDone ? 'is-complete' : ''}`}
+                className={`habit-row today-habit-row card-chunky ${h.tracking === 'check' ? 'is-check' : 'is-quantity'} ${isDone ? 'is-complete' : ''}`}
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2, delay: Math.min(index * 0.04, 0.2) }}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '10px',
                   borderColor: isOverLimit ? 'var(--red)' : undefined,
                   borderBottomColor: isOverLimit ? 'var(--red-dark)' : undefined,
                 }}
@@ -1093,7 +1105,7 @@ export default function TodayView({
                 style={{ minHeight: '44px', padding: '0 14px', fontSize: '12px', borderRadius: '12px' }}
                 onClick={() => {
                   playPop();
-                  onOpenAuth?.();
+                  onOpenAuth?.('register');
                 }}
               >
                 İlerlemeni Kaydet

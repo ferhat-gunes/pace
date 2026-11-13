@@ -235,7 +235,17 @@ export default function HabitsView({
           onToggle={(e) => setShowArchived(e.target.open)}
           style={{ marginTop: '32px' }}
         >
-          <summary style={{ cursor: 'pointer', fontWeight: 600, color: 'var(--muted)', padding: '12px 0' }}>
+          <summary
+            style={{
+              cursor: 'pointer',
+              fontWeight: 600,
+              color: 'var(--muted)',
+              padding: '8px 0',
+              minHeight: '44px',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
             Arşivlenenler ({archivedHabits.length})
           </summary>
           <div id="archive-list" className="habit-list" style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>

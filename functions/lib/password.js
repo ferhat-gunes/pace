@@ -12,3 +12,39 @@ if(action==='register'){const existing=await env.DB.prepare('SELECT id FROM user
 const user=await env.DB.prepare('SELECT u.id,u.email,u.week_start,c.password_hash,c.salt,c.iterations,c.recovery_hash FROM users u JOIN credentials c ON c.user_id=u.id WHERE u.email=? COLLATE NOCASE').bind(email).first();
 if(action==='login'){const hash=await passwordHash(password,user?.salt||'00000000000000000000000000000000',user?.iterations||ITERATIONS);if(!user||!same(hash,user.password_hash))return error('E-posta veya parola hatalı.',401);return session(env,user)}
 if(action==='recover'){const code=String(body.recovery_code||'');if(code.replace(/[^a-f0-9]/gi,'').length!==48)return error('Kurtarma kodunu eksiksiz gir.');const expected=await recoveryHash(env,email,code);if(!user||!same(expected,user.recovery_hash))return error('E-posta veya kurtarma kodu hatalı.',401);const salt=randomToken(16),hash=await passwordHash(password,salt),next=recoveryToken(),nextHash=await recoveryHash(env,email,next),now=new Date().toISOString();const results=await env.DB.batch([env.DB.prepare('DELETE FROM sessions WHERE user_id=? AND EXISTS(SELECT 1 FROM credentials WHERE user_id=? AND recovery_hash=?)').bind(user.id,user.id,expected),env.DB.prepare('UPDATE credentials SET password_hash=?,salt=?,iterations=?,recovery_hash=?,updated_at=? WHERE user_id=? AND recovery_hash=?').bind(hash,salt,ITERATIONS,nextHash,now,user.id,expected)]);if(!results[1].meta?.changes)return error('Bu kurtarma kodu kullanıldı. Güncel kodunu gir.',401);return session(env,user,next)}return error('Giriş yöntemi bulunamadı.',404)}
+export async function changePassword(request,user,env){
+  if(!env.AUTH_SECRET)return error('Giriş hizmeti henüz yapılandırılmadı.',503);
+  let body;try{body=await readJson(request)}catch(e){return error(e.message)}
+  const currentPassword=typeof body.current_password==='string'?body.current_password:'';
+  const newPassword=body.new_password;
+  if(typeof newPassword!=='string'||newPassword.length<8||newPassword.length>128)return error('Yeni parolan 8–128 karakter olmalı.');
+  const ip=request.headers.get('CF-Connecting-IP')||'unknown';
+  if(!await allowed(env,'pwd:ip:'+ip,20)||!await allowed(env,'pwd:user:'+user.id,10))return error('Çok fazla deneme yapıldı. 15 dakika sonra yeniden dene.',429);
+  const existing=await env.DB.prepare('SELECT password_hash,salt,iterations,recovery_hash FROM credentials WHERE user_id=?').bind(user.id).first();
+  const now=new Date().toISOString();
+  if(existing){
+    if(!currentPassword)return error('Mevcut parolanı girmelisin.');
+    const curHash=await passwordHash(currentPassword,existing.salt,existing.iterations||ITERATIONS);
+    if(!same(curHash,existing.password_hash))return error('Mevcut parolan hatalı.',401);
+    const salt=randomToken(16),hash=await passwordHash(newPassword,salt);
+    await env.DB.prepare('UPDATE credentials SET password_hash=?,salt=?,iterations=?,updated_at=? WHERE user_id=?').bind(hash,salt,ITERATIONS,now,user.id).run();
+    return json({ok:true,has_password:true});
+  }
+  const salt=randomToken(16),hash=await passwordHash(newPassword,salt),code=recoveryToken(),codeHash=await recoveryHash(env,user.email,code);
+  await env.DB.prepare('INSERT INTO credentials(user_id,password_hash,salt,iterations,recovery_hash,updated_at) VALUES(?,?,?,?,?,?)').bind(user.id,hash,salt,ITERATIONS,codeHash,now).run();
+  return json({ok:true,has_password:true,recovery_code:code});
+}
+export async function regenerateRecoveryCode(request,user,env){
+  if(!env.AUTH_SECRET)return error('Giriş hizmeti henüz yapılandırılmadı.',503);
+  let body;try{body=await readJson(request)}catch(e){return error(e.message)}
+  const password=typeof body.password==='string'?body.password:'';
+  const ip=request.headers.get('CF-Connecting-IP')||'unknown';
+  if(!await allowed(env,'rec:ip:'+ip,20)||!await allowed(env,'rec:user:'+user.id,8))return error('Çok fazla deneme yapıldı. 15 dakika sonra yeniden dene.',429);
+  const existing=await env.DB.prepare('SELECT password_hash,salt,iterations FROM credentials WHERE user_id=?').bind(user.id).first();
+  if(!existing)return error('Kurtarma kodu oluşturmak için önce bir parola belirlemelisin.',400);
+  const hash=await passwordHash(password,existing.salt,existing.iterations||ITERATIONS);
+  if(!same(hash,existing.password_hash))return error('Parolan doğrulanamadı.',401);
+  const code=recoveryToken(),codeHash=await recoveryHash(env,user.email,code),now=new Date().toISOString();
+  await env.DB.prepare('UPDATE credentials SET recovery_hash=?,updated_at=? WHERE user_id=?').bind(codeHash,now,user.id).run();
+  return json({ok:true,recovery_code:code});
+}

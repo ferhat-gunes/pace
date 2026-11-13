@@ -1,13 +1,18 @@
 import React from 'react';
-import { CalendarDays, ListChecks, ChartNoAxesColumnIncreasing, Users, Settings } from 'lucide-react';
+import { CalendarDays, ListChecks, ChartNoAxesColumnIncreasing, Users, Settings, LogIn, UserCheck } from 'lucide-react';
+import * as api from '../../lib/api';
 
-export default function Sidebar({ currentView = 'today', setView, syncState = 'Bağlantı hazır' }) {
+export default function Sidebar({ currentView = 'today', setView, syncState = 'Bağlantı hazır', user = null, onOpenAuth }) {
   const items = [
     { id: 'today', label: 'Bugün', icon: CalendarDays },
     { id: 'habits', label: 'Alışkanlıklar', icon: ListChecks },
     { id: 'progress', label: 'İlerleme', icon: ChartNoAxesColumnIncreasing },
     { id: 'groups', label: 'Gruplar', icon: Users },
   ];
+
+  const isDemo = api.isDemo();
+  const isAuthenticated = Boolean(user && !isDemo);
+  const syncAttr = syncState === 'Kaydedildi' ? 'saved' : syncState === 'Hata' || syncState === 'Çakışma' ? 'error' : 'local';
 
   return (
     <aside className="sidebar astryx-side-nav" data-astryx-component="side-nav" aria-label="Ana gezinme">
@@ -41,10 +46,44 @@ export default function Sidebar({ currentView = 'today', setView, syncState = 'B
       </nav>
 
       <div className="sidebar-bottom">
-        <span className="sync-indicator" id="sync-indicator">
+        <span className="sync-indicator" id="sync-indicator" data-state={syncAttr}>
           <i></i>
           <span>{syncState}</span>
         </span>
+
+        {!isAuthenticated && (
+          <button
+            type="button"
+            className="nav-item sidebar-auth-cta"
+            onClick={() => onOpenAuth?.('login')}
+            style={{
+              marginBottom: '8px',
+              background: 'var(--primary-soft)',
+              color: 'var(--primary-dark)',
+              borderColor: 'rgba(28, 176, 246, 0.35)',
+              fontWeight: 800,
+            }}
+          >
+            <span className="nav-icon"><LogIn aria-hidden="true" /></span>
+            <span>{isDemo ? 'Demo’dan Çık & Giriş Yap' : 'Giriş Yap / Kayıt Ol'}</span>
+          </button>
+        )}
+
+        {isAuthenticated && (
+          <button
+            type="button"
+            className="nav-item"
+            onClick={() => setView?.('settings')}
+            title={user.email}
+            style={{ marginBottom: '4px', color: 'var(--ink)' }}
+          >
+            <span className="nav-icon" style={{ color: 'var(--green)' }}><UserCheck aria-hidden="true" /></span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '13px' }}>
+              {user.email}
+            </span>
+          </button>
+        )}
+
         <button
           type="button"
           className={`nav-item settings-link ${currentView === 'settings' ? 'is-active' : ''}`}

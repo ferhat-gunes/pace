@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Flame, Gem, Zap, X } from 'lucide-react';
+import { X, LogIn, Sparkles } from 'lucide-react';
 import { playPop } from '../../lib/soundFx';
+import * as api from '../../lib/api';
 
 export default function TopBar({
   setView,
@@ -15,6 +16,8 @@ export default function TopBar({
   level = 1,
   xp = 0,
 }) {
+  const isDemo = api.isDemo();
+  const isAuthenticated = Boolean(user && !isDemo);
   const initial = user?.email ? user.email[0].toUpperCase() : 'P';
   const [showShieldModal, setShowShieldModal] = useState(false);
   const [shieldFeedback, setShieldFeedback] = useState(null);
@@ -98,7 +101,6 @@ export default function TopBar({
           className="gamify-badge gem-badge"
           title={`${gems} Elmas`}
           aria-label={`${gems} elmas`}
-          onClick={playPop}
         >
           <span aria-hidden="true">💎</span>
           <span>{gems}</span>
@@ -109,7 +111,6 @@ export default function TopBar({
           className="gamify-badge xp-badge"
           title={`Seviye ${level} (${xp} XP)`}
           aria-label={`Seviye ${level}`}
-          onClick={playPop}
         >
           <span aria-hidden="true">⚡</span>
           <span>L{level}</span>
@@ -256,8 +257,8 @@ export default function TopBar({
             style={{
               fontSize: '11px',
               fontWeight: 700,
-              padding: '2px 8px',
-              borderRadius: '8px',
+              padding: '4px 10px',
+              borderRadius: '10px',
               background: syncState === 'Kaydedildi' ? 'var(--green-soft)' : 'var(--orange-soft)',
               color: syncState === 'Kaydedildi' ? 'var(--green-dark)' : 'var(--orange-dark)',
             }}
@@ -267,23 +268,50 @@ export default function TopBar({
           </span>
         )}
 
-        {/* User avatar */}
-        <button
-          type="button"
-          className="avatar-button"
-          id="account-button"
-          aria-label={user?.email ? `Hesap ayarları (${user.email})` : 'Giriş yap veya hesap oluştur'}
-          onClick={() => {
-            playPop();
-            if (user?.email && user.email !== 'demo@pace.app') {
+        {isAuthenticated ? (
+          <button
+            type="button"
+            className="avatar-button is-authenticated"
+            id="account-button"
+            title={`${user.email} — Hesap ayarları`}
+            aria-label={`Hesap ayarları (${user.email})`}
+            onClick={() => {
+              playPop();
               setView?.('settings');
-            } else {
-              onOpenAuth?.();
-            }
-          }}
-        >
-          {initial}
-        </button>
+            }}
+          >
+            <span>{initial}</span>
+            <span className="avatar-sync-dot" aria-hidden="true" />
+          </button>
+        ) : isDemo ? (
+          <button
+            type="button"
+            className="topbar-auth-pill is-demo"
+            id="account-button"
+            aria-label="Demo modunda — gerçek hesaba geçmek için dokun"
+            onClick={() => {
+              playPop();
+              onOpenAuth?.('login');
+            }}
+          >
+            <Sparkles size={14} className="topbar-auth-icon" aria-hidden="true" />
+            <span>Demo</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="topbar-auth-pill"
+            id="account-button"
+            aria-label="Giriş yap veya hesap oluştur"
+            onClick={() => {
+              playPop();
+              onOpenAuth?.('login');
+            }}
+          >
+            <LogIn size={14} className="topbar-auth-icon" aria-hidden="true" />
+            <span>Giriş</span>
+          </button>
+        )}
       </div>
     </header>
   );

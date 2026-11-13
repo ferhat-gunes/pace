@@ -393,8 +393,11 @@ export const getPushPublicKey=()=>request('push/public-key');
 export const subscribePush=(payload)=>request('push/subscribe',{method:'POST',body:JSON.stringify(payload)});
 export const unsubscribePush=(endpoint)=>request('push/subscribe',{method:'DELETE',body:JSON.stringify({endpoint})});
 export const updatePushPreferences=(prefs)=>request('push/preferences',{method:'PATCH',body:JSON.stringify(prefs)});
+export const changePassword=(data)=>request('account/password',{method:'POST',body:JSON.stringify(data)});
+export const regenerateRecoveryCode=(password)=>request('account/recovery-code',{method:'POST',body:JSON.stringify({password})});
 
 export function isDemo(){return demoMode}
 export async function exportData(){if(demoMode)return getDemo();return request('export')}
 export const importData=(data)=>request('import',{method:'POST',body:JSON.stringify(data)});
-export function startDemo(){sessionStorage.setItem('pace_demo','1');location.href='/?demo=1'}
+export function startDemo(){try{sessionStorage.setItem('pace_demo','1');}catch{}location.href='/?demo=1'}
+export function exitDemo(openAuth=false){try{sessionStorage.removeItem('pace_demo');}catch{}location.href=openAuth?'/?auth=login':'/'}

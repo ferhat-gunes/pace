@@ -30,9 +30,15 @@ export default function App() {
   const [isHabitModalOpen, setHabitModalOpen] = useState(false);
   const [editingHabit, setEditingHabit] = useState(null);
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
+  const [authMode, setAuthMode] = useState('login');
   const [inviteToken, setInviteToken] = useState(null);
   const [capabilities, setCapabilities] = useState({ email_code_enabled: false, push_enabled: false });
   const [socialInbox, setSocialInbox] = useState([]);
+
+  const openAuthModal = useCallback((mode = 'login') => {
+    setAuthMode(mode);
+    setAuthModalOpen(true);
+  }, []);
 
   const {
     habits,
@@ -107,17 +113,25 @@ export default function App() {
     setSocialInbox((prev) => prev.filter((item) => item.id !== id));
   }, []);
 
-  // Check URL query parameters for deep linking (?join=, ?invite=, ?view=)
+  // Check URL query parameters for deep linking (?join=, ?invite=, ?view=, ?auth=)
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
       const token = params.get('join') || params.get('invite');
       const requestedView = params.get('view');
+      const requestedAuth = params.get('auth');
       if (token) {
         setInviteToken(token);
         setView('groups');
       } else if (requestedView && ['today', 'habits', 'progress', 'groups', 'settings'].includes(requestedView)) {
         setView(requestedView);
+      }
+      if (requestedAuth === 'login' || requestedAuth === 'register') {
+        setAuthMode(requestedAuth);
+        setAuthModalOpen(true);
+        const nextUrl = new URL(window.location.href);
+        nextUrl.searchParams.delete('auth');
+        window.history.replaceState({}, '', `${nextUrl.pathname}${nextUrl.search}`);
       }
     } catch {}
   }, []);
@@ -203,13 +217,19 @@ export default function App() {
         Ana içeriğe atla
       </a>
 
-      <Sidebar currentView={currentView} setView={setView} syncState={syncState} />
+      <Sidebar
+        currentView={currentView}
+        setView={setView}
+        syncState={syncState}
+        user={user}
+        onOpenAuth={openAuthModal}
+      />
 
       <div className="main-area">
         <TopBar
           setView={setView}
           user={user}
-          onOpenAuth={() => setAuthModalOpen(true)}
+          onOpenAuth={openAuthModal}
           syncState={syncState}
           streak={gamification.streak}
           streakFreezes={gamification.streakFreezes}
@@ -225,8 +245,11 @@ export default function App() {
           <PwaInstallBanner />
 
           {loading && habits.length === 0 ? (
-            <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--muted)' }}>
-              <div style={{ fontSize: '16px', fontWeight: 600 }}>Alışkanlıklar yükleniyor…</div>
+            <div className="skeleton-stack" aria-busy="true" aria-label="Alışkanlıklar yükleniyor">
+              <div className="skeleton-card" style={{ height: '64px' }} />
+              <div className="skeleton-card" />
+              <div className="skeleton-card" />
+              <div className="skeleton-card" />
             </div>
           ) : (
             <AnimatePresence mode="wait">
@@ -254,7 +277,7 @@ export default function App() {
                     onOpenAddModal={handleOpenAddModal}
                     onAddStarterHabits={handleAddStarterHabits}
                     guestMode={guestMode && !api.isDemo()}
-                    onOpenAuth={() => setAuthModalOpen(true)}
+                    onOpenAuth={openAuthModal}
                     onGoGroups={() => setView('groups')}
                     socialInbox={socialInbox}
                     onDismissInbox={handleDismissInbox}
@@ -307,13 +330,14 @@ export default function App() {
                       onDismissInbox={handleDismissInbox}
                       onGoToday={() => setView('today')}
                       guestMode={guestMode}
-                      onOpenAuth={() => setAuthModalOpen(true)}
+                      onOpenAuth={openAuthModal}
                     />
                   )}
 
                   {currentView === 'settings' && (
                     <SettingsView
                       user={user}
+                      setUser={setUser}
                       habits={habits}
                       checkins={checkins}
                       weekStart={weekStart}
@@ -321,7 +345,7 @@ export default function App() {
                       importBackup={importBackup}
                       onSignOut={handleSignOut}
                       guestMode={guestMode}
-                      onOpenAuth={() => setAuthModalOpen(true)}
+                      onOpenAuth={openAuthModal}
                       pushEnabled={capabilities.push_enabled}
                     />
                   )}
@@ -352,6 +376,8 @@ export default function App() {
           <AuthModal
             isOpen={isAuthModalOpen}
             emailCodeEnabled={capabilities.email_code_enabled}
+            initialMode={authMode}
+            guestHabitsCount={guestMode && !api.isDemo() ? habits.length : 0}
             onClose={() => setAuthModalOpen(false)}
             onAuthSuccess={async (u) => {
               setUser(u);

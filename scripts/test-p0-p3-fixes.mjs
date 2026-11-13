@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { passwordAuth } from '../functions/lib/password.js';
+import { passwordAuth, changePassword, regenerateRecoveryCode } from '../functions/lib/password.js';
 import { encryptWebPushPayload } from '../functions/lib/webpush.js';
 import { stateFor, dateKey, addDays, weekDays } from '../src/lib/rules.js';
 import { localDateIso } from '../src/lib/date.js';
@@ -17,6 +17,8 @@ function createMockDb() {
   const rateLimits = new Map();
 
   return {
+    _users: users,
+    _credentials: credentials,
     prepare(sql) {
       return {
         args: [],
@@ -59,6 +61,10 @@ function createMockDb() {
             }
             return null;
           }
+          if (sql.includes('FROM credentials WHERE user_id=?')) {
+            const userId = this.args[0];
+            return credentials.get(userId) || null;
+          }
           return null;
         },
         async run() {
@@ -85,6 +91,30 @@ function createMockDb() {
             });
             return { meta: { changes: 1 } };
           }
+          if (sql.includes('UPDATE credentials SET password_hash=?')) {
+            const [password_hash, salt, iterations, updated_at, user_id] = this.args;
+            const prev = credentials.get(user_id);
+            if (!prev) return { meta: { changes: 0 } };
+            credentials.set(user_id, {
+              ...prev,
+              password_hash,
+              salt,
+              iterations,
+              updated_at,
+            });
+            return { meta: { changes: 1 } };
+          }
+          if (sql.includes('UPDATE credentials SET recovery_hash=?')) {
+            const [recovery_hash, updated_at, user_id] = this.args;
+            const prev = credentials.get(user_id);
+            if (!prev) return { meta: { changes: 0 } };
+            credentials.set(user_id, {
+              ...prev,
+              recovery_hash,
+              updated_at,
+            });
+            return { meta: { changes: 1 } };
+          }
           return { meta: { changes: 0 } };
         },
       };
@@ -99,8 +129,8 @@ function createMockDb() {
   };
 }
 
-function makeAuthRequest(body) {
-  return new Request('https://pace.example/api/auth/password/register', {
+function makeAuthRequest(body, url = 'https://pace.example/api/auth/password/register') {
+  return new Request(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -141,6 +171,93 @@ test('Password auth accepts 8-character password and rejects 7-character passwor
     'login'
   );
   assert.equal(loginRes.status, 200);
+});
+
+test('changePassword updates password, sets initial password for OTP users, and regenerateRecoveryCode rotates code', async () => {
+  const db = createMockDb();
+  const env = {
+    AUTH_SECRET: 'test-auth-secret-1234567890',
+    DB: db,
+  };
+
+  // Register password user
+  const regRes = await passwordAuth(
+    makeAuthRequest({ email: 'user@pace.app', password: 'oldpassword123' }),
+    env,
+    'register'
+  );
+  const regBody = await regRes.json();
+  const user = regBody.user;
+
+  // Reject wrong current password
+  const badChangeRes = await changePassword(
+    makeAuthRequest(
+      { current_password: 'wrongpassword', new_password: 'newpassword456' },
+      'https://pace.example/api/account/password'
+    ),
+    user,
+    env
+  );
+  assert.equal(badChangeRes.status, 401);
+
+  // Change password with valid current password
+  const goodChangeRes = await changePassword(
+    makeAuthRequest(
+      { current_password: 'oldpassword123', new_password: 'newpassword456' },
+      'https://pace.example/api/account/password'
+    ),
+    user,
+    env
+  );
+  assert.equal(goodChangeRes.status, 200);
+  const goodChangeBody = await goodChangeRes.json();
+  assert.equal(goodChangeBody.ok, true);
+  assert.equal(goodChangeBody.has_password, true);
+
+  // Login succeeds with new password
+  const loginNewRes = await passwordAuth(
+    makeAuthRequest({ email: 'user@pace.app', password: 'newpassword456' }),
+    env,
+    'login'
+  );
+  assert.equal(loginNewRes.status, 200);
+
+  // Regenerate recovery code rejects wrong password
+  const badRecRes = await regenerateRecoveryCode(
+    makeAuthRequest({ password: 'oldpassword123' }, 'https://pace.example/api/account/recovery-code'),
+    user,
+    env
+  );
+  assert.equal(badRecRes.status, 401);
+
+  // Regenerate recovery code succeeds with new password
+  const goodRecRes = await regenerateRecoveryCode(
+    makeAuthRequest({ password: 'newpassword456' }, 'https://pace.example/api/account/recovery-code'),
+    user,
+    env
+  );
+  assert.equal(goodRecRes.status, 200);
+  const recBody = await goodRecRes.json();
+  assert.equal(recBody.ok, true);
+  assert.ok(recBody.recovery_code);
+  assert.notEqual(recBody.recovery_code, regBody.recovery_code);
+
+  // Passwordless OTP user sets initial password and gets a recovery_code
+  const otpUser = { id: 'otp-user-1', email: 'otp@pace.app', week_start: 1 };
+  db._users.set(otpUser.id, { ...otpUser, timezone: 'UTC' });
+  const setInitialRes = await changePassword(
+    makeAuthRequest(
+      { new_password: 'initialpass999' },
+      'https://pace.example/api/account/password'
+    ),
+    otpUser,
+    env
+  );
+  assert.equal(setInitialRes.status, 200);
+  const initialBody = await setInitialRes.json();
+  assert.equal(initialBody.ok, true);
+  assert.equal(initialBody.has_password, true);
+  assert.ok(initialBody.recovery_code);
 });
 
 function toB64Url(bytes) {

@@ -4,6 +4,7 @@ import {
   Upload,
   LogOut,
   LogIn,
+  UserPlus,
   CheckCircle2,
   AlertTriangle,
   Volume2,
@@ -14,6 +15,12 @@ import {
   Moon,
   Users,
   Smartphone,
+  KeyRound,
+  ShieldCheck,
+  Eye,
+  EyeOff,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { isSoundEnabled, toggleSound, playPop } from '../lib/soundFx';
@@ -33,6 +40,7 @@ import * as api from '../lib/api';
 
 export default function SettingsView({
   user,
+  setUser,
   habits = [],
   checkins = [],
   weekStart = 1,
@@ -50,6 +58,16 @@ export default function SettingsView({
   const [notifSettings, setNotifSettings] = useState(() => getNotificationSettings());
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [showPwdFields, setShowPwdFields] = useState(false);
+  const [pwdBusy, setPwdBusy] = useState(false);
+  const [showRecoveryForm, setShowRecoveryForm] = useState(false);
+  const [recoveryConfirmPwd, setRecoveryConfirmPwd] = useState('');
+  const [recoveryBusy, setRecoveryBusy] = useState(false);
+  const [freshRecoveryCode, setFreshRecoveryCode] = useState('');
+  const [copiedRecovery, setCopiedRecovery] = useState(false);
   const [themePreference, setThemePreference] = useState(() => {
     try {
       return localStorage.getItem('pace_theme') || 'system';
@@ -275,7 +293,85 @@ export default function SettingsView({
     }
   };
 
-  const isGuestOnly = guestMode && !api.isDemo();
+  const isDemo = api.isDemo();
+  const isGuestOnly = guestMode && !isDemo;
+  const isAuthenticated = Boolean(user && !isDemo && !isGuestOnly);
+  const hasPassword = user?.has_password !== false;
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    if (newPassword.length < 8 || newPassword.length > 128) {
+      showNotification('Yeni parolan 8–128 karakter olmalı.', true);
+      return;
+    }
+    if (hasPassword && !currentPassword) {
+      showNotification('Mevcut parolanı girmelisin.', true);
+      return;
+    }
+    setPwdBusy(true);
+    try {
+      const res = await api.changePassword({
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
+      if (res?.ok) {
+        setUser?.((prev) => (prev ? { ...prev, has_password: true } : prev));
+        setCurrentPassword('');
+        setNewPassword('');
+        setShowPasswordForm(false);
+        if (res.recovery_code) {
+          setFreshRecoveryCode(res.recovery_code);
+        }
+        showNotification('Parolan başarıyla güncellendi!');
+      }
+    } catch (err) {
+      showNotification(err.message || 'Parola güncellenemedi.', true);
+    } finally {
+      setPwdBusy(false);
+    }
+  };
+
+  const handleRegenerateRecovery = async (e) => {
+    e.preventDefault();
+    if (!recoveryConfirmPwd) {
+      showNotification('Güvenlik için mevcut parolanı gir.', true);
+      return;
+    }
+    setRecoveryBusy(true);
+    try {
+      const res = await api.regenerateRecoveryCode(recoveryConfirmPwd);
+      if (res?.recovery_code) {
+        setFreshRecoveryCode(res.recovery_code);
+        setRecoveryConfirmPwd('');
+        setShowRecoveryForm(false);
+        showNotification('Yeni kurtarma kodun oluşturuldu. Lütfen kaydet!');
+      }
+    } catch (err) {
+      showNotification(err.message || 'Kurtarma kodu oluşturulamadı.', true);
+    } finally {
+      setRecoveryBusy(false);
+    }
+  };
+
+  const handleCopyFreshRecovery = () => {
+    if (!freshRecoveryCode) return;
+    navigator.clipboard.writeText(freshRecoveryCode).then(() => {
+      setCopiedRecovery(true);
+      setTimeout(() => setCopiedRecovery(false), 2000);
+    }).catch(() => {});
+  };
+
+  const handleDownloadFreshRecovery = () => {
+    if (!freshRecoveryCode) return;
+    const content = `PACE Hesap Kurtarma Kodu\nE-posta: ${user?.email || ''}\nKurtarma Kodu: ${freshRecoveryCode}\n`;
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'pace-kurtarma-kodu.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <section className="page-view" id="view-settings" aria-labelledby="settings-title">
@@ -313,23 +409,69 @@ export default function SettingsView({
 
       <div className="settings-layout" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <section className="settings-section card-chunky">
-          <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, margin: '0 0 16px', fontSize: '18px' }}>Hesap Bilgileri</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+            <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, margin: 0, fontSize: '18px' }}>Hesap & Güvenlik</h2>
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                padding: '4px 10px',
+                borderRadius: '8px',
+                background: isAuthenticated ? 'var(--green-soft)' : isDemo ? 'var(--primary-soft)' : 'var(--orange-soft)',
+                color: isAuthenticated ? 'var(--green-dark)' : isDemo ? 'var(--primary-dark)' : 'var(--orange-dark)',
+              }}
+            >
+              {isAuthenticated ? 'Bulut Eşitleme Aktif ✓' : isDemo ? 'Demo Modu' : 'Yerel Mod (Misafir)'}
+            </span>
+          </div>
+
           <div className="settings-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-            <div>
+            <div style={{ flex: '1 1 200px' }}>
               <strong id="account-email" style={{ fontSize: '15px' }}>
                 {isGuestOnly
-                  ? 'Yerel Mod (Hesap bağlı değil)'
-                  : user?.email || 'Örnek Kullanıcı (Demo)'}
+                  ? 'Cihazda Yerel Kullanım'
+                  : isDemo
+                  ? 'Örnek Demo Hesabı'
+                  : user?.email}
               </strong>
               <p style={{ margin: '4px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
                 {isGuestOnly
-                  ? 'Verilerin bu cihazda saklanıyor. Cihazlar arası eşitleme ve gruplar için hesabını bağla.'
-                  : user?.email && user.email !== 'demo@pace.app'
-                  ? 'Hesabın bulutla eşitleniyor'
-                  : 'Demo modundasın — veriler cihazında tutuluyor'}
+                  ? 'Verilerin şimdilik yalnızca bu cihazda. Hesap bağladığında alışkanlıkların otomatik aktarılır.'
+                  : isDemo
+                  ? 'Örnek verileri inceliyorsun. Gerçek hesabına geçmek için Demo modundan çıkabilirsin.'
+                  : 'Tüm alışkanlıkların, grupların ve oyun ilerlemen bulutla eşitleniyor.'}
               </p>
             </div>
             {isGuestOnly ? (
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.95, y: 2 }}
+                  className="btn-3d btn-3d-gray"
+                  style={{ minHeight: '44px', padding: '0 14px', borderRadius: '12px', fontSize: '13px' }}
+                  onClick={() => {
+                    playPop();
+                    onOpenAuth?.('login');
+                  }}
+                >
+                  <LogIn size={15} />
+                  <span>Giriş Yap</span>
+                </motion.button>
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.95, y: 2 }}
+                  className="btn-3d btn-3d-green"
+                  style={{ minHeight: '44px', padding: '0 16px', borderRadius: '12px', fontSize: '13px' }}
+                  onClick={() => {
+                    playPop();
+                    onOpenAuth?.('register');
+                  }}
+                >
+                  <UserPlus size={15} />
+                  <span>Hesap Oluştur</span>
+                </motion.button>
+              </div>
+            ) : isDemo ? (
               <motion.button
                 type="button"
                 whileTap={{ scale: 0.95, y: 2 }}
@@ -337,11 +479,11 @@ export default function SettingsView({
                 style={{ minHeight: '44px', padding: '0 16px', borderRadius: '12px', fontSize: '13px' }}
                 onClick={() => {
                   playPop();
-                  onOpenAuth?.();
+                  api.exitDemo(true);
                 }}
               >
-                <LogIn size={15} style={{ marginRight: '6px' }} />
-                Giriş Yap / Hesap Oluştur
+                <LogIn size={15} />
+                <span>Demo'dan Çık & Giriş Yap</span>
               </motion.button>
             ) : (
               <motion.button
@@ -354,11 +496,211 @@ export default function SettingsView({
                   onSignOut?.();
                 }}
               >
-                <LogOut size={15} style={{ marginRight: '6px' }} />
-                Çıkış yap
+                <LogOut size={15} />
+                <span>Çıkış yap</span>
               </motion.button>
             )}
           </div>
+
+          {isAuthenticated && (
+            <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className={`btn-3d ${showPasswordForm ? 'btn-3d-blue' : 'btn-3d-gray'}`}
+                  style={{ minHeight: '44px', padding: '0 14px', borderRadius: '12px', fontSize: '13px' }}
+                  onClick={() => {
+                    playPop();
+                    setShowPasswordForm((v) => !v);
+                    setShowRecoveryForm(false);
+                  }}
+                >
+                  <KeyRound size={15} />
+                  <span>{hasPassword ? 'Parolayı Değiştir' : 'Parola Oluştur'}</span>
+                </button>
+                {hasPassword && (
+                  <button
+                    type="button"
+                    className={`btn-3d ${showRecoveryForm ? 'btn-3d-orange' : 'btn-3d-gray'}`}
+                    style={{ minHeight: '44px', padding: '0 14px', borderRadius: '12px', fontSize: '13px' }}
+                    onClick={() => {
+                      playPop();
+                      setShowRecoveryForm((v) => !v);
+                      setShowPasswordForm(false);
+                    }}
+                  >
+                    <ShieldCheck size={15} />
+                    <span>Yeni Kurtarma Kodu Oluştur</span>
+                  </button>
+                )}
+              </div>
+
+              {showPasswordForm && (
+                <form
+                  onSubmit={handlePasswordSubmit}
+                  style={{
+                    background: 'var(--surface-alt)',
+                    padding: '14px',
+                    borderRadius: '14px',
+                    border: '1px solid var(--border)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                  }}
+                >
+                  {hasPassword && (
+                    <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink)' }}>
+                      Mevcut Parola
+                      <input
+                        type={showPwdFields ? 'text' : 'password'}
+                        className="form-input"
+                        style={{ width: '100%', height: '44px', padding: '0 12px', marginTop: '4px', fontSize: '16px' }}
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        autoComplete="current-password"
+                        required
+                      />
+                    </label>
+                  )}
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink)' }}>
+                    Yeni Parola (En az 8 karakter)
+                    <div className="password-field-wrap" style={{ marginTop: '4px' }}>
+                      <input
+                        type={showPwdFields ? 'text' : 'password'}
+                        className="form-input"
+                        style={{ width: '100%', height: '44px', padding: '0 44px 0 12px', fontSize: '16px' }}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        autoComplete="new-password"
+                        minLength={8}
+                        maxLength={128}
+                        required
+                      />
+                      <button
+                        type="button"
+                        className="password-toggle-btn"
+                        aria-label={showPwdFields ? 'Parolaları gizle' : 'Parolaları göster'}
+                        onClick={() => setShowPwdFields((v) => !v)}
+                      >
+                        {showPwdFields ? <EyeOff size={17} /> : <Eye size={17} />}
+                      </button>
+                    </div>
+                  </label>
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="btn-3d btn-3d-gray"
+                      style={{ minHeight: '44px', padding: '0 14px', borderRadius: '12px', fontSize: '13px' }}
+                      onClick={() => setShowPasswordForm(false)}
+                    >
+                      Vazgeç
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={pwdBusy}
+                      className="btn-3d btn-3d-green"
+                      style={{ minHeight: '44px', padding: '0 16px', borderRadius: '12px', fontSize: '13px' }}
+                    >
+                      {pwdBusy ? 'Kaydediliyor…' : 'Parolayı Kaydet'}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {showRecoveryForm && (
+                <form
+                  onSubmit={handleRegenerateRecovery}
+                  style={{
+                    background: 'var(--surface-alt)',
+                    padding: '14px',
+                    borderRadius: '14px',
+                    border: '1px solid var(--border)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                  }}
+                >
+                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--muted)', lineHeight: 1.4 }}>
+                    Yeni kurtarma kodu oluşturduğunda önceki kurtarma kodun geçersiz olur. Onaylamak için mevcut parolanı gir:
+                  </p>
+                  <input
+                    type="password"
+                    className="form-input"
+                    style={{ width: '100%', height: '44px', padding: '0 12px', fontSize: '16px' }}
+                    placeholder="Mevcut parolan"
+                    value={recoveryConfirmPwd}
+                    onChange={(e) => setRecoveryConfirmPwd(e.target.value)}
+                    autoComplete="current-password"
+                    required
+                  />
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="btn-3d btn-3d-gray"
+                      style={{ minHeight: '44px', padding: '0 14px', borderRadius: '12px', fontSize: '13px' }}
+                      onClick={() => setShowRecoveryForm(false)}
+                    >
+                      Vazgeç
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={recoveryBusy}
+                      className="btn-3d btn-3d-orange"
+                      style={{ minHeight: '44px', padding: '0 16px', borderRadius: '12px', fontSize: '13px' }}
+                    >
+                      {recoveryBusy ? 'Oluşturuluyor…' : 'Yeni Kod Üret'}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {freshRecoveryCode && (
+                <div
+                  style={{
+                    background: 'var(--orange-soft)',
+                    border: '1.5px solid var(--orange)',
+                    borderRadius: '14px',
+                    padding: '14px',
+                  }}
+                >
+                  <strong style={{ display: 'block', fontSize: '13px', color: 'var(--orange-dark)', marginBottom: '6px' }}>
+                    Yeni Kurtarma Kodun (Güvenli Bir Yere Kaydet):
+                  </strong>
+                  <div style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: 700, wordBreak: 'break-all', background: 'var(--surface)', padding: '10px', borderRadius: '10px', border: '1px solid var(--border)', marginBottom: '10px' }}>
+                    {freshRecoveryCode}
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="btn-3d btn-3d-gray"
+                      style={{ minHeight: '44px', padding: '0 14px', fontSize: '12px', borderRadius: '10px' }}
+                      onClick={handleCopyFreshRecovery}
+                    >
+                      {copiedRecovery ? <Check size={14} color="var(--green)" /> : <Copy size={14} />}
+                      <span>{copiedRecovery ? 'Kopyalandı ✓' : 'Kopyala'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-3d btn-3d-gray"
+                      style={{ minHeight: '44px', padding: '0 14px', fontSize: '12px', borderRadius: '10px' }}
+                      onClick={handleDownloadFreshRecovery}
+                    >
+                      <Download size={14} />
+                      <span>.txt İndir</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-3d btn-3d-green"
+                      style={{ minHeight: '44px', padding: '0 14px', fontSize: '12px', borderRadius: '10px', marginLeft: 'auto' }}
+                      onClick={() => setFreshRecoveryCode('')}
+                    >
+                      Kaydettim
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </section>
 
         <section className="settings-section card-chunky">
