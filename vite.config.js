@@ -14,7 +14,7 @@ export default defineConfig({
       async function walk(dir){for(const entry of await readdir(dir,{withFileTypes:true})){const path=dir+'/'+entry.name;if(entry.isDirectory())await walk(path);else files.push('/'+path.replace(/^dist\//,''))}}
       await walk('dist/assets');
       const worker=await readFile('sw.js','utf8');
-      await writeFile('dist/sw.js',worker.replace(/const SHELL=\[[^;]+;/,'const SHELL='+JSON.stringify(['/','/index.html','/manifest.webmanifest',...files])+';'));
+      await writeFile('dist/sw.js',worker.replace(/const SHELL\s*=\s*\[[^;]+;/,'const SHELL = '+JSON.stringify(['/','/index.html','/manifest.webmanifest',...files])+';'));
     }
   }],
   build:{outDir:'dist',emptyOutDir:true},

@@ -1,5 +1,5 @@
 const DEMO_KEY='pace_demo_state_v1';
-const params=new URLSearchParams(location.search);
+const params=new URLSearchParams(typeof location!=='undefined'?location.search:'');
 function rememberedDemo(){try{return sessionStorage.getItem('pace_demo')==='1'}catch{return false}}
 export const demoMode=params.has('demo') || rememberedDemo();
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
@@ -44,12 +44,15 @@ function seedDemo(){
           {id:'gh-walk',group_id:'demo-group-morning',name:'Sabah Yürüyüşü',tracking:'check',direction:'at_least',unit:'',target:1}
         ],
         checkins:[
-          {id:'gc-1',habit_id:'gh-reading',habit_date:t,user_id:'demo-user',value:20,revision:1},
-          {id:'gc-2',habit_id:'gh-reading',habit_date:t,user_id:'user-ayse',value:25,revision:1},
-          {id:'gc-3',habit_id:'gh-walk',habit_date:t,user_id:'user-ayse',value:1,revision:1}
-        ]
+          {id:'gc-1',group_habit_id:'gh-reading',habit_date:t,user_id:'demo-user',value:20,revision:1},
+          {id:'gc-2',group_habit_id:'gh-reading',habit_date:t,user_id:'user-ayse',value:25,revision:1},
+          {id:'gc-3',group_habit_id:'gh-walk',habit_date:t,user_id:'user-ayse',value:1,revision:1}
+        ],
+        reactions:[]
       }
-    }
+    },
+    gamification:{xp:45,gems:15,streakFreezes:1,usedFreezeDates:{},claimedDates:{},allDoneBonusDates:{}},
+    social_inbox:[]
   };
 }
 function getDemo(){try{let raw=localStorage.getItem(DEMO_KEY);if(!raw){const s=seedDemo();try{localStorage.setItem(DEMO_KEY,JSON.stringify(s))}catch(e){}return s}return JSON.parse(raw)}catch{return seedDemo()}}
@@ -80,8 +83,23 @@ function demoRequest(path,options={}){
   let s=getDemo();
   if(!s.groups) s.groups=[];
   if(!s.group_details) s.group_details={};
+  if(!s.gamification) s.gamification={xp:0,gems:10,streakFreezes:1,usedFreezeDates:{},claimedDates:{},allDoneBonusDates:{}};
+  if(!s.social_inbox) s.social_inbox=[];
   const method=options.method||'GET';
   const body=options.body?JSON.parse(options.body):{};
+  if(path==='auth/capabilities'&&method==='GET')return Promise.resolve({email_code_enabled:false,push_enabled:false});
+  if(path==='push/public-key'&&method==='GET')return Promise.resolve({public_key:null});
+  if(path==='push/subscribe'&&(method==='POST'||method==='DELETE'))return Promise.resolve({ok:true});
+  if(path==='push/preferences'&&method==='PATCH')return Promise.resolve({ok:true});
+  if(path==='gamification'&&method==='GET')return Promise.resolve({gamification:s.gamification});
+  if(path==='gamification'&&method==='PUT'){s.gamification={...s.gamification,...body};saveDemo(s);return Promise.resolve({ok:true});}
+  if(path==='social/inbox'&&method==='GET')return Promise.resolve({items:s.social_inbox.filter(x=>!x.read)});
+  const inboxReadMatch=path.match(/^social\/inbox\/([^/]+)\/read$/);
+  if(inboxReadMatch&&method==='POST'){
+    s.social_inbox=s.social_inbox.map(x=>x.id===inboxReadMatch[1]?{...x,read:true}:x);
+    saveDemo(s);
+    return Promise.resolve({ok:true});
+  }
   if(path==='auth/me')return Promise.resolve({user:s.user});
   if(path==='habits'&&method==='GET')return Promise.resolve(s);
   if(path==='auth/logout')return Promise.resolve({ok:true});
@@ -174,12 +192,22 @@ function demoRequest(path,options={}){
       member_count:1,
       created_at:new Date().toISOString()
     };
+    const habits = body.habit_name ? [{
+      id:'gh-'+crypto.randomUUID().slice(0,8),
+      group_id:newGroup.id,
+      name:String(body.habit_name).trim(),
+      tracking:body.tracking==='quantity'?'quantity':'check',
+      direction:body.direction==='at_most'?'at_most':'at_least',
+      unit:String(body.unit||'').trim(),
+      target:Number(body.target||1)
+    }] : [];
     s.groups.unshift(newGroup);
     s.group_details[newGroup.id]={
       group:newGroup,
-      members:[{user_id:'demo-user',email:'demo@pace.app',username:'demo',display_name:'Sen',role:'owner'}],
-      habits:[],
-      checkins:[]
+      members:[{id:'m-'+crypto.randomUUID().slice(0,6),user_id:'demo-user',email:'demo@pace.app',username:'demo',display_name:'Sen',role:'owner'}],
+      habits,
+      checkins:[],
+      reactions:[]
     };
     saveDemo(s);
     return Promise.resolve({group:newGroup});
@@ -240,18 +268,40 @@ function demoRequest(path,options={}){
   }
   const inviteMatch=path.match(/^groups\/([^/]+)\/invites$/);
   if(inviteMatch&&method==='POST'){
-    const gId=inviteMatch[1];
     const code='inv-'+crypto.randomUUID().slice(0,8);
-    const link=location.origin+'/?invite='+code;
+    const link=location.origin+'/?join='+code;
     return Promise.resolve({
       invite:{
+        id:'inv-'+crypto.randomUUID().slice(0,6),
+        token:code,
         code,
         link,
-        type:body.type||'link',
-        target:body.target||null,
+        invite_type:body.invite_type||body.type||'link',
+        recipient:body.recipient||null,
         expires_at:new Date(Date.now()+7*86400000).toISOString()
       }
     });
+  }
+  const reactionMatch=path.match(/^groups\/([^/]+)\/reactions$/);
+  if(reactionMatch&&method==='POST'){
+    const gId=reactionMatch[1];
+    const details=s.group_details[gId];
+    const reaction={
+      id:'rx-'+crypto.randomUUID().slice(0,8),
+      group_id:gId,
+      sender_user_id:'demo-user',
+      target_user_id:body.target_user_id,
+      habit_date:body.habit_date||today(),
+      reaction_type:body.reaction_type==='nudge'?'nudge':'cheer',
+      emoji:body.emoji||'👏',
+      message:body.message||'',
+      created_at:new Date().toISOString()
+    };
+    if(details){
+      details.reactions=[reaction,...(details.reactions||[])];
+      saveDemo(s);
+    }
+    return Promise.resolve({reaction});
   }
   const previewInviteMatch=path.match(/^invites\/([^/]+)$/);
   if(previewInviteMatch&&method==='GET'){
@@ -260,42 +310,36 @@ function demoRequest(path,options={}){
         code:previewInviteMatch[1],
         group_id:'demo-group-morning',
         group_name:'Sabah Rutini Ekibi',
-        inviter_name:'demo',
+        inviter_display:'demo',
         type:'link',
         status:'pending',
         expires_at:new Date(Date.now()+7*86400000).toISOString()
       }
     });
   }
-  const respondInviteMatch=path.match(/^invites\/([^/]+)\/respond$/);
+  const respondInviteMatch=path.match(/^invites\/([^/]+)\/(accept|decline|respond)$/);
   if(respondInviteMatch&&method==='POST'){
     return Promise.resolve({ok:true,group_id:'demo-group-morning'});
   }
   const groupCheckinMatch=path.match(/^groups\/([^/]+)\/habits\/([^/]+)\/check-ins\/(\d{4}-\d{2}-\d{2})$/);
-  if(groupCheckinMatch&&method==='PUT'){
+  if(groupCheckinMatch&&(method==='PUT'||method==='DELETE')){
     const gId=groupCheckinMatch[1],hId=groupCheckinMatch[2],day=groupCheckinMatch[3];
     const details=s.group_details[gId];
     if(!details) return Promise.reject(Object.assign(new Error('Grup bulunamadı.'),{status:404}));
-    const val=Number(body.value||0);
-    const del=Boolean(body.deleted);
-    let checkin=details.checkins.find(c=>c.habit_id===hId&&c.habit_date===day&&c.user_id==='demo-user');
+    const del=method==='DELETE'||Boolean(body.deleted);
+    const val=del?0:Number(body.value||0);
+    let checkin=details.checkins.find(c=>(c.group_habit_id===hId||c.habit_id===hId)&&c.habit_date===day&&c.user_id==='demo-user');
     if(!checkin){
-      checkin={id:'gc-'+crypto.randomUUID().slice(0,8),habit_id:hId,habit_date:day,user_id:'demo-user',value:val,deleted:del?1:0,revision:1};
+      checkin={id:'gc-'+crypto.randomUUID().slice(0,8),group_habit_id:hId,habit_date:day,user_id:'demo-user',value:val,deleted:del?1:0,revision:1};
       details.checkins.push(checkin);
     } else {
+      checkin.group_habit_id=hId;
       checkin.value=val;
       checkin.deleted=del?1:0;
       checkin.revision=(checkin.revision||1)+1;
     }
     saveDemo(s);
     return Promise.resolve({checkin});
-  }
-  if(path==='import'&&method==='POST'){
-    if(Array.isArray(body.habits)) s.habits=body.habits;
-    if(Array.isArray(body.checkins)) s.checkins=body.checkins;
-    if(body.week_start!==undefined) s.week_start=Number(body.week_start);
-    saveDemo(s);
-    return Promise.resolve({ok:true, habits_count:s.habits.length, checkins_count:s.checkins.length});
   }
   const kickMatch=path.match(/^groups\/([^/]+)\/members\/([^/]+)$/);
   if(kickMatch&&method==='DELETE'){
@@ -311,12 +355,24 @@ function demoRequest(path,options={}){
   }
   const transferMatch=path.match(/^groups\/([^/]+)\/transfer$/);
   if(transferMatch&&method==='POST'){
+    const gId=transferMatch[1];
+    const newOwner=body.new_owner_id;
+    if(s.group_details[gId]&&newOwner){
+      s.group_details[gId].members=s.group_details[gId].members.map(m=>({...m,role:m.user_id===newOwner?'owner':'member'}));
+      s.group_details[gId].group.role='member';
+    }
+    const g=s.groups.find(x=>x.id===gId);
+    if(g) g.role='member';
+    saveDemo(s);
     return Promise.resolve({ok:true});
   }
 
   return Promise.reject(new Error('Bu işlem örnek görünümde desteklenmiyor.'));
 }
 
+export const getAuthCapabilities=()=>request('auth/capabilities');
+export const getGamification=()=>request('gamification');
+export const saveGamification=(data)=>request('gamification',{method:'PUT',body:JSON.stringify(data)});
 export const listGroups=()=>request('groups');
 export const createGroup=(data)=>request('groups',{method:'POST',body:JSON.stringify(data)});
 export const getGroup=(id)=>request(`groups/${id}`);
@@ -326,10 +382,17 @@ export const leaveGroup=(id)=>request(`groups/${id}/leave`,{method:'POST'});
 export const kickGroupMember=(groupId,userId)=>request(`groups/${groupId}/members/${userId}`,{method:'DELETE'});
 export const transferGroup=(groupId,newOwnerId)=>request(`groups/${groupId}/transfer`,{method:'POST',body:JSON.stringify({new_owner_id:newOwnerId})});
 export const createGroupHabit=(groupId,data)=>request(`groups/${groupId}/habits`,{method:'POST',body:JSON.stringify(data)});
-export const createGroupInvite=(groupId,data)=>request(`groups/${groupId}/invites`,{method:'POST',body:JSON.stringify(data)});
+export const createGroupInvite=(groupId,data)=>request(`groups/${groupId}/invites`,{method:'POST',body:JSON.stringify(typeof data==='string'?{invite_type:data}:(data||{invite_type:'link'}))});
+export const sendGroupReaction=(groupId,data)=>request(`groups/${groupId}/reactions`,{method:'POST',body:JSON.stringify(data)});
+export const getSocialInbox=()=>request('social/inbox');
+export const markSocialInboxRead=(id)=>request(`social/inbox/${encodeURIComponent(id)}/read`,{method:'POST',body:'{}'});
 export const getInvitePreview=(code)=>request(`invites/${encodeURIComponent(code)}`);
 export const respondInvite=(code,action)=>request(`invites/${encodeURIComponent(code)}/respond`,{method:'POST',body:JSON.stringify({action})});
 export const setGroupCheckin=(groupId,habitId,day,body)=>request(`groups/${groupId}/habits/${habitId}/check-ins/${day}`,{method:'PUT',body:JSON.stringify(body)});
+export const getPushPublicKey=()=>request('push/public-key');
+export const subscribePush=(payload)=>request('push/subscribe',{method:'POST',body:JSON.stringify(payload)});
+export const unsubscribePush=(endpoint)=>request('push/subscribe',{method:'DELETE',body:JSON.stringify({endpoint})});
+export const updatePushPreferences=(prefs)=>request('push/preferences',{method:'PATCH',body:JSON.stringify(prefs)});
 
 export function isDemo(){return demoMode}
 export async function exportData(){if(demoMode)return getDemo();return request('export')}

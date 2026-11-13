@@ -2,32 +2,24 @@ import React, { useMemo, useState } from 'react';
 import { Award, Zap, CheckCircle2, TrendingUp, Calendar, Flame, Gem, Trophy } from 'lucide-react';
 import { motion } from 'motion/react';
 import { playPop } from '../lib/soundFx';
+import { habitStatistics } from '../lib/statistics';
+import { localDateIso, addDaysIso } from '../lib/date';
 
-const dateIso = (date) => {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-};
-
-export default function ProgressView({ habits = [], checkins = [], gamification = {} }) {
-  const [period, setPeriod] = useState('30'); // '7' | '30' | 'all'
+export default function ProgressView({ habits = [], checkins = [], weekStart = 1, gamification = {} }) {
+  const [period, setPeriod] = useState('all'); // '7' | '30' | 'all'
 
   const {
-    streak = 1,
-    xp = 120,
+    streak = 0,
+    xp = 0,
     level = 1,
-    levelProgress = 20,
-    gems = 35,
+    levelProgress = 0,
+    gems = 10,
   } = gamification;
 
   const stats = useMemo(() => {
+    const todayIso = localDateIso();
     const periodDays = period === '7' ? 7 : period === '30' ? 30 : null;
-    const minDateKey = periodDays
-      ? dateIso(new Date(Date.now() - (periodDays - 1) * 86400000))
-      : '0000-00-00';
-
-    // Filter checkins within selected period
-    const scopedCheckins = checkins.filter(
-      (c) => !c.deleted && c.habit_date >= minDateKey
-    );
+    const minDateKey = periodDays ? addDaysIso(todayIso, -(periodDays - 1)) : '';
 
     let totalLogs = 0;
     let completedCount = 0;
@@ -38,41 +30,56 @@ export default function ProgressView({ habits = [], checkins = [], gamification 
     );
 
     const habitBreakdown = relevantHabits.map((h) => {
-      const hLogs = scopedCheckins.filter((c) => c.habit_id === h.id);
-      totalLogs += hLogs.length;
-
-      const completedLogs = hLogs.filter((c) => {
-        if (h.tracking === 'check') return Number(c.value) >= 1;
-        return Number(c.value) >= (h.target || 1);
+      const summary = habitStatistics(h, checkins, {
+        start: minDateKey,
+        end: todayIso,
+        weekStart,
       });
-      completedCount += completedLogs.length;
+
+      totalLogs += summary.recordedDays;
+      completedCount += summary.completedDays;
 
       // Streak calculation
       let currentStreak = 0;
-      let checkDate = new Date();
+      let checkIso = todayIso;
       const allHabitLogs = checkins.filter((c) => !c.deleted && c.habit_id === h.id);
       for (let i = 0; i < 365; i++) {
-        const iso = dateIso(checkDate);
-        const log = allHabitLogs.find((c) => c.habit_date === iso);
-        const isDone = log ? (h.tracking === 'check' ? Number(log.value) >= 1 : Number(log.value) >= (h.target || 1)) : false;
+        const log = allHabitLogs.find((c) => c.habit_date === checkIso);
+        const isDone = log
+          ? h.tracking === 'check'
+            ? Number(log.value) >= 1
+            : h.direction === 'at_most'
+            ? Number(log.value) <= (h.target || 1)
+            : Number(log.value) >= (h.target || 1)
+          : false;
         if (isDone) {
           currentStreak++;
-          checkDate.setDate(checkDate.getDate() - 1);
+          checkIso = addDaysIso(checkIso, -1);
         } else if (i === 0) {
-          checkDate.setDate(checkDate.getDate() - 1);
+          checkIso = addDaysIso(checkIso, -1);
         } else {
           break;
         }
       }
 
+      const quantitySummary = summary.groups.length > 0
+        ? summary.groups
+            .map((g) => `Top: ${Math.round(g.total * 10) / 10} ${g.unit} · Ort: ${Math.round(g.average * 10) / 10} · En iyi: ${Math.round(g.best * 10) / 10}`)
+            .join(' | ')
+        : summary.checkDays > 0
+        ? `${summary.checkDays} tamamlanan gün`
+        : 'Henüz kayıt yok';
+
       return {
         id: h.id,
         name: h.name,
         isArchived: Boolean(h.archived_at),
-        logsCount: hLogs.length,
-        completedCount: completedLogs.length,
-        completionRate: hLogs.length > 0 ? Math.round((completedLogs.length / hLogs.length) * 100) : 0,
+        logsCount: summary.recordedDays,
+        completedCount: summary.completedDays,
+        completionRate: summary.recordedDays > 0 ? Math.round((summary.completedDays / summary.recordedDays) * 100) : 0,
         streak: currentStreak,
+        quantitySummary,
+        lastDate: summary.lastDate,
       };
     });
 
@@ -84,27 +91,28 @@ export default function ProgressView({ habits = [], checkins = [], gamification 
       overallRate,
       habitBreakdown,
     };
-  }, [habits, checkins, period]);
+  }, [habits, checkins, period, weekStart]);
 
   return (
     <section className="page-view" id="view-progress" aria-labelledby="progress-title">
-      <div className="page-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+      <div className="page-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h1 id="progress-title" style={{ margin: 0, fontSize: 'clamp(22px, 4vw, 28px)', color: 'var(--ink)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
             İlerleme & Ritim
           </h1>
           <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '4px 0 0' }}>
-            Zaman içindeki alışkanlık devamlılığın, lig sıralaman ve tecrübe puanların.
+            Zaman içindeki alışkanlık devamlılığın, istatistiklerin ve deneyim puanların.
           </p>
         </div>
 
         {/* Period Selector */}
-        <div className="segmented-control" role="tablist" aria-label="Zaman aralığı seç">
+        <div className="segmented-control" role="tablist" aria-label="Zaman aralığı seç" style={{ maxWidth: '100%' }}>
           <button
             type="button"
             role="tab"
             aria-selected={period === '7'}
             className={`segmented-item ${period === '7' ? 'is-selected' : ''}`}
+            style={{ minHeight: '44px', padding: '8px 12px' }}
             onClick={() => {
               playPop();
               setPeriod('7');
@@ -117,6 +125,7 @@ export default function ProgressView({ habits = [], checkins = [], gamification 
             role="tab"
             aria-selected={period === '30'}
             className={`segmented-item ${period === '30' ? 'is-selected' : ''}`}
+            style={{ minHeight: '44px', padding: '8px 12px' }}
             onClick={() => {
               playPop();
               setPeriod('30');
@@ -129,6 +138,7 @@ export default function ProgressView({ habits = [], checkins = [], gamification 
             role="tab"
             aria-selected={period === 'all'}
             className={`segmented-item ${period === 'all' ? 'is-selected' : ''}`}
+            style={{ minHeight: '44px', padding: '8px 12px' }}
             onClick={() => {
               playPop();
               setPeriod('all');
@@ -139,7 +149,7 @@ export default function ProgressView({ habits = [], checkins = [], gamification 
         </div>
       </div>
 
-      {/* Gamification Level & League Hero Banner */}
+      {/* Gamification Level Hero Banner */}
       <motion.div
         initial={{ y: 15, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -165,13 +175,14 @@ export default function ProgressView({ habits = [], checkins = [], gamification 
                 justifyContent: 'center',
                 fontSize: '24px',
                 boxShadow: '0 4px 10px rgba(255, 150, 0, 0.3)',
+                flexShrink: 0,
               }}
             >
               <Trophy size={26} />
             </div>
             <div>
               <div style={{ fontSize: '12px', fontWeight: 700, color: '#A85CE5', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Seviye {level} • Ritim Ligi
+                Seviye {level} • Ritim Özeti
               </div>
               <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--ink)', fontFamily: 'var(--font-heading)' }}>
                 {xp} XP Toplandı
@@ -179,7 +190,7 @@ export default function ProgressView({ habits = [], checkins = [], gamification 
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <div className="gamify-badge flame-badge">
               <span className="flame-icon-pulse">🔥</span> {streak} Gün Seri
             </div>
@@ -243,12 +254,69 @@ export default function ProgressView({ habits = [], checkins = [], gamification 
         </div>
       </div>
 
-      {/* Progress Table Container */}
+      {/* Mobile Habit Breakdown Cards (<768px) */}
+      <div className="mobile-only-cards" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {stats.habitBreakdown.length === 0 ? (
+          <div className="card-chunky" style={{ textAlign: 'center', padding: '28px 16px', color: 'var(--muted)' }}>
+            Henüz istatistik kaydı bulunmuyor.
+          </div>
+        ) : (
+          stats.habitBreakdown.map((item) => (
+            <div key={item.id} className="card-chunky" style={{ padding: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    <strong style={{ fontSize: '15px', color: 'var(--ink)' }}>{item.name}</strong>
+                    {item.isArchived && (
+                      <span style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '6px', background: 'var(--surface-alt)', color: 'var(--muted)' }}>
+                        Arşiv
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--muted)', fontWeight: 600, marginTop: '3px' }}>
+                    {item.quantitySummary}
+                  </div>
+                </div>
+                <span
+                  style={{
+                    fontWeight: 800,
+                    fontSize: '14px',
+                    color: item.completionRate >= 80 ? 'var(--green-dark)' : 'var(--orange-dark)',
+                    flexShrink: 0,
+                  }}
+                >
+                  %{item.completionRate}
+                </span>
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginTop: '10px',
+                  paddingTop: '10px',
+                  borderTop: '1px solid var(--border)',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  color: 'var(--muted)',
+                }}
+              >
+                <span>{item.completedCount} / {item.logsCount} gün</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: item.streak > 0 ? 'var(--orange-dark)' : 'var(--muted)' }}>
+                  <Zap size={13} /> {item.streak} gün seri
+                </span>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop Progress Table Container (>=768px) */}
       <div
-        className="table-container card-chunky"
+        className="table-container card-chunky desktop-only-table"
         tabIndex={0}
         role="region"
-        aria-label="Alışkanlık ilerleme tablosu (yatay kaydırılabilir)"
+        aria-label="Alışkanlık ilerleme tablosu"
       >
         <table className="table-standard" id="progress-table" aria-label="Alışkanlık istatistikleri özeti">
           <thead>
@@ -278,6 +346,10 @@ export default function ProgressView({ habits = [], checkins = [], gamification 
                           Arşiv
                         </span>
                       )}
+                    </div>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted)', marginTop: '2px' }}>
+                      {item.quantitySummary}
+                      {item.lastDate ? ` · Son: ${item.lastDate}` : ''}
                     </div>
                   </th>
                   <td style={{ textAlign: 'center' }}>{item.completedCount}</td>

@@ -7,7 +7,7 @@ import { triggerHaptic } from '../../lib/celebration';
 export default function MobileNav({ currentView = 'today', setView }) {
   const items = [
     { id: 'today', label: 'Bugün', icon: CalendarDays },
-    { id: 'habits', label: 'Alışkanlıklar', icon: ListChecks },
+    { id: 'habits', label: 'Rutinler', icon: ListChecks },
     { id: 'progress', label: 'İlerleme', icon: ChartNoAxesColumnIncreasing },
     { id: 'groups', label: 'Gruplar', icon: Users },
     { id: 'settings', label: 'Ayarlar', icon: Settings },

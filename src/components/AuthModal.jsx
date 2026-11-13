@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Copy, Check, X } from 'lucide-react';
+import { Copy, Check, X, Download } from 'lucide-react';
 import * as api from '../lib/api';
+import { playPop } from '../lib/soundFx';
 
-export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
-  const [mode, setMode] = useState('login'); // 'login' | 'register' | 'recover'
+export default function AuthModal({ isOpen, onClose, onAuthSuccess, emailCodeEnabled = false }) {
+  const [mode, setMode] = useState('login'); // 'login' | 'register' | 'code' | 'recover'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [emailCode, setEmailCode] = useState('');
+  const [codeSent, setCodeSent] = useState(false);
   const [recoveryCode, setRecoveryCode] = useState('');
   const [generatedCode, setGeneratedCode] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -27,6 +31,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
+    setSuccessMsg('');
     setLoading(true);
 
     try {
@@ -48,6 +53,24 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           setGeneratedCode(res.recovery_code);
           if (res.user) onAuthSuccess?.(res.user);
         }
+      } else if (mode === 'code') {
+        if (!codeSent) {
+          const res = await api.request('auth/request-code', {
+            method: 'POST',
+            body: JSON.stringify({ email }),
+          });
+          setCodeSent(true);
+          setSuccessMsg(res?.message || '6 haneli giriş kodun e-postana gönderildi.');
+        } else {
+          const res = await api.request('auth/verify-code', {
+            method: 'POST',
+            body: JSON.stringify({ email, code: emailCode.trim() }),
+          });
+          if (res?.user) {
+            onAuthSuccess?.(res.user);
+            onClose();
+          }
+        }
       } else if (mode === 'recover') {
         const res = await api.request('auth/recover', {
           method: 'POST',
@@ -58,7 +81,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           if (res.recovery_code) {
             setGeneratedCode(res.recovery_code);
           } else {
-            alert('Parolanız sıfırlandı. Yeni parolanızla giriş yapabilirsiniz.');
+            setSuccessMsg('Parolanız sıfırlandı. Yeni parolanızla giriş yapabilirsiniz.');
             setMode('login');
           }
         }
@@ -78,6 +101,18 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
     });
   };
 
+  const handleDownloadCode = () => {
+    if (!generatedCode) return;
+    const content = `PACE Hesap Kurtarma Kodu\nE-posta: ${email}\nKurtarma Kodu: ${generatedCode}\n\nBu kodu güvenli bir yerde saklayın. Parolanızı unutursanız yalnızca bu kodla hesabınızı kurtarabilirsiniz.\n`;
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'pace-kurtarma-kodu.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div
       className="modal-overlay"
@@ -94,42 +129,47 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
       >
         <div className="sheet-handle" aria-hidden="true"></div>
 
-        <button
-          type="button"
-          className="modal-close-btn"
-          aria-label="Kapat"
-          style={{ position: 'absolute', top: '16px', right: '16px' }}
-          onClick={() => {
-            playPop();
-            onClose();
-          }}
-        >
-          <X size={24} strokeWidth={2.5} />
-        </button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+          <div className="auth-brand" id="auth-title" style={{ flex: '1 1 auto', minWidth: 0 }}>
+            <span style={{ fontFamily: 'var(--font-heading)', fontSize: '34px', fontWeight: 900, letterSpacing: '-1.5px', lineHeight: 1, color: 'var(--ink)' }}>
+              pace
+            </span>
+            <p className="auth-lead" style={{ marginTop: '4px', marginBottom: 0, color: 'var(--muted)', fontSize: '14px' }}>
+              {mode === 'login' && 'Hesabına giriş yap, alışkanlıklarını eşitle.'}
+              {mode === 'register' && 'Hemen hesabını oluştur, cihazlar arası takip et.'}
+              {mode === 'code' && 'Parolasız tek kullanımlık e-posta koduyla giriş yap.'}
+              {mode === 'recover' && 'Kurtarma kodunla parolanı yenile.'}
+            </p>
+          </div>
 
-        <div className="auth-brand">
-          <span style={{ fontFamily: 'var(--font-heading)', fontSize: '34px', fontWeight: 900, letterSpacing: '-1.5px', lineHeight: 1, color: 'var(--ink)' }}>
-            pace
-          </span>
-          <p className="auth-lead" style={{ marginTop: '4px', color: 'var(--muted)', fontSize: '14px' }}>
-            {mode === 'login' && 'Hesabına giriş yap, alışkanlıklarını eşitle.'}
-            {mode === 'register' && 'Hemen hesabını oluştur, cihazlar arası takip et.'}
-            {mode === 'recover' && 'Kurtarma kodunla parolanı yenile.'}
-          </p>
+          <button
+            type="button"
+            className="modal-close-btn"
+            aria-label="Kapat"
+            style={{ minWidth: '44px', minHeight: '44px', flexShrink: 0 }}
+            onClick={() => {
+              playPop();
+              onClose();
+            }}
+          >
+            <X size={24} strokeWidth={2.5} />
+          </button>
         </div>
 
         {/* Tab mode toggle */}
-        <div className="segmented-control" role="tablist" style={{ width: '100%', margin: '16px 0' }}>
+        <div className="segmented-control" role="tablist" style={{ width: '100%', margin: '12px 0 16px' }}>
           <button
             type="button"
             role="tab"
             aria-selected={mode === 'login'}
             className={`segmented-item ${mode === 'login' ? 'is-selected' : ''}`}
-            style={{ flex: 1, minHeight: '42px' }}
+            style={{ flex: 1, minHeight: '44px', padding: '8px 10px' }}
             onClick={() => {
               setMode('login');
               setErrorMsg('');
+              setSuccessMsg('');
               setGeneratedCode('');
+              setCodeSent(false);
             }}
           >
             Giriş Yap
@@ -139,15 +179,34 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
             role="tab"
             aria-selected={mode === 'register'}
             className={`segmented-item ${mode === 'register' ? 'is-selected' : ''}`}
-            style={{ flex: 1, minHeight: '42px' }}
+            style={{ flex: 1, minHeight: '44px', padding: '8px 10px' }}
             onClick={() => {
               setMode('register');
               setErrorMsg('');
+              setSuccessMsg('');
               setGeneratedCode('');
+              setCodeSent(false);
             }}
           >
             Kayıt Ol
           </button>
+          {emailCodeEnabled && (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'code'}
+              className={`segmented-item ${mode === 'code' ? 'is-selected' : ''}`}
+              style={{ flex: 1, minHeight: '44px', padding: '8px 8px' }}
+              onClick={() => {
+                setMode('code');
+                setErrorMsg('');
+                setSuccessMsg('');
+                setGeneratedCode('');
+              }}
+            >
+              E-posta Kodu
+            </button>
+          )}
         </div>
 
         {generatedCode ? (
@@ -156,7 +215,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
             style={{
               background: 'var(--orange-soft)',
               border: '1px solid var(--orange-border)',
-              borderRadius: '12px',
+              borderRadius: '14px',
               padding: '16px',
               margin: '16px 0',
             }}
@@ -176,25 +235,34 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 wordBreak: 'break-all',
                 background: 'var(--surface)',
                 padding: '12px',
-                borderRadius: '8px',
+                borderRadius: '10px',
                 border: '1px solid var(--border)',
                 marginBottom: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
               }}
             >
-              <span>{generatedCode}</span>
-              <button
-                type="button"
-                className="btn-3d btn-3d-gray"
-                style={{ height: '36px', padding: '0 12px', fontSize: '12px', borderRadius: '10px' }}
-                onClick={handleCopyCode}
-                aria-label="Kodu kopyala"
-              >
-                {copied ? <Check size={14} color="var(--green)" /> : <Copy size={14} />}
-                <span style={{ marginLeft: '4px' }}>{copied ? 'Kopyalandı' : 'Kopyala'}</span>
-              </button>
+              <div style={{ marginBottom: '10px' }}>{generatedCode}</div>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn-3d btn-3d-gray"
+                  style={{ minHeight: '44px', padding: '0 14px', fontSize: '12px', borderRadius: '10px', flex: '1 1 110px' }}
+                  onClick={handleCopyCode}
+                  aria-label="Kodu kopyala"
+                >
+                  {copied ? <Check size={14} color="var(--green)" /> : <Copy size={14} />}
+                  <span style={{ marginLeft: '4px' }}>{copied ? 'Kopyalandı' : 'Kopyala'}</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn-3d btn-3d-gray"
+                  style={{ minHeight: '44px', padding: '0 14px', fontSize: '12px', borderRadius: '10px', flex: '1 1 110px' }}
+                  onClick={handleDownloadCode}
+                  aria-label="Kodu .txt olarak indir"
+                >
+                  <Download size={14} />
+                  <span style={{ marginLeft: '4px' }}>.txt İndir</span>
+                </button>
+              </div>
             </div>
             <button
               type="button"
@@ -215,6 +283,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 {errorMsg}
               </p>
             )}
+            {successMsg && (
+              <p className="form-message" role="status" style={{ color: 'var(--green-dark)', fontWeight: 600, fontSize: '14px', margin: 0 }}>
+                {successMsg}
+              </p>
+            )}
 
             <label htmlFor="auth-email" style={{ fontSize: '13px', fontWeight: 700 }}>
               E-posta adresin
@@ -231,6 +304,26 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 placeholder="ornek@email.com"
               />
             </label>
+
+            {mode === 'code' && codeSent && (
+              <label htmlFor="auth-email-code" style={{ fontSize: '13px', fontWeight: 700 }}>
+                6 Haneli Giriş Kodu
+                <input
+                  id="auth-email-code"
+                  name="code"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  className="form-input"
+                  style={{ width: '100%', height: '48px', padding: '0 12px', marginTop: '6px', fontSize: '18px', letterSpacing: '4px', fontWeight: 800 }}
+                  value={emailCode}
+                  onChange={(e) => setEmailCode(e.target.value)}
+                  autoComplete="one-time-code"
+                  required
+                  placeholder="000000"
+                />
+              </label>
+            )}
 
             {mode === 'recover' && (
               <label htmlFor="auth-recovery" style={{ fontSize: '13px', fontWeight: 700 }}>
@@ -249,21 +342,23 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
               </label>
             )}
 
-            <label htmlFor="auth-password" style={{ fontSize: '13px', fontWeight: 700 }}>
-              {mode === 'recover' ? 'Yeni parolan' : 'Parolan'}
-              <input
-                id="auth-password"
-                name="password"
-                type="password"
-                className="form-input"
-                style={{ width: '100%', height: '48px', padding: '0 12px', marginTop: '6px', fontSize: '16px' }}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
-                required
-                placeholder="En az 10 karakter"
-              />
-            </label>
+            {mode !== 'code' && (
+              <label htmlFor="auth-password" style={{ fontSize: '13px', fontWeight: 700 }}>
+                {mode === 'recover' ? 'Yeni parolan' : 'Parolan'}
+                <input
+                  id="auth-password"
+                  name="password"
+                  type="password"
+                  className="form-input"
+                  style={{ width: '100%', height: '48px', padding: '0 12px', marginTop: '6px', fontSize: '16px' }}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+                  required
+                  placeholder="En az 8 karakter"
+                />
+              </label>
+            )}
 
             <button
               type="submit"
@@ -278,8 +373,34 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 ? 'Giriş Yap'
                 : mode === 'register'
                 ? 'Hesap Oluştur'
+                : mode === 'code'
+                ? (codeSent ? 'Kodu Doğrula ve Giriş Yap' : 'Giriş Kodu Gönder')
                 : 'Parolayı Sıfırla'}
             </button>
+
+            {mode === 'code' && codeSent && (
+              <button
+                type="button"
+                className="button-link"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--muted)',
+                  fontSize: '13px',
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                  minHeight: '44px',
+                  padding: '8px 0',
+                }}
+                onClick={() => {
+                  setCodeSent(false);
+                  setEmailCode('');
+                  setSuccessMsg('');
+                }}
+              >
+                Yeni kod iste
+              </button>
+            )}
 
             {mode === 'login' && (
               <button
@@ -292,6 +413,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                   fontSize: '13px',
                   textDecoration: 'underline',
                   cursor: 'pointer',
+                  minHeight: '44px',
                   padding: '8px 0',
                 }}
                 onClick={() => {
@@ -314,6 +436,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                   fontSize: '13px',
                   textDecoration: 'underline',
                   cursor: 'pointer',
+                  minHeight: '44px',
                   padding: '8px 0',
                 }}
                 onClick={() => {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Flame, Gem, Zap, X } from 'lucide-react';
 import { playPop } from '../../lib/soundFx';
 
@@ -7,17 +7,26 @@ export default function TopBar({
   user,
   onOpenAuth,
   syncState,
-  streak = 1,
-  streakFreezes = 2,
+  streak = 0,
+  streakFreezes = 1,
   isStreakFrozenToday = false,
   buyStreakFreeze,
-  gems = 35,
+  gems = 10,
   level = 1,
   xp = 0,
 }) {
   const initial = user?.email ? user.email[0].toUpperCase() : 'P';
   const [showShieldModal, setShowShieldModal] = useState(false);
   const [shieldFeedback, setShieldFeedback] = useState(null);
+
+  useEffect(() => {
+    if (!showShieldModal) return;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setShowShieldModal(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showShieldModal]);
 
   return (
     <header className="topbar" role="banner" style={{ flexWrap: 'nowrap', gap: '8px' }}>
@@ -47,10 +56,11 @@ export default function TopBar({
         aria-label="Oyun İstatistikleri"
       >
         {/* Streak Flame */}
-        <div
+        <button
+          type="button"
           className="gamify-badge flame-badge"
           title={`${streak} gün aralıksız seri! Kalkan detayları için dokun.`}
-          aria-label={`${streak} günlük seri`}
+          aria-label={`${streak} günlük seri, kalkan detaylarını aç`}
           onClick={() => {
             playPop();
             setShowShieldModal(true);
@@ -59,13 +69,14 @@ export default function TopBar({
         >
           <span className="flame-icon-pulse" aria-hidden="true">🔥</span>
           <span>{streak}</span>
-        </div>
+        </button>
 
         {/* Streak Freeze Shield Badge */}
-        <div
+        <button
+          type="button"
           className={`gamify-badge shield-badge ${isStreakFrozenToday ? 'shield-badge-active' : ''}`}
           title={`${streakFreezes} Seri Kalkanı mevcut. Detaylar ve satın almak için dokun.`}
-          aria-label={`${streakFreezes} seri kalkanı`}
+          aria-label={`${streakFreezes} seri kalkanı, kalkan mağazasını aç`}
           onClick={() => {
             playPop();
             setShowShieldModal(true);
@@ -80,7 +91,7 @@ export default function TopBar({
           <span style={{ fontWeight: 800, color: isStreakFrozenToday ? 'var(--blue-dark, #0369A1)' : 'inherit' }}>
             {streakFreezes}
           </span>
-        </div>
+        </button>
 
         {/* Gems */}
         <div

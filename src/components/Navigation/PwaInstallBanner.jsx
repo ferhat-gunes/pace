@@ -94,6 +94,7 @@ export default function PwaInstallBanner() {
           <button
             type="button"
             className="button button-primary pwa-btn-install"
+            style={{ minHeight: '44px' }}
             onClick={handleInstallClick}
           >
             Yükle
@@ -103,7 +104,7 @@ export default function PwaInstallBanner() {
           type="button"
           className="button button-quiet pwa-btn-dismiss"
           aria-label="Kapat"
-          style={{ width: '40px', height: '40px', minWidth: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+          style={{ width: '44px', height: '44px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
           onClick={handleDismiss}
         >
           <X size={22} strokeWidth={2.5} />

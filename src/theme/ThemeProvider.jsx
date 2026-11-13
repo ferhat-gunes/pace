@@ -24,6 +24,13 @@ export default function ThemeProvider({ children }) {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) {
+      meta.setAttribute('content', mode === 'dark' ? '#0F172A' : '#F8FAFD');
+    }
+  }, [mode]);
+
   return (
     <Theme theme={matchaTheme} mode={mode}>
       {children}

@@ -1,13 +1,33 @@
-import React, { useState } from 'react';
-import { Download, Upload, LogOut, Trash2, Calendar, Globe, CheckCircle2, AlertTriangle, Volume2, VolumeX, Bell, BellOff, Clock } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import {
+  Download,
+  Upload,
+  LogOut,
+  LogIn,
+  CheckCircle2,
+  AlertTriangle,
+  Volume2,
+  VolumeX,
+  Bell,
+  BellOff,
+  Clock,
+  Moon,
+  Users,
+  Smartphone,
+} from 'lucide-react';
 import { motion } from 'motion/react';
 import { isSoundEnabled, toggleSound, playPop } from '../lib/soundFx';
+import { localDateIso } from '../lib/date';
 import {
   getNotificationSettings,
   saveNotificationSettings,
   requestNotificationPermission,
   sendLocalNotification,
-  isNotificationSupported,
+  isPushSupported,
+  getCurrentPushSubscription,
+  subscribeWebPush,
+  unsubscribeWebPush,
+  syncPushPreferences,
 } from '../lib/notifications';
 import * as api from '../lib/api';
 
@@ -19,12 +39,17 @@ export default function SettingsView({
   updateWeekStart,
   importBackup,
   onSignOut,
+  guestMode = false,
+  onOpenAuth = null,
+  pushEnabled = false,
 }) {
   const [msg, setMsg] = useState('');
   const [isError, setIsError] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [soundActive, setSoundActive] = useState(() => isSoundEnabled());
   const [notifSettings, setNotifSettings] = useState(() => getNotificationSettings());
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
   const [themePreference, setThemePreference] = useState(() => {
     try {
       return localStorage.getItem('pace_theme') || 'system';
@@ -32,6 +57,22 @@ export default function SettingsView({
       return 'system';
     }
   });
+
+  useEffect(() => {
+    let active = true;
+    if (!guestMode && !api.isDemo() && isPushSupported()) {
+      getCurrentPushSubscription().then((sub) => {
+        if (active) setPushSubscribed(Boolean(sub));
+      });
+    }
+    return () => { active = false; };
+  }, [guestMode]);
+
+  const showNotification = (text, error = false) => {
+    setMsg(text);
+    setIsError(error);
+    setTimeout(() => setMsg(''), 4000);
+  };
 
   const handleRequestPermission = async () => {
     playPop();
@@ -43,12 +84,16 @@ export default function SettingsView({
       sendLocalNotification('🎯 PACE Bildirimleri Aktif!', {
         body: 'Alışkanlıklarını tamamlaman için sana her gün hatırlatacağız.',
       });
+      if (pushEnabled && !guestMode && !api.isDemo()) {
+        const subRes = await subscribeWebPush(updated);
+        if (subRes.ok) setPushSubscribed(true);
+      }
     } else if (perm === 'denied') {
       showNotification('Bildirim izni reddedildi. Tarayıcı ayarlarından açabilirsiniz.', true);
     }
   };
 
-  const handleToggleNotifications = () => {
+  const handleToggleNotifications = async () => {
     playPop();
     if (notifSettings.permission !== 'granted') {
       handleRequestPermission();
@@ -56,15 +101,72 @@ export default function SettingsView({
     }
     const nextEnabled = !notifSettings.enabled;
     saveNotificationSettings({ enabled: nextEnabled });
-    setNotifSettings((prev) => ({ ...prev, enabled: nextEnabled }));
+    const next = { ...notifSettings, enabled: nextEnabled };
+    setNotifSettings(next);
+    if (!guestMode && !api.isDemo()) {
+      syncPushPreferences(next);
+    }
     showNotification(nextEnabled ? 'Günlük hatırlatma bildirimleri açıldı.' : 'Hatırlatma bildirimleri kapatıldı.');
   };
 
   const handleChangeReminderTime = (time) => {
     playPop();
     saveNotificationSettings({ reminderTime: time });
-    setNotifSettings((prev) => ({ ...prev, reminderTime: time }));
+    const next = { ...notifSettings, reminderTime: time };
+    setNotifSettings(next);
+    if (!guestMode && !api.isDemo()) {
+      syncPushPreferences(next);
+    }
     showNotification(`Hatırlatma saati ${time} olarak ayarlandı.`);
+  };
+
+  const handleChangeQuietHours = (field, value) => {
+    saveNotificationSettings({ [field]: value });
+    const next = { ...notifSettings, [field]: value };
+    setNotifSettings(next);
+    if (!guestMode && !api.isDemo()) {
+      syncPushPreferences(next);
+    }
+  };
+
+  const handleToggleSocialNotifications = () => {
+    playPop();
+    const nextSocial = !notifSettings.socialEnabled;
+    saveNotificationSettings({ socialEnabled: nextSocial });
+    const next = { ...notifSettings, socialEnabled: nextSocial };
+    setNotifSettings(next);
+    if (!guestMode && !api.isDemo()) {
+      syncPushPreferences(next);
+    }
+    showNotification(nextSocial ? 'Grup tebrik ve yoklama bildirimleri açıldı.' : 'Grup bildirimleri sessize alındı.');
+  };
+
+  const handleToggleWebPush = async () => {
+    playPop();
+    if (pushBusy) return;
+    setPushBusy(true);
+    try {
+      if (pushSubscribed) {
+        await unsubscribeWebPush();
+        setPushSubscribed(false);
+        showNotification('Arka plan push bildirimleri kapatıldı.');
+      } else {
+        const res = await subscribeWebPush(notifSettings);
+        if (res.ok) {
+          setPushSubscribed(true);
+          setNotifSettings(getNotificationSettings());
+          showNotification('Arka plan Web Push bildirimleri etkinleştirildi! 🔔');
+        } else if (res.reason === 'denied') {
+          showNotification('Tarayıcı bildirim izni verilmedi.', true);
+        } else if (res.reason === 'vapid_missing') {
+          showNotification('Sunucu push anahtarı yapılandırılmamış; tarayıcı açıkken hatırlatmalar çalışır.');
+        } else {
+          showNotification('Push aboneliği başlatılamadı.', true);
+        }
+      }
+    } finally {
+      setPushBusy(false);
+    }
   };
 
   const handleTestNotification = async () => {
@@ -94,9 +196,11 @@ export default function SettingsView({
     playPop();
     setThemePreference(newTheme);
     try {
+      let isDark = false;
       if (newTheme === 'dark') {
         localStorage.setItem('pace_theme', 'dark');
         document.documentElement.setAttribute('data-theme', 'dark');
+        isDark = true;
       } else if (newTheme === 'light') {
         localStorage.setItem('pace_theme', 'light');
         document.documentElement.removeAttribute('data-theme');
@@ -104,18 +208,15 @@ export default function SettingsView({
         localStorage.removeItem('pace_theme');
         if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
           document.documentElement.setAttribute('data-theme', 'dark');
+          isDark = true;
         } else {
           document.documentElement.removeAttribute('data-theme');
         }
       }
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute('content', isDark ? '#0F172A' : '#F8FAFD');
       showNotification('Tema tercihi güncellendi.');
     } catch {}
-  };
-
-  const showNotification = (text, error = false) => {
-    setMsg(text);
-    setIsError(error);
-    setTimeout(() => setMsg(''), 4000);
   };
 
   const handleExport = () => {
@@ -131,7 +232,7 @@ export default function SettingsView({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `pace-yedek-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `pace-yedek-${localDateIso()}.json`;
     a.click();
     URL.revokeObjectURL(url);
     showNotification('Yedek JSON dosyası olarak başarıyla indirildi.');
@@ -161,25 +262,27 @@ export default function SettingsView({
       }
     };
     reader.readAsText(file);
-    e.target.value = ''; // Reset input
+    e.target.value = '';
   };
 
   const handleDeleteAccount = async () => {
     try {
       await api.request('account', { method: 'DELETE' }).catch(() => null);
-      showNotification('Hesabınız silindi.');
+      showNotification('Hesabınız ve verileriniz silindi.');
       setTimeout(() => onSignOut?.(), 1000);
     } catch (err) {
       showNotification('Hesap silme başarısız: ' + err.message, true);
     }
   };
 
+  const isGuestOnly = guestMode && !api.isDemo();
+
   return (
     <section className="page-view" id="view-settings" aria-labelledby="settings-title">
       <div className="page-heading">
         <div>
           <h1 id="settings-title" style={{ fontFamily: 'var(--font-heading)', fontWeight: 800 }}>Ayarlar</h1>
-          <p className="section-subtitle">Hesap, sesler, tercihler ve veri güvenliği</p>
+          <p className="section-subtitle">Hesap, bildirimler, tercihler ve veri güvenliği</p>
         </div>
       </div>
 
@@ -211,39 +314,61 @@ export default function SettingsView({
       <div className="settings-layout" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <section className="settings-section card-chunky">
           <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, margin: '0 0 16px', fontSize: '18px' }}>Hesap Bilgileri</h2>
-          <div className="settings-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="settings-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
             <div>
               <strong id="account-email" style={{ fontSize: '15px' }}>
-                {user?.email || 'Örnek Kullanıcı (Çevrimdışı)'}
+                {isGuestOnly
+                  ? 'Yerel Mod (Hesap bağlı değil)'
+                  : user?.email || 'Örnek Kullanıcı (Demo)'}
               </strong>
               <p style={{ margin: '4px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
-                {user?.email && user.email !== 'demo@pace.app' ? 'Giriş yapıldı' : 'Verileriniz bu cihazda saklanıyor'}
+                {isGuestOnly
+                  ? 'Verilerin bu cihazda saklanıyor. Cihazlar arası eşitleme ve gruplar için hesabını bağla.'
+                  : user?.email && user.email !== 'demo@pace.app'
+                  ? 'Hesabın bulutla eşitleniyor'
+                  : 'Demo modundasın — veriler cihazında tutuluyor'}
               </p>
             </div>
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.95, y: 2 }}
-              className="btn-3d btn-3d-gray"
-              style={{ minHeight: '40px', padding: '0 16px', borderRadius: '12px', fontSize: '13px' }}
-              onClick={() => {
-                playPop();
-                onSignOut();
-              }}
-            >
-              <LogOut size={15} style={{ marginRight: '6px' }} />
-              Çıkış yap
-            </motion.button>
+            {isGuestOnly ? (
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.95, y: 2 }}
+                className="btn-3d btn-3d-green"
+                style={{ minHeight: '44px', padding: '0 16px', borderRadius: '12px', fontSize: '13px' }}
+                onClick={() => {
+                  playPop();
+                  onOpenAuth?.();
+                }}
+              >
+                <LogIn size={15} style={{ marginRight: '6px' }} />
+                Giriş Yap / Hesap Oluştur
+              </motion.button>
+            ) : (
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.95, y: 2 }}
+                className="btn-3d btn-3d-gray"
+                style={{ minHeight: '44px', padding: '0 16px', borderRadius: '12px', fontSize: '13px' }}
+                onClick={() => {
+                  playPop();
+                  onSignOut?.();
+                }}
+              >
+                <LogOut size={15} style={{ marginRight: '6px' }} />
+                Çıkış yap
+              </motion.button>
+            )}
           </div>
         </section>
 
         <section className="settings-section card-chunky">
           <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, margin: '0 0 16px', fontSize: '18px' }}>Tercihler & Deneyim</h2>
 
-          <div className="settings-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
-            <div>
+          <div className="settings-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ flex: '1 1 200px' }}>
               <strong style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 {soundActive ? <Volume2 size={18} /> : <VolumeX size={18} />}
-                Dokunsal Oyun Sesleri
+                Dokunsal Ses Efektleri
               </strong>
               <p style={{ margin: '2px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
                 Tamamlama, sandık açma ve buton dokunma sesleri.
@@ -253,13 +378,14 @@ export default function SettingsView({
               type="button"
               whileTap={{ scale: 0.94, y: 2 }}
               className={`btn-3d ${soundActive ? 'btn-3d-green' : 'btn-3d-gray'}`}
-              style={{ minHeight: '40px', padding: '0 16px', borderRadius: '12px', fontSize: '13px' }}
+              style={{ minHeight: '44px', padding: '0 16px', borderRadius: '12px', fontSize: '13px' }}
               onClick={handleSoundToggle}
             >
               {soundActive ? 'Açık 🔊' : 'Kapalı 🔇'}
             </motion.button>
           </div>
-          <label className="settings-row" htmlFor="week-start-select">
+
+          <label className="settings-row" htmlFor="week-start-select" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
             <div>
               <strong>Haftanın ilk günü</strong>
               <p style={{ margin: '2px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
@@ -271,9 +397,9 @@ export default function SettingsView({
               value={weekStart}
               onChange={(e) => updateWeekStart?.(Number(e.target.value))}
               style={{
-                height: '40px',
+                minHeight: '44px',
                 padding: '0 12px',
-                borderRadius: '8px',
+                borderRadius: '10px',
                 border: '1px solid var(--border)',
                 background: 'var(--surface)',
                 color: 'var(--ink)',
@@ -289,7 +415,7 @@ export default function SettingsView({
             <div>
               <strong style={{ fontSize: '15px' }}>Görünüm Teması</strong>
               <p style={{ margin: '2px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
-                Akıcı renk geçişiyle açık mod, koyu gece veya sistem modu.
+                Açık mod, koyu gece veya cihaz ayarı.
               </p>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '4px' }}>
@@ -323,7 +449,7 @@ export default function SettingsView({
             </div>
           </div>
 
-          <div className="settings-row">
+          <div className="settings-row" style={{ paddingTop: '12px' }}>
             <div>
               <strong>Saat dilimi</strong>
               <p style={{ margin: '2px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
@@ -336,9 +462,9 @@ export default function SettingsView({
           </div>
         </section>
 
-        {/* Hatırlatıcı & Bildirimler */}
+        {/* Hatırlatıcı, Sessiz Saatler & Web Push */}
         <section className="settings-section card-chunky">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
             <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Bell size={20} color="var(--orange)" />
               Hatırlatıcı & Bildirimler
@@ -347,7 +473,7 @@ export default function SettingsView({
               style={{
                 fontSize: '11px',
                 fontWeight: 700,
-                padding: '3px 8px',
+                padding: '4px 10px',
                 borderRadius: '8px',
                 background: notifSettings.permission === 'granted' && notifSettings.enabled ? 'var(--green-soft)' : 'var(--border)',
                 color: notifSettings.permission === 'granted' && notifSettings.enabled ? 'var(--green-dark)' : 'var(--muted)',
@@ -357,7 +483,6 @@ export default function SettingsView({
             </span>
           </div>
 
-          {/* Permission State Banner if not granted */}
           {notifSettings.permission !== 'granted' && (
             <div
               style={{
@@ -373,19 +498,19 @@ export default function SettingsView({
                 gap: '10px',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 200px' }}>
                 {notifSettings.permission === 'denied' ? <BellOff size={18} color="var(--red)" /> : <Bell size={18} color="var(--orange)" />}
                 <p style={{ margin: 0, fontSize: '13px', color: notifSettings.permission === 'denied' ? 'var(--red-dark)' : 'var(--orange-dark)', fontWeight: 600 }}>
                   {notifSettings.permission === 'denied'
                     ? 'Tarayıcı bildirim izni engellendi. Adres çubuğundaki kilit simgesinden izin verebilirsiniz.'
-                    : 'Günlük hedeflerini kaçırmamak ve arkadaşlarının dürtmelerini almak için bildirimleri aç.'}
+                    : 'Günlük hedeflerini ve arkadaş mesajlarını kaçırmamak için bildirimleri aç.'}
                 </p>
               </div>
               {notifSettings.permission !== 'denied' && (
                 <button
                   type="button"
                   className="btn-3d btn-3d-orange"
-                  style={{ minHeight: '38px', padding: '0 14px', fontSize: '12px', borderRadius: '10px' }}
+                  style={{ minHeight: '44px', padding: '0 16px', fontSize: '13px', borderRadius: '12px' }}
                   onClick={handleRequestPermission}
                 >
                   Bildirimleri Aç 🔔
@@ -394,29 +519,29 @@ export default function SettingsView({
             </div>
           )}
 
-          {/* Notification Toggle Row */}
-          <div className="settings-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
-            <div>
+          {/* Daily reminder toggle */}
+          <div className="settings-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ flex: '1 1 200px' }}>
               <strong style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Bell size={18} />
                 Günlük Alışkanlık Hatırlatıcısı
               </strong>
               <p style={{ margin: '2px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
-                Günün belirlediğin saatinde tamamlanmamış hedeflerin varsa seni uyarır.
+                Tamamlanmamış hedefin varsa seçtiğin saatte nazikçe uyarır.
               </p>
             </div>
             <motion.button
               type="button"
               whileTap={{ scale: 0.94, y: 2 }}
               className={`btn-3d ${notifSettings.enabled && notifSettings.permission === 'granted' ? 'btn-3d-green' : 'btn-3d-gray'}`}
-              style={{ minHeight: '40px', padding: '0 16px', borderRadius: '12px', fontSize: '13px' }}
+              style={{ minHeight: '44px', padding: '0 16px', borderRadius: '12px', fontSize: '13px' }}
               onClick={handleToggleNotifications}
             >
               {notifSettings.enabled && notifSettings.permission === 'granted' ? 'Açık 🔔' : 'Kapalı 🔕'}
             </motion.button>
           </div>
 
-          {/* Reminder Time Picker & Presets */}
+          {/* Reminder Time */}
           <div className="settings-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '10px', padding: '14px 0', borderBottom: '1px solid var(--border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
               <div>
@@ -430,10 +555,11 @@ export default function SettingsView({
               </div>
               <input
                 type="time"
+                aria-label="Günlük hatırlatma saati"
                 value={notifSettings.reminderTime}
                 onChange={(e) => handleChangeReminderTime(e.target.value)}
                 style={{
-                  height: '40px',
+                  minHeight: '44px',
                   padding: '0 12px',
                   borderRadius: '10px',
                   border: '1.5px solid var(--border)',
@@ -445,7 +571,6 @@ export default function SettingsView({
               />
             </div>
 
-            {/* Quick Preset Time Pills */}
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
               {['19:00', '20:00', '21:00', '22:00'].map((time) => {
                 const isSelected = notifSettings.reminderTime === time;
@@ -454,7 +579,7 @@ export default function SettingsView({
                     key={time}
                     type="button"
                     className={`btn-3d ${isSelected ? 'btn-3d-orange' : 'btn-3d-gray'}`}
-                    style={{ minHeight: '34px', padding: '0 12px', fontSize: '12px', borderRadius: '10px' }}
+                    style={{ minHeight: '44px', padding: '0 14px', fontSize: '12px', borderRadius: '12px' }}
                     onClick={() => handleChangeReminderTime(time)}
                   >
                     ⏰ {time}
@@ -464,9 +589,91 @@ export default function SettingsView({
             </div>
           </div>
 
-          {/* Test Notification Row */}
-          <div className="settings-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0' }}>
+          {/* Quiet Hours */}
+          <div className="settings-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '10px', padding: '14px 0', borderBottom: '1px solid var(--border)' }}>
             <div>
+              <strong style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Moon size={17} />
+                Sessiz Saatler
+              </strong>
+              <p style={{ margin: '2px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
+                Bu aralıkta günlük hatırlatma gönderilmez.
+              </p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <label style={{ fontSize: '12px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <span>Başlangıç</span>
+                <input
+                  type="time"
+                  value={notifSettings.quietStart}
+                  onChange={(e) => handleChangeQuietHours('quietStart', e.target.value)}
+                  style={{ minHeight: '44px', padding: '0 10px', borderRadius: '10px', border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--ink)', fontWeight: 700 }}
+                />
+              </label>
+              <label style={{ fontSize: '12px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <span>Bitiş</span>
+                <input
+                  type="time"
+                  value={notifSettings.quietEnd}
+                  onChange={(e) => handleChangeQuietHours('quietEnd', e.target.value)}
+                  style={{ minHeight: '44px', padding: '0 10px', borderRadius: '10px', border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--ink)', fontWeight: 700 }}
+                />
+              </label>
+            </div>
+          </div>
+
+          {/* Social notifications toggle */}
+          <div className="settings-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ flex: '1 1 200px' }}>
+              <strong style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Users size={17} />
+                Grup Tebrik & Yoklama Bildirimleri
+              </strong>
+              <p style={{ margin: '2px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
+                Arkadaşların seni tebrik ettiğinde veya nazikçe yokladığında bildirim al.
+              </p>
+            </div>
+            <button
+              type="button"
+              className={`btn-3d ${notifSettings.socialEnabled ? 'btn-3d-green' : 'btn-3d-gray'}`}
+              style={{ minHeight: '44px', padding: '0 16px', borderRadius: '12px', fontSize: '13px' }}
+              onClick={handleToggleSocialNotifications}
+            >
+              {notifSettings.socialEnabled ? 'Açık' : 'Kapalı'}
+            </button>
+          </div>
+
+          {/* Web Push Subscription Row */}
+          {!isGuestOnly && (
+            <div className="settings-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ flex: '1 1 200px' }}>
+                <strong style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Smartphone size={17} />
+                  Arka Plan Web Push
+                </strong>
+                <p style={{ margin: '2px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
+                  {pushEnabled
+                    ? 'Uygulama kapalıyken de telefonuna günlük hatırlatma ve arkadaş bildirimi gelsin.'
+                    : 'Tarayıcı açıkken bildirimler çalışır (arka plan push sunucu anahtarı eklendiğinde aktifleşir).'}
+                </p>
+              </div>
+              {pushEnabled && isPushSupported() && (
+                <button
+                  type="button"
+                  disabled={pushBusy}
+                  className={`btn-3d ${pushSubscribed ? 'btn-3d-green' : 'btn-3d-blue'}`}
+                  style={{ minHeight: '44px', padding: '0 16px', borderRadius: '12px', fontSize: '13px' }}
+                  onClick={handleToggleWebPush}
+                >
+                  {pushBusy ? 'İşleniyor…' : pushSubscribed ? 'Push Aktif ✓' : 'Push Aboneliğini Aç'}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Test Notification Row */}
+          <div className="settings-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', padding: '12px 0' }}>
+            <div style={{ flex: '1 1 200px' }}>
               <strong>Bildirimleri Test Et</strong>
               <p style={{ margin: '2px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
                 Cihazında bildirim ve ses uyarısının çalıştığını anında doğrula.
@@ -476,7 +683,7 @@ export default function SettingsView({
               type="button"
               whileTap={{ scale: 0.94, y: 2 }}
               className="btn-3d btn-3d-blue"
-              style={{ minHeight: '40px', padding: '0 16px', borderRadius: '12px', fontSize: '13px' }}
+              style={{ minHeight: '44px', padding: '0 16px', borderRadius: '12px', fontSize: '13px' }}
               onClick={handleTestNotification}
             >
               🔔 Test Gönder
@@ -486,14 +693,14 @@ export default function SettingsView({
 
         <section className="settings-section card-chunky">
           <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, margin: '0 0 16px', fontSize: '18px' }}>Verilerin ve Yedekleme</h2>
-          <div className="settings-row">
+          <div className="settings-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
             <div>
               <strong>Yedekleme & Geri Yükleme</strong>
               <p style={{ margin: '2px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
                 Alışkanlıklarını ve kayıt geçmişini JSON dosyası olarak indir veya geri yükle.
               </p>
             </div>
-            <div className="heading-actions" style={{ display: 'flex', gap: '8px' }}>
+            <div className="heading-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <motion.button
                 type="button"
                 whileTap={{ scale: 0.95, y: 2 }}
@@ -524,19 +731,21 @@ export default function SettingsView({
             </div>
           </div>
 
-          <div className="settings-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', padding: '16px 0', borderTop: '1px solid var(--border)' }}>
+          <div className="settings-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', padding: '16px 0 4px', marginTop: '14px', borderTop: '1px solid var(--border)' }}>
             <div>
-              <strong style={{ color: 'var(--red)' }}>Hesabı ve Verileri Sil</strong>
+              <strong style={{ color: 'var(--red)' }}>{isGuestOnly ? 'Yerel Verileri Temizle' : 'Hesabı ve Verileri Sil'}</strong>
               <p style={{ margin: '2px 0 0', color: 'var(--muted)', fontSize: '13px' }}>
-                Tüm alışkanlıklarını, kayıtlarını ve oturumlarını kalıcı olarak siler.
+                {isGuestOnly
+                  ? 'Bu cihazdaki tüm yerel alışkanlık ve kayıtları temizler.'
+                  : 'Tüm alışkanlıklarını, kayıtlarını ve oturumlarını kalıcı olarak siler.'}
               </p>
             </div>
             {confirmDelete ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   className="btn-3d btn-3d-gray"
-                  style={{ minHeight: '40px', padding: '0 14px', borderRadius: '12px', fontSize: '13px' }}
+                  style={{ minHeight: '44px', padding: '0 14px', borderRadius: '12px', fontSize: '13px' }}
                   onClick={() => setConfirmDelete(false)}
                 >
                   Vazgeç
@@ -544,20 +753,20 @@ export default function SettingsView({
                 <button
                   type="button"
                   className="btn-3d btn-3d-danger"
-                  style={{ minHeight: '40px', padding: '0 16px', borderRadius: '12px', fontSize: '13px' }}
+                  style={{ minHeight: '44px', padding: '0 16px', borderRadius: '12px', fontSize: '13px' }}
                   onClick={handleDeleteAccount}
                 >
-                  Evet, Kalıcı Olarak Sil
+                  {isGuestOnly ? 'Evet, Temizle' : 'Evet, Kalıcı Olarak Sil'}
                 </button>
               </div>
             ) : (
               <button
                 type="button"
                 className="btn-3d btn-3d-danger"
-                style={{ minHeight: '40px', padding: '0 16px', borderRadius: '12px', fontSize: '13px' }}
+                style={{ minHeight: '44px', padding: '0 16px', borderRadius: '12px', fontSize: '13px' }}
                 onClick={() => setConfirmDelete(true)}
               >
-                Hesabı Sil
+                {isGuestOnly ? 'Verileri Sıfırla' : 'Hesabı Sil'}
               </button>
             )}
           </div>

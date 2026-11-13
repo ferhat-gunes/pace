@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Archive, RotateCcw, AlertCircle } from 'lucide-react';
+import { Plus, Archive, RotateCcw, AlertCircle, Pencil, Pause, Play } from 'lucide-react';
 import { motion } from 'motion/react';
 import { playPop, playSuccess } from '../lib/soundFx';
 import { formatTarget } from '../lib/rules';
@@ -7,6 +7,8 @@ import { formatTarget } from '../lib/rules';
 export default function HabitsView({
   habits = [],
   onOpenAddModal,
+  onEditHabit,
+  togglePauseHabit,
   archiveHabit,
   restoreHabit,
   lastArchivedHabit,
@@ -38,9 +40,9 @@ export default function HabitsView({
         <motion.button
           type="button"
           whileTap={{ scale: 0.95, y: 2 }}
-          className="btn-3d btn-3d-green add-habit-trigger"
+          className="btn-3d btn-3d-green"
           aria-label="Yeni alışkanlık ekle"
-          style={{ minHeight: '44px', padding: '0 20px', fontSize: '14px', borderRadius: '14px' }}
+          style={{ minHeight: '44px', padding: '0 18px', fontSize: '14px', borderRadius: '14px' }}
           onClick={() => {
             playPop();
             onOpenAddModal();
@@ -62,6 +64,8 @@ export default function HabitsView({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            gap: '10px',
+            flexWrap: 'wrap',
             background: 'var(--green-soft)',
             borderColor: 'var(--green-soft)',
             borderBottomColor: 'var(--green)',
@@ -76,7 +80,7 @@ export default function HabitsView({
           <button
             type="button"
             className="btn-3d btn-3d-gray"
-            style={{ fontWeight: 700, color: 'var(--green-dark)', minHeight: '36px', padding: '0 12px', borderRadius: '10px' }}
+            style={{ fontWeight: 700, color: 'var(--green-dark)', minHeight: '44px', padding: '0 14px', borderRadius: '12px' }}
             onClick={() => {
               playSuccess();
               restoreHabit?.(lastArchivedHabit.id);
@@ -103,7 +107,7 @@ export default function HabitsView({
           <motion.button
             type="button"
             whileTap={{ scale: 0.95, y: 2 }}
-            className="btn-3d btn-3d-green add-habit-trigger"
+            className="btn-3d btn-3d-green"
             style={{ minHeight: '48px', padding: '0 24px', borderRadius: '16px' }}
             onClick={() => {
               playPop();
@@ -126,23 +130,41 @@ export default function HabitsView({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
+                flexWrap: 'wrap',
                 gap: '12px',
+                opacity: h.paused ? 0.72 : 1,
               }}
             >
-              <div className="habit-main">
-                <strong className="habit-name" style={{ fontSize: '16px', color: 'var(--ink)', fontFamily: 'var(--font-heading)' }}>{h.name}</strong>
+              <div className="habit-main" style={{ flex: '1 1 200px', minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <strong className="habit-name" style={{ fontSize: '16px', color: 'var(--ink)', fontFamily: 'var(--font-heading)' }}>{h.name}</strong>
+                  {h.paused && (
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: '8px',
+                        background: 'var(--orange-soft)',
+                        color: 'var(--orange-dark)',
+                      }}
+                    >
+                      Duraklatıldı
+                    </span>
+                  )}
+                </div>
                 <span className="habit-meta" style={{ color: 'var(--muted)', fontSize: '12px', display: 'block', marginTop: '2px', fontWeight: 600 }}>
                   {formatTarget(h)}
                 </span>
               </div>
-              <div className="habit-actions">
+              <div className="habit-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 {confirmArchiveId === h.id ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '12px', color: 'var(--muted)', fontWeight: 600 }}>Emin misin?</span>
                     <button
                       type="button"
                       className="btn-3d btn-3d-gray"
-                      style={{ fontSize: '12px', padding: '0 12px', minHeight: '38px', borderRadius: '10px' }}
+                      style={{ fontSize: '12px', padding: '0 14px', minHeight: '44px', borderRadius: '12px' }}
                       onClick={() => setConfirmArchiveId(null)}
                     >
                       Vazgeç
@@ -150,25 +172,53 @@ export default function HabitsView({
                     <button
                       type="button"
                       className="btn-3d btn-3d-danger"
-                      style={{ fontSize: '12px', padding: '0 12px', minHeight: '38px', borderRadius: '10px' }}
+                      style={{ fontSize: '12px', padding: '0 14px', minHeight: '44px', borderRadius: '12px' }}
                       onClick={() => handleArchiveConfirm(h.id)}
                     >
                       Evet, Arşivle
                     </button>
                   </div>
                 ) : (
-                  <button
-                    type="button"
-                    className="btn-3d btn-3d-gray"
-                    style={{ fontSize: '12px', padding: '0 14px', minHeight: '38px', borderRadius: '10px' }}
-                    aria-label={`${h.name} alışkanlığını arşivle`}
-                    onClick={() => {
-                      playPop();
-                      setConfirmArchiveId(h.id);
-                    }}
-                  >
-                    Arşivle
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      className="btn-3d btn-3d-gray"
+                      style={{ fontSize: '12px', padding: '0 14px', minHeight: '44px', borderRadius: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                      aria-label={`${h.name} alışkanlığını düzenle`}
+                      onClick={() => {
+                        playPop();
+                        onEditHabit?.(h);
+                      }}
+                    >
+                      <Pencil size={13} aria-hidden="true" />
+                      <span>Düzenle</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-3d btn-3d-gray"
+                      style={{ fontSize: '12px', padding: '0 14px', minHeight: '44px', borderRadius: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                      aria-label={h.paused ? `${h.name} alışkanlığını devam ettir` : `${h.name} alışkanlığını duraklat`}
+                      onClick={() => {
+                        playPop();
+                        togglePauseHabit?.(h.id);
+                      }}
+                    >
+                      {h.paused ? <Play size={13} aria-hidden="true" /> : <Pause size={13} aria-hidden="true" />}
+                      <span>{h.paused ? 'Devam Et' : 'Duraklat'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-3d btn-3d-gray"
+                      style={{ fontSize: '12px', padding: '0 14px', minHeight: '44px', borderRadius: '12px' }}
+                      aria-label={`${h.name} alışkanlığını arşivle`}
+                      onClick={() => {
+                        playPop();
+                        setConfirmArchiveId(h.id);
+                      }}
+                    >
+                      Arşivle
+                    </button>
+                  </>
                 )}
               </div>
             </motion.div>
@@ -185,7 +235,7 @@ export default function HabitsView({
           onToggle={(e) => setShowArchived(e.target.open)}
           style={{ marginTop: '32px' }}
         >
-          <summary style={{ cursor: 'pointer', fontWeight: 600, color: 'var(--muted)', padding: '8px 0' }}>
+          <summary style={{ cursor: 'pointer', fontWeight: 600, color: 'var(--muted)', padding: '12px 0' }}>
             Arşivlenenler ({archivedHabits.length})
           </summary>
           <div id="archive-list" className="habit-list" style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -203,6 +253,7 @@ export default function HabitsView({
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   gap: '12px',
+                  flexWrap: 'wrap',
                 }}
               >
                 <div className="habit-main">
@@ -218,7 +269,7 @@ export default function HabitsView({
                     style={{
                       fontSize: '13px',
                       padding: '0 14px',
-                      minHeight: '40px',
+                      minHeight: '44px',
                       color: 'var(--primary)',
                       fontWeight: 700,
                       borderRadius: '12px',

@@ -2054,11 +2054,14 @@ body:has(dialog[open]) {
     width: 100%;
     max-width: 360px;
   }
-  .add-habit-trigger {
-    display: inline-flex !important;
-  }
   .fab-add {
     display: none !important;
+  }
+  .mobile-only-cards {
+    display: none !important;
+  }
+  .desktop-only-table {
+    display: block;
   }
 }
 
@@ -2078,59 +2081,66 @@ body:has(dialog[open]) {
 
 /* Mobile-First Layout & Touch Ergonomics */
 @media (max-width: 767px) {
+  .desktop-only-table {
+    display: none !important;
+  }
+  .mobile-only-cards {
+    display: flex;
+  }
   .sidebar {
     display: none;
-  }
-  .add-habit-trigger {
-    display: none !important;
   }
   .fab-add {
     display: flex !important;
   }
   .main-area {
     margin-left: 0;
-    padding-bottom: calc(116px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px));
   }
   .topbar {
-    min-height: 64px;
-    padding: 12px max(16px, env(safe-area-inset-right, 0px)) 12px max(16px, env(safe-area-inset-left, 0px));
-    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+    min-height: 60px;
+    padding: 10px max(14px, env(safe-area-inset-right, 0px)) 10px max(14px, env(safe-area-inset-left, 0px));
+    padding-top: calc(10px + env(safe-area-inset-top, 0px));
     flex-wrap: nowrap !important;
-    gap: 8px;
+    gap: 6px;
   }
   .mobile-brand {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 32px;
+    gap: 6px;
+    font-size: 28px;
     font-weight: 900;
-    letter-spacing: -1.5px;
+    letter-spacing: -1.4px;
     line-height: 1;
+    min-height: 44px;
+    padding: 0 2px;
     flex-shrink: 0;
   }
   .gamify-stats-bar {
     gap: 4px !important;
     flex-shrink: 1;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .gamify-stats-bar::-webkit-scrollbar {
-    display: none;
+    min-width: 0;
+    overflow: hidden;
   }
   .gamify-badge {
     padding: 4px 7px !important;
     font-size: 12px !important;
     white-space: nowrap;
   }
+  button.gamify-badge {
+    min-height: 44px;
+    min-width: 44px;
+    justify-content: center;
+  }
   .mobile-sync-badge {
     display: none !important;
   }
   .avatar-button {
-    width: 36px !important;
-    height: 36px !important;
-    min-width: 36px !important;
-    min-height: 36px !important;
-    font-size: 14px !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    font-size: 15px !important;
     flex-shrink: 0;
   }
   .topbar-date {
@@ -2143,14 +2153,14 @@ body:has(dialog[open]) {
   .content-wrap {
     width: 100%;
     margin: 0;
-    padding: 16px max(20px, env(safe-area-inset-right, 0px)) 32px max(20px, env(safe-area-inset-left, 0px));
+    padding: 12px max(16px, env(safe-area-inset-right, 0px)) 28px max(16px, env(safe-area-inset-left, 0px));
   }
   .page-heading {
     gap: 12px;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
   }
   .page-heading h1 {
-    font-size: 28px;
+    font-size: 26px;
   }
   .today-heading-actions {
     gap: 8px;
@@ -2170,10 +2180,10 @@ body:has(dialog[open]) {
   .week-strip {
     gap: 2px;
     padding: 4px;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
   }
   .week-day {
-    min-height: 54px;
+    min-height: 48px;
     border-radius: 11px;
     font-size: 13px;
   }
@@ -2181,8 +2191,8 @@ body:has(dialog[open]) {
     font-size: 11px;
   }
   .habit-row {
-    padding: 16px;
-    gap: 16px;
+    padding: 14px;
+    gap: 12px;
   }
   .habit-copy h2, .habit-copy h3 {
     font-size: 15px;
@@ -2232,8 +2242,8 @@ body:has(dialog[open]) {
     pointer-events: auto;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 4px;
-    padding: 6px max(8px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px));
+    gap: 2px;
+    padding: 6px max(6px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(6px, env(safe-area-inset-left, 0px));
     border-top: 1.5px solid var(--border);
     background: rgba(255, 255, 255, 0.94);
     backdrop-filter: blur(20px);
@@ -2252,7 +2262,8 @@ body:has(dialog[open]) {
     align-items: center;
     justify-content: center;
     gap: 2px;
-    min-height: 54px;
+    min-width: 0;
+    min-height: 52px;
     padding: 4px 2px;
     background: transparent;
     border: none;
@@ -2322,13 +2333,33 @@ body:has(dialog[open]) {
     stroke-width: 2.3;
   }
   @media (max-width: 360px) {
+    .topbar {
+      padding: 8px 10px;
+      gap: 4px;
+    }
+    .mobile-brand {
+      font-size: 20px;
+      letter-spacing: -1px;
+    }
+    .gamify-badge {
+      padding: 3px 4px !important;
+      font-size: 11px !important;
+      gap: 2px !important;
+    }
+    button.gamify-badge {
+      min-width: 44px;
+      min-height: 44px;
+    }
     .mobile-nav .nav-item {
       font-size: 10px;
       gap: 1px;
     }
+    .mobile-nav .nav-item span:not(.nav-icon) {
+      font-size: 10px;
+    }
     .mobile-nav .nav-icon {
-      width: 36px;
-      height: 26px;
+      width: 34px;
+      height: 24px;
     }
     .mobile-nav .nav-icon svg {
       width: 18px;
@@ -3172,6 +3203,16 @@ html[data-theme="dark"] .segmented-item.is-selected,
   position: relative;
 }
 
+.dialog-sheet .auth-brand {
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
 .sheet-handle {
   display: none;
 }
@@ -3185,9 +3226,9 @@ html[data-theme="dark"] .segmented-item.is-selected,
   .dialog-sheet {
     width: 100% !important;
     max-width: 100% !important;
-    max-height: 88vh;
+    max-height: 90dvh;
     border-radius: 24px 24px 0 0 !important;
-    padding: 20px 20px calc(40px + env(safe-area-inset-bottom, 20px)) !important;
+    padding: 16px 18px calc(18px + env(safe-area-inset-bottom, 0px)) !important;
     animation: slideUpSheet 0.28s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .sheet-handle {
@@ -3196,7 +3237,7 @@ html[data-theme="dark"] .segmented-item.is-selected,
     height: 5px;
     border-radius: 999px;
     background: var(--border-strong);
-    margin: 0 auto 16px;
+    margin: 0 auto 12px;
   }
   /* Prevent iOS Safari auto-zoom by enforcing 16px font-size */
   input, select, textarea {
@@ -3212,36 +3253,6 @@ html[data-theme="dark"] .segmented-item.is-selected,
   to {
     transform: translateY(0);
     opacity: 1;
-  }
-}
-
-/* Mobile Floating Action Button (FAB) */
-.mobile-fab {
-  display: none;
-}
-@media (max-width: 767px) {
-  .mobile-fab {
-    display: flex !important;
-    position: fixed !important;
-    right: 20px !important;
-    left: auto !important;
-    bottom: calc(76px + env(safe-area-inset-bottom, 12px)) !important;
-    width: 58px !important;
-    height: 58px !important;
-    border-radius: 20px !important;
-    background: var(--orange) !important;
-    color: #FFFFFF !important;
-    align-items: center !important;
-    justify-content: center !important;
-    box-shadow: 0 8px 24px rgba(255, 150, 0, 0.45) !important;
-    z-index: 99 !important;
-    cursor: pointer;
-    border: 1.5px solid var(--orange-dark) !important;
-    border-bottom: 4px solid var(--orange-dark) !important;
-  }
-  .mobile-fab:active {
-    transform: translateY(2px) scale(0.96) !important;
-    border-bottom-width: 2px !important;
   }
 }
 

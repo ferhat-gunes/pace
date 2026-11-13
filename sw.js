@@ -1,4 +1,4 @@
-const CACHE = 'pace-shell-v13';
+const CACHE = 'pace-shell-v14';
 const SHELL = [
   '/',
   '/index.html',
@@ -110,5 +110,23 @@ self.addEventListener('notificationclick', (event) => {
       }
     })
   );
+});
+
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = { title: 'PACE', body: event.data?.text() || 'Bugünkü ritmin seni bekliyor!' };
+  }
+  const title = payload.title || 'PACE — Ritim Zamanı';
+  const options = {
+    body: payload.body || 'Küçük bir adım atmak için harika bir an.',
+    icon: '/assets/icons/pace-192.png',
+    badge: '/assets/icons/pace-192.png',
+    tag: payload.tag || 'pace-push',
+    data: { url: payload.url || '/?view=today' },
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
 });
 

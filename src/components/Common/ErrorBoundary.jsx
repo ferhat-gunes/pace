@@ -10,9 +10,19 @@ export class ErrorBoundary extends React.Component {
     return { hasError: true, error };
   }
 
+  componentDidUpdate(prevProps) {
+    if (this.state.hasError && prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ hasError: false, error: null });
+    }
+  }
+
   componentDidCatch(error, errorInfo) {
     console.error('ErrorBoundary caught:', error, errorInfo);
   }
+
+  handleRetry = () => {
+    this.setState({ hasError: false, error: null });
+  };
 
   handleReload = () => {
     this.setState({ hasError: false, error: null });
@@ -28,10 +38,10 @@ export class ErrorBoundary extends React.Component {
             padding: '48px 24px',
             textAlign: 'center',
             maxWidth: '480px',
-            margin: '60px auto',
+            margin: '40px auto',
             background: 'var(--surface)',
-            borderRadius: '16px',
-            border: '1px solid var(--border)',
+            borderRadius: '20px',
+            border: '2px solid var(--border)',
             boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
           }}
         >
@@ -40,16 +50,26 @@ export class ErrorBoundary extends React.Component {
             Beklenmeyen bir durum oluştu
           </h2>
           <p style={{ color: 'var(--muted)', fontSize: '14px', lineHeight: 1.5, marginBottom: '24px' }}>
-            Sayfayı yenileyerek kaldığınız yerden devam edebilirsiniz. Verileriniz yerel bellekte güvendedir.
+            Tekrar deneyebilir veya başka bir sekmeye geçebilirsin. Verilerin güvende.
           </p>
-          <button
-            type="button"
-            className="btn-3d btn-3d-green"
-            onClick={this.handleReload}
-            style={{ minHeight: '44px', padding: '0 24px', fontSize: '15px' }}
-          >
-            Yeniden Yükle
-          </button>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn-3d btn-3d-green"
+              onClick={this.handleRetry}
+              style={{ minHeight: '44px', padding: '0 20px', fontSize: '14px', borderRadius: '14px' }}
+            >
+              Tekrar Dene
+            </button>
+            <button
+              type="button"
+              className="btn-3d btn-3d-gray"
+              onClick={this.handleReload}
+              style={{ minHeight: '44px', padding: '0 20px', fontSize: '14px', borderRadius: '14px' }}
+            >
+              Sayfayı Yenile
+            </button>
+          </div>
         </div>
       );
     }

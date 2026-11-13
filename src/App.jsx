@@ -1,9 +1,15 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useHabits } from './state/useHabits.js';
 import { useGamification } from './state/useGamification.js';
 import * as api from './lib/api.js';
-import { checkAndTriggerDailyReminder, updateAppBadge } from './lib/notifications.js';
+import { localDateIso } from './lib/date.js';
+import {
+  checkAndTriggerDailyReminder,
+  updateAppBadge,
+  fetchSocialInbox,
+  dismissNudge,
+} from './lib/notifications.js';
 import Sidebar from './components/Navigation/Sidebar.jsx';
 import TopBar from './components/Navigation/TopBar.jsx';
 import MobileNav from './components/Navigation/MobileNav.jsx';
@@ -22,8 +28,11 @@ const AuthModal = lazy(() => import('./components/AuthModal.jsx'));
 export default function App() {
   const [currentView, setView] = useState('today'); // 'today' | 'habits' | 'progress' | 'groups' | 'settings'
   const [isHabitModalOpen, setHabitModalOpen] = useState(false);
+  const [editingHabit, setEditingHabit] = useState(null);
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
   const [inviteToken, setInviteToken] = useState(null);
+  const [capabilities, setCapabilities] = useState({ email_code_enabled: false, push_enabled: false });
+  const [socialInbox, setSocialInbox] = useState([]);
 
   const {
     habits,
@@ -31,6 +40,10 @@ export default function App() {
     groups,
     user,
     setUser,
+    setAuthRequired,
+    guestMode,
+    serverGamification,
+    migrateGuestToCloud,
     weekStart,
     updateWeekStart,
     loading,
@@ -41,8 +54,12 @@ export default function App() {
     setFilterMode,
     todayHabits,
     completionStats,
+    checkinErrors,
+    clearCheckinError,
     logCheckin,
     addHabit,
+    updateHabit,
+    togglePauseHabit,
     archiveHabit,
     restoreHabit,
     lastArchivedHabit,
@@ -51,42 +68,114 @@ export default function App() {
     loadData,
   } = useHabits();
 
-  const gamification = useGamification(checkins, habits);
+  const isAuthenticated = Boolean(user && !api.isDemo());
+  const gamification = useGamification(checkins, habits, serverGamification, isAuthenticated);
 
-  // Check URL query parameters for deep linking (e.g. ?join= or ?invite=)
+  // Load auth/push capabilities on mount
+  useEffect(() => {
+    api.getAuthCapabilities()
+      .then((res) => {
+        if (res) {
+          setCapabilities({
+            email_code_enabled: Boolean(res.email_code_enabled),
+            push_enabled: Boolean(res.push_enabled),
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Load social inbox for authenticated or demo user
+  const refreshInbox = useCallback(async () => {
+    const uid = api.isDemo() ? 'demo-user' : user?.id;
+    if (!uid) {
+      setSocialInbox([]);
+      return;
+    }
+    const items = await fetchSocialInbox(uid);
+    setSocialInbox(items);
+  }, [user?.id]);
+
+  useEffect(() => {
+    refreshInbox();
+    const timer = setInterval(refreshInbox, 30000);
+    return () => clearInterval(timer);
+  }, [refreshInbox]);
+
+  const handleDismissInbox = useCallback((id) => {
+    dismissNudge(id);
+    setSocialInbox((prev) => prev.filter((item) => item.id !== id));
+  }, []);
+
+  // Check URL query parameters for deep linking (?join=, ?invite=, ?view=)
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
       const token = params.get('join') || params.get('invite');
+      const requestedView = params.get('view');
       if (token) {
         setInviteToken(token);
         setView('groups');
+      } else if (requestedView && ['today', 'habits', 'progress', 'groups', 'settings'].includes(requestedView)) {
+        setView(requestedView);
       }
-    } catch (e) {}
+    } catch {}
   }, []);
 
   // Sync PWA App Badging and evaluate daily reminder
   useEffect(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = localDateIso();
     const uncompletedCount = todayHabits.filter((h) => {
       return !checkins.some(
         (c) => !c.deleted && c.habit_id === h.id && c.habit_date === todayStr && Number(c.value) > 0
       );
     }).length;
 
-    // Update app icon badge with uncompleted count
     updateAppBadge(uncompletedCount);
-
-    // Initial check for daily reminder
     checkAndTriggerDailyReminder(todayHabits, checkins);
 
-    // Periodic reminder check every 60 seconds
     const interval = setInterval(() => {
       checkAndTriggerDailyReminder(todayHabits, checkins);
     }, 60000);
 
     return () => clearInterval(interval);
   }, [todayHabits, checkins]);
+
+  // Escape key closes level celebration modal
+  useEffect(() => {
+    if (!gamification.levelCelebrationPending) return;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') gamification.clearLevelCelebration();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [gamification.levelCelebrationPending, gamification.clearLevelCelebration]);
+
+  const handleOpenAddModal = () => {
+    setEditingHabit(null);
+    setHabitModalOpen(true);
+  };
+
+  const handleOpenEditModal = (habit) => {
+    setEditingHabit(habit);
+    setHabitModalOpen(true);
+  };
+
+  const handleAddStarterHabits = async (presets = []) => {
+    for (const preset of presets) {
+      await addHabit({
+        name: preset.name,
+        tracking: preset.tracking || 'check',
+        direction: preset.direction || 'at_least',
+        unit: preset.unit || '',
+        target: preset.target || 1,
+        schedule: preset.schedule || { type: 'daily', days: [], times_per_week: null },
+        progression: { enabled: false, step: 0, cap: null },
+        debt: { enabled: false, cap: null },
+        start_date: selectedDate,
+      });
+    }
+  };
 
   const handleSignOut = async () => {
     try {
@@ -98,9 +187,14 @@ export default function App() {
       localStorage.removeItem('pace_local_drafts');
       localStorage.removeItem('pace_pending_mutations');
       localStorage.removeItem('pace_week_start');
+      localStorage.removeItem('pace_gamification_v2');
+      localStorage.removeItem('pace_groups_cache');
+      localStorage.removeItem('pace_group_cheers');
+      localStorage.removeItem('pace_nudges');
+      sessionStorage.removeItem('pace_demo');
     } catch {}
     setUser(null);
-    window.location.reload();
+    window.location.href = '/';
   };
 
   return (
@@ -127,8 +221,9 @@ export default function App() {
         />
 
         <main id="main-content" className="content-wrap" tabIndex={-1}>
-          <ErrorBoundary>
+          <ErrorBoundary resetKey={currentView}>
           <PwaInstallBanner />
+
           {loading && habits.length === 0 ? (
             <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--muted)' }}>
               <div style={{ fontSize: '16px', fontWeight: 600 }}>Alışkanlıklar yükleniyor…</div>
@@ -151,10 +246,18 @@ export default function App() {
                     habits={habits}
                     checkins={checkins}
                     logCheckin={logCheckin}
+                    checkinErrors={checkinErrors}
+                    clearCheckinError={clearCheckinError}
                     completionStats={completionStats}
                     filterMode={filterMode}
                     setFilterMode={setFilterMode}
-                    onOpenAddModal={() => setHabitModalOpen(true)}
+                    onOpenAddModal={handleOpenAddModal}
+                    onAddStarterHabits={handleAddStarterHabits}
+                    guestMode={guestMode && !api.isDemo()}
+                    onOpenAuth={() => setAuthModalOpen(true)}
+                    onGoGroups={() => setView('groups')}
+                    socialInbox={socialInbox}
+                    onDismissInbox={handleDismissInbox}
                     weekStart={weekStart}
                     questTarget={gamification.questTarget}
                     todayCompletedCount={gamification.todayCompletedCount}
@@ -162,6 +265,7 @@ export default function App() {
                     isQuestClaimed={gamification.isQuestClaimed}
                     claimDailyChest={gamification.claimDailyChest}
                     addXp={gamification.addXp}
+                    awardAllDoneBonus={gamification.awardAllDoneBonus}
                     streakFreezes={gamification.streakFreezes}
                     isStreakFrozenToday={gamification.isStreakFrozenToday}
                     streak={gamification.streak}
@@ -171,7 +275,9 @@ export default function App() {
                 {currentView === 'habits' && (
                   <HabitsView
                     habits={habits}
-                    onOpenAddModal={() => setHabitModalOpen(true)}
+                    onOpenAddModal={handleOpenAddModal}
+                    onEditHabit={handleOpenEditModal}
+                    togglePauseHabit={togglePauseHabit}
                     archiveHabit={archiveHabit}
                     restoreHabit={restoreHabit}
                     lastArchivedHabit={lastArchivedHabit}
@@ -184,6 +290,7 @@ export default function App() {
                     <ProgressView
                       habits={habits}
                       checkins={checkins}
+                      weekStart={weekStart}
                       gamification={gamification}
                     />
                   )}
@@ -196,6 +303,11 @@ export default function App() {
                       initialInviteToken={inviteToken}
                       onClearInviteToken={() => setInviteToken(null)}
                       gamification={gamification}
+                      socialInbox={socialInbox}
+                      onDismissInbox={handleDismissInbox}
+                      onGoToday={() => setView('today')}
+                      guestMode={guestMode}
+                      onOpenAuth={() => setAuthModalOpen(true)}
                     />
                   )}
 
@@ -208,6 +320,9 @@ export default function App() {
                       updateWeekStart={updateWeekStart}
                       importBackup={importBackup}
                       onSignOut={handleSignOut}
+                      guestMode={guestMode}
+                      onOpenAuth={() => setAuthModalOpen(true)}
+                      pushEnabled={capabilities.push_enabled}
                     />
                   )}
                 </Suspense>
@@ -222,8 +337,13 @@ export default function App() {
 
       <HabitModal
         isOpen={isHabitModalOpen}
-        onClose={() => setHabitModalOpen(false)}
+        onClose={() => {
+          setHabitModalOpen(false);
+          setEditingHabit(null);
+        }}
         onAddHabit={addHabit}
+        onUpdateHabit={updateHabit}
+        editingHabit={editingHabit}
         existingHabitsCount={habits.length}
       />
 
@@ -231,8 +351,14 @@ export default function App() {
         {isAuthModalOpen && (
           <AuthModal
             isOpen={isAuthModalOpen}
+            emailCodeEnabled={capabilities.email_code_enabled}
             onClose={() => setAuthModalOpen(false)}
-            onAuthSuccess={(u) => setUser(u)}
+            onAuthSuccess={async (u) => {
+              setUser(u);
+              setAuthRequired(false);
+              await migrateGuestToCloud();
+              refreshInbox();
+            }}
           />
         )}
       </Suspense>
@@ -240,6 +366,9 @@ export default function App() {
       {gamification.levelCelebrationPending && (
         <div
           className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="level-modal-title"
           style={{ zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
           onClick={gamification.clearLevelCelebration}
         >
@@ -248,10 +377,10 @@ export default function App() {
             style={{ maxWidth: '380px', width: '100%', textAlign: 'center', padding: '32px 24px', background: 'var(--surface)' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ fontSize: '48px', marginBottom: '8px', animation: 'flamePulse 1.2s infinite ease-in-out' }}>
+            <div style={{ fontSize: '48px', marginBottom: '8px', animation: 'flamePulse 1.2s infinite ease-in-out' }} aria-hidden="true">
               ⚡
             </div>
-            <h2 style={{ fontSize: '24px', fontFamily: 'var(--font-heading)', fontWeight: 800, color: 'var(--ink)', margin: '0 0 8px' }}>
+            <h2 id="level-modal-title" style={{ fontSize: '24px', fontFamily: 'var(--font-heading)', fontWeight: 800, color: 'var(--ink)', margin: '0 0 8px' }}>
               Tebrikler! Seviye {gamification.levelCelebrationPending}!
             </h2>
             <p style={{ color: 'var(--muted)', fontSize: '15px', marginBottom: '24px' }}>

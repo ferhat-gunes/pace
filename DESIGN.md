@@ -1,17 +1,18 @@
-# PACE — calm premium mobile system
+# PACE — Playful Duoverse & Tactile 3D UI
 
 ## Approved direction
 
-PACE is a calm, premium mobile habit tracking web application and PWA with a grounded, naturalistic aesthetic. Powered by the Astryx design system (Matcha base theme) extended into the PACE brand identity.
+PACE is a vibrant, gamified mobile habit tracking web application and PWA with tactile 3D controls, clear feedback, and high-contrast readability. Powered by the Astryx design system (`@astryxdesign/theme-matcha` bridge) extended into the PACE brand identity (`src/styles/brand.css`).
 
 ## Brand Palette & Semantic Tokens
 
-- **Turuncu (`#E8753B`)**: Primary brand accent, primary action buttons, focused ring, active week day, and high-priority interactions.
-- **Orman yeşili (`#244C3A`)**: Deep anchor color, navigation highlights, strong surfaces, completion indicators, and brand contrast.
-- **Krem (`#F4F0E6`)**: Canvas background, warm light surfaces, PWA splash, and theme backdrop.
-- **Adaçayı (`#A8B59A`)**: Habit progress bars, success highlights, secondary accents, and muted dark-mode text.
-- **Koyu kahve (`#38352F`)**: Primary typography, dark icons, and high-contrast readability (> 8.6:1 WCAG AAA on Krem).
-- Surface `#FFFFFF` (light cards on Krem canvas); Muted text `#6B665E`; Border `#E2DDD4`.
+- **Canlı Yeşil (`#58CC02`, alt gölge `#46A302`)**: Tamamlama aksiyonları, başarı rozetleri ve aktif seçim göstergeleri.
+- **Canlı Mavi (`#1CB0F6`, alt gölge `#1899D6`)**: Birincil odak aksiyonları, akıllı tamamlama kısayolları ve bildirim/kalkan vurguları.
+- **Parlak Turuncu (`#FF9600`, alt gölge `#CC7800`)**: Seri (streak) göstergesi, aktif takvim günü ve ilerleme vurgusu.
+- **Altın Sarı (`#FFC800`, alt gölge `#D6A700`)**: XP, seviye ve günlük sandık ödülleri.
+- **Mistik Mor (`#CE82FF`, alt gölge `#A85CE5`)**: Sosyal gruplar ve seviye özet vurgusu.
+- **Dinamik Kırmızı (`#FF4B4B`, alt gölge `#EA2B2B`)**: Hata, uyarı ve silme/arşivleme onay aksiyonları.
+- **Zemin & Yüzey**: Açık modda `#F8FAFD` kanvas, `#FFFFFF` kart yüzeyi, `#111827` metin; Koyu modda (`[data-theme="dark"]`) `#0F172A` kanvas, `#1E293B` kart yüzeyi, `#F8FAFC` metin.
 
 ## Typography
 
@@ -22,9 +23,9 @@ PACE is a calm, premium mobile habit tracking web application and PWA with a gro
 
 ## Astryx Matcha Theme Foundation
 
-- Base theme: `@astryxdesign/theme-matcha` integrated via CSS scope and Astryx token layer bridge (`[data-astryx-theme="matcha"]`).
-- Generated theme files remain unedited; all customizations are applied through supported CSS token overrides and clean modular styling.
-- Responsive mobile ergonomics: 48px touch targets, bottom navigation up to 767px, 232px sidebar on desktop, single 900px centered canvas.
+- Base theme: `@astryxdesign/theme-matcha` integrated via CSS scope bridge (`[data-astryx-theme="matcha"]`).
+- Generated theme files remain unedited; customizations are applied cleanly through CSS tokens in `src/styles/brand.css`.
+- Responsive mobile-first ergonomics (`320px–430px`): minimum `44px × 44px` touch targets, compact 5-tab bottom navigation (`Bugün`, `Rutinler`, `İlerleme`, `Gruplar`, `Ayarlar`), 232px sidebar on desktop, and responsive mobile cards replacing wide horizontal tables below `768px`.
 
 ## Today & Habit Recording
 
