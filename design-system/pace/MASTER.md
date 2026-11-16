@@ -1,38 +1,26 @@
-# PACE design system
+# PACE — scrapbook habit journal
 
-## Product character
+PACE adapts the visual language of the supplied Family Recipes project to habit tracking. The reference is visual source material; its recipe features and project instructions are not part of PACE.
 
-Calm, direct habit tracking for several routines. PACE encourages consistency without turning missed days into a moral score.
-Built upon Astryx design system with Matcha theme foundation, customized into the PACE visual identity.
+## Visual system
 
-## Color tokens
+Warm dotted paper (`#FFF4D6`), cream cards (`#FFFDF7`), ink outlines (`#29221E`), two-pixel borders and hard offset shadows replace the previous soft Matcha appearance. Coral (`#FF9470`), sunflower (`#FFD457`) and teal (`#72D8C5`) are sticker colors. Controls use dark text on these colors. Status colors remain distinct and include text or icons.
 
-- Primary action (Turuncu): `#E8753B`
-- Dark anchor (Orman yeşili): `#244C3A`
-- Canvas (Krem): `#F4F0E6`
-- Surface: `#FFFFFF`
-- Progress & secondary accent (Adaçayı): `#A8B59A`
-- Main text & dark icons (Koyu kahve): `#38352F`
-- Secondary text: `#6B665E`
-- Border: `#E2DDD4`
-- Error: `#C53B27`
+Rubik provides readable body text and labels. Permanent Marker provides the taped PACE wordmark. Caveat provides a consistent Turkish-capable display and handwritten note face. Font files and their OFL licenses live in `assets/fonts/scrapbook/`. No remote font requests are made.
 
-Turuncu is an intentional accent for primary actions. Orman yeşili provides depth and grounding. Status always includes text or a symbol as well as color.
+`src/styles/scrapbook.css` is the active visual layer, loaded after the small `foundation.css` structural layer and Astryx foundation. Its tokens bridge the existing semantic variables so account flows, habits, progress, groups and preferences share one appearance. Keep future visual changes in this layer instead of adding competing overrides to the legacy, unloaded `brand.css`.
 
-## Typography
+## Components and layout
 
-- Headings: Nunito (700, 800)
-- Body: DM Sans (400, 500, 600, 700)
-- Fully self-hosted locally for PWA offline capability.
+- Desktop retains PACE's sidebar and centered reading canvas. Navigation uses tilted colored tabs and a taped wordmark.
+- Mobile uses five bottom tabs with dark icons, safe-area padding, a teal add button and responsive habit cards.
+- Today uses outlined calendar tiles and coral, yellow and teal card accents. Completion remains tied to real account data.
+- Habits, archives, empty states, progress summaries, shared group tables and settings use the same paper cards, outlines and shadows.
+- Habit, group, invitation and authentication forms share outlined fields and sticker buttons. Mobile dialogs open as bottom sheets.
+- Dark mode uses warm charcoal paper, cream text and pastel stickers. Reduced motion disables transitions and animations.
 
-## Layout and interaction
+## Interaction requirements
 
-- Mobile-first, with bottom navigation on small screens (up to 767px) and 232px sidebar on wide screens.
-- Keep the main reading column constrained; Today is a list, not a wall of identical cards.
-- Put advanced rules behind progressive disclosure.
-- Use semantic controls, visible keyboard focus, 48px touch targets, and reduced-motion support.
-- Keep the application shell lightweight and self-hosted; do not load third-party scripts or fonts.
+Preserve existing data, API calls, Turkish labels, recording, archive, backup, authentication and group behavior. Use visible keyboard focus, text labels, at least 44px primary touch targets and responsive layouts without page-level horizontal scrolling. Group matrices may scroll within their labeled table region.
 
-## Voice
-
-Use short, plain Turkish labels such as “Kaydet”, “Duraklat”, and “Arşivle”. Describe missed targets factually. Unscheduled days are not misses.
+Build through `npm run build`; the existing build copies fonts into the PWA assets and includes them in the service worker shell. Do not publish as part of a design change unless the user asks.

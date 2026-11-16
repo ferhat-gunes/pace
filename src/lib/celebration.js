@@ -18,7 +18,7 @@ export function triggerHaptic(type = 'success') {
 }
 
 export function triggerConfetti(originX, originY) {
-  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+  if (typeof window === 'undefined' || typeof document === 'undefined' || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
 
   const canvas = document.createElement('canvas');
   canvas.style.position = 'fixed';
@@ -31,6 +31,7 @@ export function triggerConfetti(originX, originY) {
   document.body.appendChild(canvas);
 
   const ctx = canvas.getContext('2d');
+  if (!ctx) { canvas.remove(); return; }
   const dpr = window.devicePixelRatio || 1;
   const width = window.innerWidth;
   const height = window.innerHeight;
@@ -44,9 +45,9 @@ export function triggerConfetti(originX, originY) {
 
   // PACE brand color palette sparkles
   const colors = [
-    '#D45D24', // Warm orange
-    '#B94F1A', // Deep orange
-    '#244C3A', // Forest
+    '#FF9470', // Warm orange
+    '#FFD457', // Deep orange
+    '#72D8C5', // Forest
     '#A8B59A', // Sage
     '#F4F0E6', // Cream
     '#E58B4A', // Soft amber

@@ -1,0 +1,117 @@
+import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
+import { chromium } from 'playwright';
+
+const base = process.env.PACE_BASE_URL || 'http://localhost:5173';
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined), args: ['--no-sandbox'] });
+try {
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, colorScheme: 'light', reducedMotion: 'reduce' });
+  page.setDefaultTimeout(8000);
+  const errors = [];
+  const unexpected = [];
+  page.on('pageerror', error => errors.push(error.message));
+  const user = { id: 'auth-ui-user', email: 'auth@example.test', week_start: 1 };
+  const recoveryCode = 'ABCDEF01-23456789-ABCDEF01-23456789-ABCDEF01-23456789';
+  let authenticated = false;
+  let loginCalls = 0;
+  let registerCalls = 0;
+  let resolveRegister;
+  let releaseRegister;
+  const registerReceived = new Promise(resolve => { resolveRegister = resolve; });
+  const registerGate = new Promise(resolve => { releaseRegister = resolve; });
+  await page.route('**/api/**', async route => {
+    const req = route.request();
+    const path = new URL(req.url()).pathname;
+    let status = 200;
+    let body;
+    if (path === '/api/habits' && req.method() === 'GET') {
+      status = authenticated ? 200 : 401;
+      body = authenticated ? { user, habits: [], checkins: [] } : { error: 'Oturum açman gerekiyor.' };
+    } else if (path === '/api/groups' && req.method() === 'GET') body = { groups: [] };
+    else if (path === '/api/auth/login' && req.method() === 'POST') {
+      loginCalls++;
+      assert.equal(req.postDataJSON().email, user.email);
+      // A malformed successful HTTP response must remain an error in the form.
+      body = { ok: true };
+    } else if (path === '/api/auth/register' && req.method() === 'POST') {
+      registerCalls++;
+      assert.equal(req.postDataJSON().password.length, 14);
+      resolveRegister();
+      await registerGate;
+      authenticated = true;
+      body = { ok: true, user, recovery_code: recoveryCode };
+    } else {
+      unexpected.push(req.method() + ' ' + path);
+      status = 500;
+      body = { error: 'Unexpected test endpoint' };
+    }
+    await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+  });
+  const checkpoint = label => { if (process.env.PACE_DEBUG) console.log('auth/theme:', label); };
+  checkpoint('startup');
+  await page.goto(base + '/?noworker=1');
+  await page.locator('#view-today').waitFor();
+  await page.locator('#account-button').click();
+  const dialog = page.getByRole('dialog');
+  await dialog.waitFor();
+  await page.getByLabel('E-posta adresin', { exact: true }).fill(user.email);
+  await page.locator('#auth-password').fill('Parola12345678');
+  await page.locator('#auth-submit').click();
+  await dialog.getByRole('alert').filter({ hasText: 'Sunucu giriş sonucunu doğrulamadı' }).waitFor();
+  assert.equal(loginCalls, 1);
+  await page.getByRole('button', { name: 'Kayıt Ol', exact: true }).click();
+  assert.equal(await page.locator('#auth-password').getAttribute('autocomplete'), 'new-password');
+  assert.equal(await page.locator('#auth-password').getAttribute('minlength'), '10');
+  assert.equal(await page.locator('#auth-password').getAttribute('maxlength'), '128');
+  await page.locator('#auth-password').fill('Parola12345678');
+  await page.getByRole('button', { name: 'Parolayı göster', exact: true }).click();
+  assert.equal(await page.locator('#auth-password').getAttribute('type'), 'text');
+  await page.locator('#auth-submit').click();
+  await Promise.race([registerReceived, new Promise((_, reject) => { const timer = setTimeout(() => reject(new Error('Register request did not arrive within 8 seconds')), 8000); timer.unref?.(); })]);
+  assert.equal(await dialog.getByRole('button', { name: 'Kapat', exact: true }).isDisabled(), true);
+  assert.equal(await page.getByRole('button', { name: 'Kayıt Ol', exact: true }).isDisabled(), true);
+  assert.equal(await page.locator('#auth-email').isDisabled(), true);
+  await page.keyboard.press('Escape');
+  assert.equal(await dialog.isVisible(), true);
+  await page.mouse.click(2, 2);
+  assert.equal(await dialog.isVisible(), true);
+  checkpoint('register pending guards passed');
+  releaseRegister();
+  await page.locator('#generated-recovery-code').waitFor();
+  assert.equal(registerCalls, 1);
+  assert.equal(await page.locator('#generated-recovery-code').inputValue(), recoveryCode);
+  await page.waitForFunction(() => document.activeElement?.id === 'recovery-code-title');
+  await page.keyboard.press('Escape');
+  assert.equal(await dialog.isVisible(), true);
+  assert.equal(await page.getByRole('button', { name: 'Kayıt Ol', exact: true }).count(), 0);
+  await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async () => { throw new Error('test permission denied'); } } }));
+  await page.getByRole('button', { name: 'Kodu kopyala', exact: true }).click();
+  await dialog.getByRole('alert').filter({ hasText: 'Kopyalanamadı' }).waitFor();
+  assert.equal(await page.locator('#generated-recovery-code').inputValue(), recoveryCode);
+  await page.getByRole('button', { name: 'Kodu kaydettim, devam et', exact: true }).click();
+  await dialog.waitFor({ state: 'detached' });
+  checkpoint('recovery acknowledged');
+  await page.locator('.mobile-nav [data-view="settings"]').click();
+  await page.locator('#view-settings').waitFor().catch(async error => { console.error('Settings failed', errors, await page.locator('body').innerText()); throw error; });
+  await page.locator('#theme-select').selectOption('dark');
+  await page.getByRole('button', { name: 'Açık temaya geç', exact: true }).waitFor();
+  assert.equal(await page.evaluate(() => document.documentElement.getAttribute('data-theme')), 'dark');
+  await page.locator('#theme-select').selectOption('system');
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.getByRole('button', { name: 'Karanlık temaya geç', exact: true }).waitFor();
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.getByRole('button', { name: 'Açık temaya geç', exact: true }).waitFor();
+  await page.evaluate(() => { localStorage.setItem('pace_theme', 'light'); window.dispatchEvent(new StorageEvent('storage', { key: 'pace_theme', newValue: 'light' })); });
+  await page.getByRole('button', { name: 'Karanlık temaya geç', exact: true }).waitFor();
+  assert.equal(await page.locator('#theme-select').inputValue(), 'light');
+  checkpoint('themes passed');
+  await page.goto(base + '/?demo=1&noworker=1');
+  await page.locator('#view-today').waitFor();
+  await page.getByRole('button', { name: 'Demodan çık ve kendi hesabına giriş yap', exact: true }).click();
+  await page.waitForURL(url => !url.searchParams.has('demo') && url.searchParams.get('auth') === 'login');
+  assert.equal(await page.evaluate(() => sessionStorage.getItem('pace_demo')), null);
+  assert.equal(await page.evaluate(() => localStorage.getItem('pace_demo_state_v1') !== null), true, 'demo data is preserved separately');
+  assert.deepEqual(errors, []);
+  assert.deepEqual(unexpected, []);
+  console.log('PASS auth/theme: malformed response, guarded pending, recovery-code retention/focus/copy error, password help/reveal, shared/system/storage theme, demo exit');
+} finally { await browser.close(); }

@@ -1,332 +1,293 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import * as api from '../lib/api';
-import { isPlannedOn } from '../lib/rules';
+import { dateKey, isPlannedOn, settingsAt, stateFor } from '../lib/rules';
+import { createLoadGuard } from '../lib/state-sync.js';
+import { createAccountSync, accountStorageKey } from '../lib/account-sync.js';
 
-const todayString = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
-
-const LOCAL_STORAGE_KEY = 'pace_local_drafts';
+const requireOk = response => { if (response?.ok !== true) throw new Error('Sunucu işlemi doğrulamadı. Lütfen yeniden dene.'); return response; };
+const storage = () => { try { return window.localStorage; } catch { return null; } };
+const emptySnapshot = () => ({ records: [], checkins: [], entryStates: {}, pendingEntries: [] });
 
 export function useHabits() {
-  const [selectedDate, setSelectedDate] = useState(todayString());
+  const [selectedDate, setSelectedDate] = useState(dateKey);
   const [habits, setHabits] = useState([]);
-  const [checkins, setCheckins] = useState([]);
+  const [snapshot, setSnapshot] = useState(emptySnapshot);
   const [groups, setGroups] = useState([]);
-  const [user, setUser] = useState(null);
-  const [weekStart, setWeekStart] = useState(() => {
-    try {
-      const saved = localStorage.getItem('pace_week_start');
-      return saved !== null ? Number(saved) : 1;
-    } catch {
-      return 1;
-    }
-  });
+  const [groupsError, setGroupsError] = useState('');
+  const [user, setUserState] = useState(null);
+  const [weekStart, setWeekStart] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [syncState, setSyncState] = useState('Hazır');
-  const [filterMode, setFilterMode] = useState('planned'); // 'planned' | 'all'
+  const [syncState, setSyncState] = useState('Yükleniyor…');
+  const [loadError, setLoadError] = useState(null);
+  const [storageError, setStorageError] = useState('');
+  const [filterMode, setFilterMode] = useState('planned');
   const [lastArchivedHabit, setLastArchivedHabit] = useState(null);
+  const guard = useRef(createLoadGuard());
+  const account = useRef(null);
+  const sessionEpoch = useRef(0);
+  const engine = useRef(null);
+  const cacheEnabled = useRef(true);
+  const habitsRef = useRef([]);
+  const mounted = useRef(true);
+  const refreshRef = useRef(null);
+  const mutationChains = useRef(new Map());
+  const preferredWeek = useRef(1);
+  const preferencesVersion = useRef(0);
+  const habitChanges = useRef(new Map());
+  const habitMutationVersion = useRef(0);
+  const [today, setToday] = useState(dateKey);
 
-  // Load initial data
+  const publish = useCallback(state => {
+    if (!mounted.current) return;
+    setSnapshot(state);
+    const failed = state.pendingEntries.find(e => e.status === 'conflict' || e.status === 'error');
+    setSyncState(failed ? (failed.status === 'conflict' ? 'Kayıt değişti; taslağın korunuyor.' : 'Eşitleme bekliyor; taslağın korunuyor.') : state.pendingEntries.length ? 'Kaydediliyor…' : 'Kaydedildi');
+  }, []);
+
+  const setUser = useCallback(next => {
+    if (typeof next === 'function') next = next(account.current);
+    if ((next?.id || null) !== (account.current?.id || null)) {
+      guard.current.reset();
+      sessionEpoch.current++;
+      engine.current?.dispose();
+      engine.current = null;
+      cacheEnabled.current = true;
+      habitsRef.current = [];
+      habitChanges.current.clear();
+      habitMutationVersion.current = 0;
+      preferencesVersion.current++;
+      mutationChains.current.clear();
+      setHabits([]); setSnapshot(emptySnapshot()); setGroups([]); setLastArchivedHabit(null);
+      setStorageError('');
+    }
+    account.current = next;
+    setUserState(next);
+  }, []);
+
+  const openEngine = useCallback(records => {
+    const owner = account.current?.id;
+    if (!owner) return null;
+    if (engine.current?.userId === owner) { engine.current.merge(records); return engine.current; }
+    engine.current?.dispose();
+    const local = storage();
+    if (!local) setStorageError('Tarayıcı yerel depolamaya izin vermiyor. Kaydedilmemiş değerler yalnızca bu sekme açıkken korunuyor.');
+    const created = createAccountSync({
+      userId: owner, request: api.request, storage: local, initialRecords: records,
+      refresh: () => refreshRef.current?.(),
+      onChange: state => { if (account.current?.id === owner && engine.current === created) publish(state); },
+      onStorageError: () => { if (mounted.current) setStorageError('Tarayıcı taslağı kalıcı saklayamadı. Kaydedilmemiş değerler yalnızca bu sekme açıkken korunuyor.'); },
+    });
+    engine.current = created;
+    publish(created.snapshot());
+    return created;
+  }, [publish]);
+
   const loadData = useCallback(async () => {
+    let ticket = guard.current.begin();
+    const started = habitMutationVersion.current;
+    let preferenceAtStart = preferencesVersion.current;
+    setLoadError(null); setGroupsError('');
+    setSyncState('Yükleniyor…');
     try {
-      setSyncState('Yükleniyor…');
       const data = await api.request('habits');
-      if (data) {
-        setHabits(data.habits || []);
-        setCheckins(data.checkins || []);
-        if (data.user) {
-          setUser(data.user);
-          if (data.user.week_start !== undefined) {
-            setWeekStart(Number(data.user.week_start));
-          }
-        }
+      if (!guard.current.isCurrent(ticket) || !mounted.current) return false;
+      if (!data?.user?.id || !Array.isArray(data.habits) || !Array.isArray(data.checkins)) throw new Error('Sunucudan eksik veri geldi. Önceki kayıtların değiştirilmedi; yeniden dene.');
+      if (account.current?.id !== data.user.id) {
+        setUser(data.user);
+        ticket = guard.current.begin();
+        preferenceAtStart = preferencesVersion.current;
+      } else { account.current = data.user; setUserState(data.user); }
+      const protectedIds = new Set([...habitChanges.current.entries()].filter(([, version]) => version > started).map(([id]) => id));
+      const nextHabits = data.habits.filter(h => !protectedIds.has(h.id));
+      nextHabits.push(...habitsRef.current.filter(h => protectedIds.has(h.id)));
+      habitsRef.current = nextHabits; setHabits(nextHabits);
+      const first = Number(data.user.week_start ?? data.week_start) === 0 ? 0 : 1;
+      if (preferencesVersion.current === preferenceAtStart) { preferredWeek.current = first; setWeekStart(first); }
+      account.current = { ...data.user, week_start: preferredWeek.current }; setUserState(account.current);
+      const active = openEngine(data.checkins);
+      try {
+        if (cacheEnabled.current) storage()?.setItem(accountStorageKey('cache', data.user.id), JSON.stringify({ user_id: data.user.id, habits: nextHabits, checkins: active.snapshot().records, week_start: preferredWeek.current }));
+      } catch { setStorageError('Tarayıcı yerel kopyayı saklayamadı. Sunucudaki kayıtların etkilenmedi.'); }
+      try {
+        const result = await api.request('groups');
+        if (!guard.current.isCurrent(ticket) || !mounted.current) return false;
+        if (!Array.isArray(result?.groups)) throw new Error('Sunucu grup listesini doğrulamadı.');
+        setGroups(result.groups);
+      } catch (err) {
+        if (!guard.current.isCurrent(ticket) || !mounted.current) return false;
+        setGroupsError(err.message || 'Gruplar yüklenemedi.');
       }
-      
-      const groupsData = await api.request('groups').catch(() => null);
-      if (groupsData && groupsData.groups) {
-        setGroups(groupsData.groups);
-      }
-      setSyncState('Kaydedildi');
+      if (!active.snapshot().pendingEntries.length) setSyncState('Güncel');
+      return true;
     } catch (err) {
-      console.warn('Network load fallback:', err);
-      // Fallback to local storage if available
-      try {
-        const cached = localStorage.getItem(LOCAL_STORAGE_KEY);
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed.habits) setHabits(parsed.habits);
-          if (parsed.checkins) setCheckins(parsed.checkins);
+      if (!guard.current.isCurrent(ticket) || !mounted.current) return false;
+      if (err.status === 401) { setUser(null); setSyncState('Giriş yapman gerekiyor.'); }
+      else {
+        // An offline cache is usable only after this tab has positively identified its account.
+        const id = account.current?.id;
+        if (id && !habitsRef.current.length) {
+          try {
+            const cached = JSON.parse(storage()?.getItem(accountStorageKey('cache', id)) || 'null');
+            if (cached?.user_id === id && Array.isArray(cached.habits) && Array.isArray(cached.checkins)) {
+              habitsRef.current = cached.habits; setHabits(cached.habits); openEngine(cached.checkins);
+            }
+          } catch { /* Keep previously verified in-memory records. */ }
         }
-      } catch (e) {}
-      setSyncState('Çevrimdışı mod');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+        setSyncState('Bağlantı kurulamadı.');
+      }
+      setLoadError({ message: err.message || 'Veriler yüklenemedi.', unauthorized: err.status === 401 });
+      return false;
+    } finally { if (mounted.current && (guard.current.isCurrent(ticket) || !account.current)) setLoading(false); }
+  }, [openEngine, setUser]);
+  refreshRef.current = loadData;
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  // Save local cache for offline resilience
-  useEffect(() => {
-    if (habits.length > 0 || checkins.length > 0) {
-      try {
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ habits, checkins }));
-      } catch (e) {}
-    }
-  }, [habits, checkins]);
-
-  // Auto-flush pending mutations when returning online
-  const flushPending = useCallback(async () => {
-    try {
-      const queueKey = 'pace_pending_mutations';
-      const raw = localStorage.getItem(queueKey);
-      if (!raw) return;
-      const queue = JSON.parse(raw);
-      if (!Array.isArray(queue) || !queue.length) return;
-      setSyncState('Eşitleniyor…');
-      while (queue.length > 0) {
-        const item = queue[0];
-        try {
-          await api.request(`habits/${item.habitId}/check-ins/${item.date}`, {
-            method: 'PUT',
-            body: JSON.stringify({
-              value: item.value,
-              expected_revision: item.expectedRevision,
-              idempotency_key: item.idempotencyKey,
-            }),
-          });
-          queue.shift();
-          localStorage.setItem(queueKey, JSON.stringify(queue));
-        } catch {
-          break; // Stop on error, wait for next reconnection
-        }
-      }
-      if (queue.length === 0) {
-        localStorage.removeItem(queueKey);
-        setSyncState('Kaydedildi');
-        await loadData();
-      }
-    } catch (e) {
-      console.warn('Failed to flush queue:', e);
-    }
-  }, [loadData]);
-
-  useEffect(() => {
-    window.addEventListener('online', flushPending);
-    return () => window.removeEventListener('online', flushPending);
-  }, [flushPending]);
-
-  // Log a checkin for a habit on selectedDate
-  const logCheckin = useCallback(async (habitId, value) => {
-    const habit = habits.find((h) => h.id === habitId);
-    if (!habit) return;
-
-    let expectedRevision = 0;
-    setCheckins((prev) => {
-      const idx = prev.findIndex((c) => c.habit_id === habitId && c.habit_date === selectedDate);
-      if (idx >= 0) {
-        expectedRevision = Number(prev[idx].revision || 0);
-        const next = [...prev];
-        next[idx] = { ...next[idx], value, updated_at: new Date().toISOString() };
-        return next;
-      }
-      return [...prev, { id: `log-${Date.now()}`, habit_id: habitId, habit_date: selectedDate, value, revision: 0, created_at: new Date().toISOString() }];
-    });
-
-    const idempotencyKey = `chk-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    try {
-      setSyncState('Kaydediliyor…');
-      const res = await api.request(`habits/${habitId}/check-ins/${selectedDate}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          value,
-          expected_revision: expectedRevision,
-          idempotency_key: idempotencyKey,
-        }),
-      });
-      if (res?.checkin) {
-        setCheckins((prev) => {
-          const idx = prev.findIndex((c) => c.habit_id === habitId && c.habit_date === selectedDate);
-          if (idx >= 0) {
-            const next = [...prev];
-            next[idx] = { ...next[idx], ...res.checkin };
-            return next;
-          }
-          return [...prev, res.checkin];
-        });
-      }
-      setSyncState('Kaydedildi');
-    } catch (err) {
-      console.warn('Sync queued locally:', err);
-      try {
-        const queueKey = 'pace_pending_mutations';
-        const raw = localStorage.getItem(queueKey);
-        const queue = raw ? JSON.parse(raw) : [];
-        queue.push({ habitId, date: selectedDate, value, expectedRevision, idempotencyKey });
-        localStorage.setItem(queueKey, JSON.stringify(queue));
-      } catch (e) {}
-      setSyncState('Çevrimdışı kaydedildi');
-    }
-  }, [habits, selectedDate]);
-
-  // Add a new habit
-  const addHabit = useCallback(async (habitData) => {
-    const newHabit = {
-      id: `h-${Date.now()}`,
-      created_at: new Date().toISOString(),
-      start_date: selectedDate,
-      ...habitData,
+    mounted.current = true;
+    void loadData();
+    const reconnect = async () => {
+      const owner = account.current?.id;
+      const current = engine.current;
+      const loaded = await loadData();
+      if (loaded && owner && account.current?.id === owner && current === engine.current) await current.retryErrors();
     };
+    const dayChanged = () => {
+      const next = dateKey();
+      setToday(previous => { if (previous !== next) setSelectedDate(selected => selected === previous ? next : selected); return next; });
+    };
+    const timer = setInterval(dayChanged, 30000);
+    window.addEventListener('online', reconnect);
+    window.addEventListener('focus', dayChanged);
+    document.addEventListener('visibilitychange', dayChanged);
+    return () => {
+      mounted.current = false; guard.current.reset(); engine.current?.dispose(); engine.current = null;
+      clearInterval(timer);
+      window.removeEventListener('online', reconnect); window.removeEventListener('focus', dayChanged);
+      document.removeEventListener('visibilitychange', dayChanged);
+    };
+  }, [loadData]);
 
-    setHabits((prev) => [newHabit, ...prev]);
-    setSyncState('Kaydediliyor…');
+  // Persist confirmed data only; draft quantities have their own account-scoped storage.
+  useEffect(() => {
+    const id = account.current?.id;
+    if (!id || loading || !cacheEnabled.current) return;
+    try { storage()?.setItem(accountStorageKey('cache', id), JSON.stringify({ user_id: id, habits, checkins: snapshot.records, week_start: weekStart })); }
+    catch { setStorageError('Tarayıcı yerel kopyayı saklayamadı. Sunucudaki kayıtların etkilenmedi.'); }
+  }, [habits, snapshot.records, weekStart, loading]);
 
-    try {
-      const res = await api.request('habits', {
-        method: 'POST',
-        body: JSON.stringify(newHabit),
-      });
-      if (res?.habit?.id) {
-        newHabit.id = res.habit.id;
-      }
-      setSyncState('Kaydedildi');
-    } catch (err) {
-      console.warn('Habit queued locally:', err);
-      setSyncState('Çevrimdışı kaydedildi');
-    }
+  const logCheckin = useCallback((habitId, value, options = {}) => {
+    if (!account.current?.id || !engine.current) { setSyncState('Kayıt eklemek için giriş yap.'); return null; }
+    if (!habitsRef.current.some(h => h.id === habitId)) return null;
+    return engine.current.set(habitId, options.day || selectedDate, value, options);
   }, [selectedDate]);
+  const retryEntry = useCallback((id, day = selectedDate) => engine.current?.retry(id, day), [selectedDate]);
+  const undoEntry = useCallback((id, day = selectedDate) => engine.current?.undo(id, day), [selectedDate]);
 
-  // Archive a habit (with undo support)
-  const archiveHabit = useCallback(async (habitId) => {
-    const habitToArchive = habits.find(h => h.id === habitId);
-    if (!habitToArchive) return;
-
-    setLastArchivedHabit(habitToArchive);
-    setHabits((prev) =>
-      prev.map((h) =>
-        h.id === habitId ? { ...h, archived_at: new Date().toISOString() } : h
-      )
-    );
-    setSyncState('Kaydediliyor…');
-
-    try {
-      await api.request(`habits/${habitId}/archive`, { method: 'POST' });
-      setSyncState('Kaydedildi');
-    } catch (err) {
-      console.warn('Archive offline:', err);
-      setSyncState('Çevrimdışı kaydedildi');
-    }
-  }, [habits]);
-
-  // Restore/unarchive a habit
-  const restoreHabit = useCallback(async (habitId) => {
-    setHabits((prev) =>
-      prev.map((h) =>
-        h.id === habitId ? { ...h, archived_at: null } : h
-      )
-    );
-    setLastArchivedHabit(null);
-    setSyncState('Kaydediliyor…');
-
-    try {
-      await api.request(`habits/${habitId}/restore`, { method: 'POST' });
-      setSyncState('Kaydedildi');
-    } catch (err) {
-      console.warn('Restore offline:', err);
-      setSyncState('Çevrimdışı kaydedildi');
-    }
-  }, []);
-
-  // Update week start setting
-  const updateWeekStart = useCallback(async (newStart) => {
-    const startNum = Number(newStart) === 0 ? 0 : 1;
-    setWeekStart(startNum);
-    try {
-      localStorage.setItem('pace_week_start', String(startNum));
-    } catch (e) {}
-
-    try {
-      await api.request('account/preferences', {
-        method: 'PATCH',
-        body: JSON.stringify({ week_start: startNum }),
-      });
-    } catch (err) {
-      console.warn('Preferences update queued:', err);
-    }
-  }, []);
-
-  // Import backup data
-  const importBackup = useCallback(async (jsonData) => {
-    setSyncState('İçe aktarılıyor…');
-    try {
-      const res = await api.importData(jsonData);
-      if (res?.ok) {
-        await loadData();
-        setSyncState('Kaydedildi');
-        return { success: true, count: res.habits_count || jsonData.habits?.length || 0 };
-      }
-      return { success: false, error: 'İçe aktarma başarısız.' };
-    } catch (err) {
-      console.error('Import error:', err);
-      setSyncState('Hata');
-      return { success: false, error: err.message };
-    }
-  }, [loadData]);
-
-  // Filtered habits for today view
-  const todayHabits = useMemo(() => {
-    return habits
-      .filter((h) => !h.archived_at)
-      .filter((h) => {
-        if (filterMode === 'all') return true;
-        return isPlannedOn(h, selectedDate, checkins, weekStart);
-      });
-  }, [habits, selectedDate, filterMode, checkins, weekStart]);
-
-  // Calculate today completion
-  const completionStats = useMemo(() => {
-    if (todayHabits.length === 0) return { completed: 0, total: 0, percentage: 0 };
-    let completed = 0;
-    todayHabits.forEach((h) => {
-      const c = checkins.find((log) => !log.deleted && log.habit_id === h.id && log.habit_date === selectedDate);
-      const val = c ? c.value : 0;
-      if (h.tracking === 'check' && val >= 1) completed++;
-      else if (h.tracking === 'quantity' && val >= (h.target || 1)) completed++;
+  const serialize = useCallback((key, task) => {
+    const owner = account.current?.id;
+    const epoch = sessionEpoch.current;
+    if (!owner) return Promise.reject(new Error('Bu işlem için giriş yapman gerekiyor.'));
+    const previous = mutationChains.current.get(key) || Promise.resolve();
+    const next = previous.catch(() => {}).then(async () => {
+      if (account.current?.id !== owner || sessionEpoch.current !== epoch) throw new Error('Oturum değişti; işlem gönderilmedi.');
+      const result = await task(owner, epoch);
+      if (account.current?.id !== owner || sessionEpoch.current !== epoch || !mounted.current) throw new Error('Oturum değişti; eski hesabın sonucu bu ekrana uygulanmadı.');
+      return result;
     });
-    return {
-      completed,
-      total: todayHabits.length,
-      percentage: Math.round((completed / todayHabits.length) * 100),
-    };
-  }, [todayHabits, checkins, selectedDate]);
+    mutationChains.current.set(key, next);
+    const cleanup = () => { if (mutationChains.current.get(key) === next) mutationChains.current.delete(key); };
+    next.then(cleanup, cleanup);
+    return next;
+  }, []);
 
-  return {
-    habits,
-    checkins,
-    groups,
-    user,
-    setUser,
-    weekStart,
-    updateWeekStart,
-    loading,
-    syncState,
-    selectedDate,
-    setSelectedDate,
-    filterMode,
-    setFilterMode,
-    todayHabits,
-    completionStats,
-    logCheckin,
-    addHabit,
-    archiveHabit,
-    restoreHabit,
-    lastArchivedHabit,
-    setLastArchivedHabit,
-    importBackup,
-    loadData,
-  };
+  const addHabit = useCallback(data => serialize('create-habit', async (owner, epoch) => {
+    setSyncState('Kaydediliyor…');
+    try {
+      const result = await api.request('habits', { method: 'POST', body: JSON.stringify({ ...data, start_date: data.start_date || selectedDate }) });
+      if (!result?.habit?.id) throw new Error('Sunucu kaydı doğrulamadı. Lütfen yeniden dene.');
+      if (account.current?.id !== owner || sessionEpoch.current !== epoch) return;
+      const habit = { ...data, start_date: data.start_date || selectedDate, created_at: new Date().toISOString(), ...result.habit };
+      habitChanges.current.set(habit.id, ++habitMutationVersion.current);
+      habitsRef.current = [habit, ...habitsRef.current.filter(h => h.id !== habit.id)]; setHabits(habitsRef.current);
+      setSyncState('Kaydedildi'); return habit;
+    } catch (err) { if (account.current?.id === owner && sessionEpoch.current === epoch) setSyncState('Kaydedilemedi: ' + err.message); throw err; }
+  }), [selectedDate, serialize]);
+
+  const updateHabit = useCallback((id, data) => serialize(`habit:${id}`, async (owner, epoch) => {
+    setSyncState('Kaydediliyor…');
+    try {
+      const effective = data.effective_from || dateKey();
+      const result = await api.request(`habits/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify({ ...data, effective_from: effective }) });
+      requireOk(result);
+      if (account.current?.id !== owner || sessionEpoch.current !== epoch) return;
+      const original = habitsRef.current.find(h => h.id === id);
+      if (!original) throw new Error('Alışkanlık artık listede değil. Güncel veriyi yükleyip yeniden dene.');
+      // Partial edits inherit the rule at their effective date, not a later scheduled rule.
+      const atEffective = { ...settingsAt(original, effective), ...data };
+      const settings = { name: atEffective.name, tracking: atEffective.tracking, direction: atEffective.direction, unit: atEffective.unit, target: atEffective.target, schedule: atEffective.schedule, progression: atEffective.progression, debt: atEffective.debt, paused: Boolean(atEffective.paused), archived_at: atEffective.archived_at ?? null };
+      const baseline = original.versions?.length ? original.versions : [{ effective_from: original.start_date || effective, settings: { ...original, paused: Boolean(original.paused), archived_at: original.archived_at ?? null } }];
+      const versions = baseline.filter(v => v.effective_from !== effective);
+      versions.push({ effective_from: effective, settings });
+      versions.sort((a, b) => a.effective_from.localeCompare(b.effective_from));
+      const updated = { ...original, ...settingsAt({ ...original, versions }, dateKey()), versions, updated_at: new Date().toISOString() };
+      habitChanges.current.set(id, ++habitMutationVersion.current);
+      habitsRef.current = habitsRef.current.map(h => h.id === id ? updated : h); setHabits(habitsRef.current);
+      setSyncState('Kaydedildi'); return updated;
+    } catch (err) { if (account.current?.id === owner && sessionEpoch.current === epoch) setSyncState('Kaydedilemedi: ' + err.message); throw err; }
+  }), [serialize]);
+  const togglePause = useCallback(habit => updateHabit(habit.id, { paused: !habit.paused, effective_from: dateKey() }), [updateHabit]);
+  const archiveHabit = useCallback(async id => {
+    const original = habitsRef.current.find(h => h.id === id);
+    const result = await updateHabit(id, { archived_at: new Date().toISOString(), effective_from: dateKey() });
+    setLastArchivedHabit(original); return result;
+  }, [updateHabit]);
+  const restoreHabit = useCallback(async id => {
+    const result = await updateHabit(id, { archived_at: null, paused: false, effective_from: dateKey() });
+    setLastArchivedHabit(null); return result;
+  }, [updateHabit]);
+
+  const updateWeekStart = useCallback(value => {
+    const ownerAtCall = account.current?.id, epochAtCall = sessionEpoch.current;
+    return serialize('preferences', async (owner, epoch) => {
+      const start = Number(value) === 0 ? 0 : 1;
+      const result = await api.request('account/preferences', { method: 'PATCH', body: JSON.stringify({ week_start: start }) });
+      requireOk(result);
+      if (account.current?.id === owner && sessionEpoch.current === epoch) { preferencesVersion.current++; preferredWeek.current = start; setWeekStart(start); account.current = { ...account.current, week_start: start }; setUserState(account.current); setSyncState('Tercih kaydedildi.'); }
+      return result;
+    }).catch(err => { if (account.current?.id === ownerAtCall && sessionEpoch.current === epochAtCall) setSyncState('Tercih kaydedilemedi: ' + err.message); throw err; });
+  }, [serialize]);
+
+  const importBackup = useCallback(async data => {
+    if (engine.current?.snapshot().pendingEntries.length) return { success: false, error: 'Önce bekleyen kayıtlarını eşitle veya geri al; içe aktarma taslaklarının üzerine yazmamalı.' };
+    try {
+      const result = await serialize('import', async () => requireOk(await api.importData(data)));
+      await loadData();
+      return { success: true, count: result.habits_count ?? 0, ...result };
+    } catch (err) { return { success: false, error: err.message }; }
+  }, [loadData, serialize]);
+
+  const clearLocalData = useCallback(({ discardPending = false } = {}) => {
+    const owner = account.current?.id;
+    if (!owner) return;
+    if (!discardPending && engine.current?.snapshot().pendingEntries.length) throw new Error('Önce bekleyen kayıtlarını eşitle veya geri al.');
+    cacheEnabled.current = false;
+    if (discardPending) {
+      // Only the caller's explicitly confirmed account-deletion flow may discard unsent drafts.
+      engine.current?.dispose({ clear: true }); engine.current = null; setSnapshot(emptySnapshot());
+    }
+    const local = storage();
+    local?.removeItem(accountStorageKey('cache', owner)); local?.removeItem(accountStorageKey('entry_drafts', owner));
+    setStorageError('');
+  }, []);
+
+  const checkins = snapshot.checkins;
+  const todayHabits = useMemo(() => habits.filter(h => {
+    const historical = settingsAt(h, selectedDate);
+    if (selectedDate < h.start_date || historical.archived_at) return false;
+    return filterMode === 'all' || isPlannedOn(h, selectedDate, checkins, weekStart);
+  }), [habits, selectedDate, filterMode, checkins, weekStart]);
+  const completionStats = useMemo(() => {
+    const completed = todayHabits.filter(h => stateFor(h, selectedDate, checkins, weekStart).status === 'done').length;
+    return { completed, total: todayHabits.length, percentage: todayHabits.length ? Math.round(100 * completed / todayHabits.length) : 0 };
+  }, [todayHabits, checkins, selectedDate, weekStart]);
+  return { habits, checkins, groups, groupsError, user, setUser, weekStart, updateWeekStart, loading, syncState, loadError, storageError, selectedDate, setSelectedDate, today, filterMode, setFilterMode, todayHabits, completionStats, logCheckin, addHabit, updateHabit, togglePause, archiveHabit, restoreHabit, lastArchivedHabit, setLastArchivedHabit, importBackup, loadData, entryStates: snapshot.entryStates, pendingEntries: snapshot.pendingEntries, retryEntry, undoEntry, clearLocalData };
 }

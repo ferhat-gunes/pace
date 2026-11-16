@@ -1,4 +1,4 @@
-name: Source checks
+name: Source and user-flow checks
 on:
   push:
     branches: [main]
@@ -10,10 +10,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-      - name: Check JavaScript syntax
-        run: npm run check
-      - name: Test habit rules and saving
-        run: npm test
-      - name: Build static app
-        run: npm run build
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - run: npm run build
+      - run: npm run test:pwa
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
+      - run: node scripts/test-pwa-e2e.mjs

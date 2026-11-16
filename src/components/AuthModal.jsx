@@ -1,327 +1,164 @@
-import React, { useState, useEffect } from 'react';
-import { Copy, Check, X } from 'lucide-react';
-import * as api from '../lib/api';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Copy, Check, X, Eye, EyeOff } from 'lucide-react';
+import * as api from '../lib/api.js';
+import { PASSWORD_HELP, validateAuthResponse } from '../lib/auth-ui.js';
+
+const fieldStyle = { width: '100%', minHeight: '48px', padding: '10px 12px', marginTop: '6px', fontSize: '16px' };
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
-  const [mode, setMode] = useState('login'); // 'login' | 'register' | 'recover'
+  const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [recoveryCode, setRecoveryCode] = useState('');
   const [generatedCode, setGeneratedCode] = useState('');
+  const [authenticatedUser, setAuthenticatedUser] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
+  const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const pendingRef = useRef(false);
+  const codeRef = useRef('');
+  const mountedRef = useRef(true);
+  const controllerRef = useRef(null);
+  const recoveryHeadingRef = useRef(null);
+  const emailRef = useRef(null);
 
-  // Handle ESC key for modal dismissal
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; controllerRef.current?.abort(); };
+  }, []);
+
+  const requestClose = useCallback(() => {
+    if (pendingRef.current) { setNotice('İşlem sürüyor. Sonuç gelene kadar bu pencereyi açık tut.'); return; }
+    if (codeRef.current) { setNotice('Kurtarma kodunu güvenli bir yere kaydet, ardından “Kodu kaydettim, devam et” düğmesini kullan.'); return; }
+    onClose?.();
+  }, [onClose]);
+
   useEffect(() => {
     if (!isOpen) return;
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') onClose?.();
+    const keydown = event => {
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); requestClose(); }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+    window.addEventListener('keydown', keydown, true);
+    return () => window.removeEventListener('keydown', keydown, true);
+  }, [isOpen, requestClose]);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (!generatedCode && !loading) return;
+    const frame = generatedCode ? requestAnimationFrame(() => recoveryHeadingRef.current?.focus()) : null;
+    const beforeUnload = event => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload', beforeUnload);
+    return () => { if (frame !== null) cancelAnimationFrame(frame); window.removeEventListener('beforeunload', beforeUnload); };
+  }, [generatedCode, loading]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setErrorMsg('');
-    setLoading(true);
+  const changeMode = next => {
+    if (pendingRef.current || codeRef.current) return;
+    setMode(next); setErrorMsg(''); setNotice(''); setPassword(''); setShowPassword(false);
+    requestAnimationFrame(() => emailRef.current?.focus());
+  };
 
+  const handleSubmit = async event => {
+    event.preventDefault();
+    if (pendingRef.current || codeRef.current) return;
+    if (api.demoMode) {
+      setErrorMsg('Örnek görünümde gerçek hesaba giriş yapılamaz. “Kendi hesabıma geç” ile demodan çık.');
+      return;
+    }
+    pendingRef.current = true;
+    setLoading(true); setErrorMsg(''); setNotice('');
+    const action = mode;
+    const controller = new AbortController();
+    controllerRef.current = controller;
     try {
-      if (mode === 'login') {
-        const res = await api.request('auth/login', {
-          method: 'POST',
-          body: JSON.stringify({ email, password }),
-        });
-        if (res?.user) {
-          onAuthSuccess?.(res.user);
-          onClose();
-        }
-      } else if (mode === 'register') {
-        const res = await api.request('auth/register', {
-          method: 'POST',
-          body: JSON.stringify({ email, password }),
-        });
-        if (res?.recovery_code) {
-          setGeneratedCode(res.recovery_code);
-          if (res.user) onAuthSuccess?.(res.user);
-        }
-      } else if (mode === 'recover') {
-        const res = await api.request('auth/recover', {
-          method: 'POST',
-          body: JSON.stringify({ email, recovery_code: recoveryCode, password }),
-        });
-        if (res?.ok || res?.user) {
-          if (res.user) onAuthSuccess?.(res.user);
-          if (res.recovery_code) {
-            setGeneratedCode(res.recovery_code);
-          } else {
-            alert('Parolanız sıfırlandı. Yeni parolanızla giriş yapabilirsiniz.');
-            setMode('login');
-          }
-        }
+      const payload = await api.request(`auth/${action}`, {
+        method: 'POST', signal: controller.signal,
+        body: JSON.stringify({ email: email.trim(), password, ...(action === 'recover' ? { recovery_code: recoveryCode.trim() } : {}) }),
+      });
+      if (!mountedRef.current || controller.signal.aborted) return;
+      const result = validateAuthResponse(action, payload);
+      setPassword(''); setRecoveryCode(''); setShowPassword(false);
+      if (result.recoveryCode) {
+        codeRef.current = result.recoveryCode;
+        setGeneratedCode(result.recoveryCode);
+        setAuthenticatedUser(result.user);
+        setNotice(action === 'register' ? 'Hesabın oluşturuldu. Kurtarma kodunu şimdi kaydet.' : 'Parolan yenilendi. Eski kurtarma kodun geçersiz; yeni kodunu şimdi kaydet.');
+      } else {
+        onAuthSuccess?.(result.user);
+        onClose?.();
       }
     } catch (err) {
-      setErrorMsg(err.message || 'İşlem başarısız oldu.');
+      if (mountedRef.current && !controller.signal.aborted) setErrorMsg(err.message || 'İşlem tamamlanamadı. Lütfen yeniden dene.');
     } finally {
-      setLoading(false);
+      pendingRef.current = false;
+      if (mountedRef.current) setLoading(false);
     }
   };
 
-  const handleCopyCode = () => {
+  const handleCopyCode = async () => {
     if (!generatedCode) return;
-    navigator.clipboard.writeText(generatedCode).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
+    try {
+      await navigator.clipboard.writeText(generatedCode);
+      if (!mountedRef.current) return;
+      setCopied(true); setErrorMsg(''); setNotice('Kurtarma kodu panoya kopyalandı. Güvenli bir yere yapıştırıp kaydet.');
+    } catch {
+      if (mountedRef.current) { setCopied(false); setErrorMsg('Kopyalanamadı. Aşağıdaki kodu seçip elle kopyalayabilir veya güvenli bir yere yazabilirsin.'); }
+    }
   };
 
+  const finishRecovery = () => {
+    if (!authenticatedUser || !codeRef.current) return;
+    codeRef.current = '';
+    setGeneratedCode('');
+    onAuthSuccess?.(authenticatedUser);
+    onClose?.();
+  };
+
+  if (!isOpen) return null;
+  const title = generatedCode ? 'Kurtarma kodunu kaydet' : mode === 'login' ? 'Tekrar merhaba!' : mode === 'register' ? 'Kendi ritmini bul.' : 'Hesabını kurtar';
+  const lead = mode === 'login' ? 'Hesabına giriş yap, alışkanlıklarını eşitle.' : mode === 'register' ? 'Kendi hesabını oluştur, cihazların arasında takip et.' : 'Kurtarma kodunla yeni bir parola belirle.';
   return (
-    <div
-      className="modal-overlay"
-      id="auth-screen"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="auth-title"
-      onClick={onClose}
-    >
-      <div
-        className="dialog-sheet auth-panel"
-        style={{ position: 'relative' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="sheet-handle" aria-hidden="true"></div>
-
-        <button
-          type="button"
-          className="button-icon icon-button"
-          aria-label="Kapat"
-          style={{ position: 'absolute', top: '16px', right: '16px' }}
-          onClick={onClose}
-        >
-          <X size={20} />
-        </button>
-
-        <div className="auth-brand">
-          <span style={{ fontFamily: 'var(--font-heading)', fontSize: '28px', fontWeight: 800, color: 'var(--forest)' }}>
-            pace
-          </span>
-          <p className="auth-lead" style={{ marginTop: '4px', color: 'var(--muted)', fontSize: '14px' }}>
-            {mode === 'login' && 'Hesabına giriş yap, alışkanlıklarını eşitle.'}
-            {mode === 'register' && 'Hemen hesabını oluştur, cihazlar arası takip et.'}
-            {mode === 'recover' && 'Kurtarma kodunla parolanı yenile.'}
-          </p>
-        </div>
-
-        {/* Tab mode toggle */}
-        <div className="segmented-control" role="tablist" style={{ width: '100%', margin: '16px 0' }}>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === 'login'}
-            className={`segmented-item ${mode === 'login' ? 'is-selected' : ''}`}
-            style={{ flex: 1, minHeight: '42px' }}
-            onClick={() => {
-              setMode('login');
-              setErrorMsg('');
-              setGeneratedCode('');
-            }}
-          >
-            Giriş Yap
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === 'register'}
-            className={`segmented-item ${mode === 'register' ? 'is-selected' : ''}`}
-            style={{ flex: 1, minHeight: '42px' }}
-            onClick={() => {
-              setMode('register');
-              setErrorMsg('');
-              setGeneratedCode('');
-            }}
-          >
-            Kayıt Ol
-          </button>
-        </div>
+    <div className="modal-overlay" id="auth-screen" role="dialog" aria-modal="true" aria-labelledby="auth-title" aria-describedby="auth-description" aria-busy={loading} onClick={requestClose}>
+      <div className="dialog-sheet auth-panel" style={{ position: 'relative' }} onClick={event => event.stopPropagation()}>
+        <div className="sheet-handle" aria-hidden="true" />
+        <button type="button" className="button-icon icon-button" aria-label="Kapat" disabled={loading || Boolean(generatedCode)} title={generatedCode ? 'Önce kurtarma kodunu kaydet.' : undefined} style={{ position: 'absolute', top: '16px', right: '16px' }} onClick={requestClose}><X size={20} aria-hidden="true" /></button>
+        <div className="auth-brand"><span>pace</span></div>
+        <h2 id="auth-title" className="auth-title">{title}</h2>
+        <p id="auth-description" className="auth-lead">{generatedCode ? 'Bu kod yalnızca şimdi gösterilir. Hesabına devam etmeden önce güvenli bir yere kaydet.' : lead}</p>
+        {notice && <p className="inline-message" role="status" aria-live="polite" aria-atomic="true">{notice}</p>}
+        {errorMsg && <p id="auth-error" className="form-message" role="alert">{errorMsg}</p>}
+        {api.demoMode && <p className="inline-message">Demo kayıtların bu tarayıcıda kalır ve gerçek hesabına otomatik aktarılmaz. <button type="button" className="button button-primary" onClick={() => api.exitDemo()}>Kendi hesabıma geç</button></p>}
 
         {generatedCode ? (
-          <div
-            className="recovery-box"
-            style={{
-              background: 'var(--orange-soft)',
-              border: '1px solid var(--orange-border)',
-              borderRadius: '12px',
-              padding: '16px',
-              margin: '16px 0',
-            }}
-          >
-            <h3 style={{ margin: '0 0 8px', fontSize: '15px', color: 'var(--orange-dark)' }}>
-              Önemli: Kurtarma Kodunu Kaydet!
-            </h3>
-            <p style={{ margin: '0 0 12px', fontSize: '13px', lineHeight: 1.4 }}>
-              Parolanı unutursan hesabını yalnızca bu kodla kurtarabilirsin. Başka bir kurtarma yöntemi yoktur.
-            </p>
-            <div
-              style={{
-                fontFamily: 'monospace',
-                fontSize: '13px',
-                fontWeight: 700,
-                letterSpacing: '1px',
-                wordBreak: 'break-all',
-                background: 'var(--surface)',
-                padding: '12px',
-                borderRadius: '8px',
-                border: '1px solid var(--border)',
-                marginBottom: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <span>{generatedCode}</span>
-              <button
-                type="button"
-                className="button button-quiet"
-                style={{ height: '36px', padding: '0 10px', fontSize: '12px' }}
-                onClick={handleCopyCode}
-                aria-label="Kodu kopyala"
-              >
-                {copied ? <Check size={14} color="var(--forest)" /> : <Copy size={14} />}
-                <span style={{ marginLeft: '4px' }}>{copied ? 'Kopyalandı' : 'Kopyala'}</span>
-              </button>
-            </div>
-            <button
-              type="button"
-              className="button button-primary"
-              style={{ width: '100%', minHeight: '48px' }}
-              onClick={() => {
-                setGeneratedCode('');
-                onClose();
-              }}
-            >
-              Kodu kaydettim, devam et
-            </button>
-          </div>
+          <section className="recovery-box" aria-labelledby="recovery-code-title" style={{ padding: '16px', margin: '16px 0' }}>
+            <h3 id="recovery-code-title" ref={recoveryHeadingRef} tabIndex={-1}>Kurtarma kodun hazır</h3>
+            <p>Parolanı unutursan hesabını bu kodla kurtarabilirsin. Kodu parola yöneticine veya yalnızca senin erişebileceğin güvenli bir yere kaydet.</p>
+            <label htmlFor="generated-recovery-code">Yeni kurtarma kodun</label>
+            <textarea id="generated-recovery-code" readOnly rows={3} value={generatedCode} spellCheck={false} style={{ width: '100%', fontFamily: 'monospace', padding: '12px', resize: 'none', margin: '8px 0 12px' }} onFocus={event => event.target.select()} />
+            <button type="button" className="button button-quiet" onClick={handleCopyCode} aria-label="Kodu kopyala">{copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}{copied ? 'Kopyalandı' : 'Kopyala'}</button>
+            <button type="button" className="button button-primary" style={{ width: '100%', marginTop: '16px', minHeight: '48px' }} onClick={finishRecovery}>Kodu kaydettim, devam et</button>
+          </section>
         ) : (
-          <form id="auth-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {errorMsg && (
-              <p className="form-message" role="alert" style={{ color: 'var(--red)', fontWeight: 600, fontSize: '14px', margin: 0 }}>
-                {errorMsg}
-              </p>
-            )}
-
-            <label htmlFor="auth-email" style={{ fontSize: '13px', fontWeight: 700 }}>
-              E-posta adresin
-              <input
-                id="auth-email"
-                name="email"
-                type="email"
-                className="form-input"
-                style={{ width: '100%', height: '48px', padding: '0 12px', marginTop: '6px', fontSize: '16px' }}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="username"
-                required
-                placeholder="ornek@email.com"
-              />
-            </label>
-
-            {mode === 'recover' && (
-              <label htmlFor="auth-recovery" style={{ fontSize: '13px', fontWeight: 700 }}>
-                Kurtarma kodun
-                <input
-                  id="auth-recovery"
-                  name="recovery"
-                  type="text"
-                  className="form-input"
-                  style={{ width: '100%', height: '48px', padding: '0 12px', marginTop: '6px', fontSize: '16px' }}
-                  value={recoveryCode}
-                  onChange={(e) => setRecoveryCode(e.target.value)}
-                  required
-                  placeholder="Kayıt olurken verilen kod"
-                />
-              </label>
-            )}
-
-            <label htmlFor="auth-password" style={{ fontSize: '13px', fontWeight: 700 }}>
-              {mode === 'recover' ? 'Yeni parolan' : 'Parolan'}
-              <input
-                id="auth-password"
-                name="password"
-                type="password"
-                className="form-input"
-                style={{ width: '100%', height: '48px', padding: '0 12px', marginTop: '6px', fontSize: '16px' }}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
-                required
-                placeholder="En az 10 karakter"
-              />
-            </label>
-
-            <button
-              type="submit"
-              className="button button-primary"
-              id="auth-submit"
-              disabled={loading}
-              style={{ width: '100%', minHeight: '48px', marginTop: '8px', fontSize: '15px' }}
-            >
-              {loading
-                ? 'İşleniyor…'
-                : mode === 'login'
-                ? 'Giriş Yap'
-                : mode === 'register'
-                ? 'Hesap Oluştur'
-                : 'Parolayı Sıfırla'}
-            </button>
-
-            {mode === 'login' && (
-              <button
-                type="button"
-                className="button-link"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--muted)',
-                  fontSize: '13px',
-                  textDecoration: 'underline',
-                  cursor: 'pointer',
-                  padding: '8px 0',
-                }}
-                onClick={() => {
-                  setMode('recover');
-                  setErrorMsg('');
-                }}
-              >
-                Parolamı unuttum (Kurtarma koduyla aç)
-              </button>
-            )}
-
-            {mode === 'recover' && (
-              <button
-                type="button"
-                className="button-link"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--muted)',
-                  fontSize: '13px',
-                  textDecoration: 'underline',
-                  cursor: 'pointer',
-                  padding: '8px 0',
-                }}
-                onClick={() => {
-                  setMode('login');
-                  setErrorMsg('');
-                }}
-              >
-                ← Giriş ekranına dön
-              </button>
-            )}
-          </form>
+          <>
+            <div className="segmented-control" role="group" aria-label="Hesap işlemi seç" style={{ width: '100%', margin: '16px 0' }}>
+              <button type="button" className={`segmented-item ${mode === 'login' ? 'is-selected' : ''}`} style={{ flex: 1 }} aria-pressed={mode === 'login'} disabled={loading} onClick={() => changeMode('login')}>Giriş Yap</button>
+              <button type="button" className={`segmented-item ${mode === 'register' ? 'is-selected' : ''}`} style={{ flex: 1 }} aria-pressed={mode === 'register'} disabled={loading} onClick={() => changeMode('register')}>Kayıt Ol</button>
+            </div>
+            <form id="auth-form" onSubmit={handleSubmit} aria-busy={loading} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <fieldset disabled={loading} style={{ border: 0, padding: 0, margin: 0, display: 'grid', gap: '14px', minWidth: 0 }}>
+                <legend className="sr-only">{title}</legend>
+                <label htmlFor="auth-email">E-posta adresin<input ref={emailRef} id="auth-email" name="email" type="email" className="form-input" style={fieldStyle} value={email} onChange={event => setEmail(event.target.value)} autoComplete="username" autoCapitalize="none" spellCheck={false} maxLength={254} required placeholder="ornek@email.com" aria-describedby={errorMsg ? 'auth-error' : undefined} /></label>
+                {mode === 'recover' && <label htmlFor="auth-recovery">Kurtarma kodun<input id="auth-recovery" name="recovery" type="text" className="form-input" style={fieldStyle} value={recoveryCode} onChange={event => setRecoveryCode(event.target.value)} autoComplete="off" autoCapitalize="none" spellCheck={false} maxLength={128} required placeholder="Hesap oluştururken kaydettiğin kod" aria-describedby="recovery-help" /><span id="recovery-help" className="field-help">Parolan yenilendiğinde bu kod geçersiz olur ve sana yeni bir kurtarma kodu verilir.</span></label>}
+                <div>
+                  <label htmlFor="auth-password">{mode === 'recover' ? 'Yeni parolan' : 'Parolan'}<input id="auth-password" name="password" type={showPassword ? 'text' : 'password'} className="form-input" style={fieldStyle} value={password} onChange={event => setPassword(event.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} minLength={10} maxLength={128} required aria-describedby={`auth-password-help${errorMsg ? ' auth-error' : ''}`} /></label>
+                  <p id="auth-password-help" className="field-help">{PASSWORD_HELP}</p>
+                  <button type="button" className="button button-quiet" aria-label={showPassword ? 'Parolayı gizle' : 'Parolayı göster'} aria-pressed={showPassword} aria-controls="auth-password" onClick={() => setShowPassword(value => !value)}>{showPassword ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}{showPassword ? 'Parolayı gizle' : 'Parolayı göster'}</button>
+                </div>
+                <button type="submit" className="button button-primary" id="auth-submit" disabled={loading || api.demoMode} style={{ width: '100%', minHeight: '48px', marginTop: '8px' }}>{loading ? 'İşleniyor…' : mode === 'login' ? 'Giriş Yap' : mode === 'register' ? 'Hesap Oluştur' : 'Parolayı Sıfırla'}</button>
+                <button type="button" className="button button-quiet" onClick={() => changeMode(mode === 'recover' ? 'login' : 'recover')}>{mode === 'recover' ? 'Giriş ekranına dön' : 'Parolamı unuttum — kurtarma koduyla aç'}</button>
+              </fieldset>
+            </form>
+          </>
         )}
       </div>
     </div>

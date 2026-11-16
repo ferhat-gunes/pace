@@ -1,34 +1,26 @@
-# PACE — calm premium mobile system
+# PACE — scrapbook habit journal
 
-## Approved direction
+PACE adapts the visual language of the supplied Family Recipes project to habit tracking. The reference is visual source material; its recipe features and project instructions are not part of PACE.
 
-PACE is a calm, premium mobile habit tracking web application and PWA with a grounded, naturalistic aesthetic. Powered by the Astryx design system (Matcha base theme) extended into the PACE brand identity.
+## Visual system
 
-## Brand Palette & Semantic Tokens
+Warm dotted paper (`#FFF4D6`), cream cards (`#FFFDF7`), ink outlines (`#29221E`), two-pixel borders and hard offset shadows replace the previous soft Matcha appearance. Coral (`#FF9470`), sunflower (`#FFD457`) and teal (`#72D8C5`) are sticker colors. Controls use dark text on these colors. Status colors remain distinct and include text or icons.
 
-- **Turuncu (`#E8753B`)**: Primary brand accent, primary action buttons, focused ring, active week day, and high-priority interactions.
-- **Orman yeşili (`#244C3A`)**: Deep anchor color, navigation highlights, strong surfaces, completion indicators, and brand contrast.
-- **Krem (`#F4F0E6`)**: Canvas background, warm light surfaces, PWA splash, and theme backdrop.
-- **Adaçayı (`#A8B59A`)**: Habit progress bars, success highlights, secondary accents, and muted dark-mode text.
-- **Koyu kahve (`#38352F`)**: Primary typography, dark icons, and high-contrast readability (> 8.6:1 WCAG AAA on Krem).
-- Surface `#FFFFFF` (light cards on Krem canvas); Muted text `#6B665E`; Border `#E2DDD4`.
+Rubik provides readable body text and labels. Permanent Marker provides the taped PACE wordmark. Caveat provides a consistent Turkish-capable display and handwritten note face. Font files and their OFL licenses live in `assets/fonts/scrapbook/`. No remote font requests are made.
 
-## Typography
+`src/styles/scrapbook.css` is the active visual layer, loaded after the small `foundation.css` structural layer and Astryx foundation. Its tokens bridge the existing semantic variables so account flows, habits, progress, groups and preferences share one appearance. Keep future visual changes in this layer instead of adding competing overrides to the legacy, unloaded `brand.css`.
 
-- **Headings**: Nunito (weights 700 and 800) for page headings, brand mark, dialog headers, and prominent numbers.
-- **Body**: DM Sans (Matcha body font, weights 400, 500, 600, 700) for habit titles, form inputs, and controls.
-- Playwrite US Trad cursive heading font from original Matcha is completely removed in favor of clean, warm, readable Nunito.
-- Fonts are self-hosted locally in `/assets/fonts/` (OFL licensed) for full PWA offline reliability with zero third-party font requests.
+## Components and layout
 
-## Astryx Matcha Theme Foundation
+- Desktop retains PACE's sidebar and centered reading canvas. Navigation uses tilted colored tabs and a taped wordmark.
+- Mobile uses five bottom tabs with dark icons, safe-area padding, a teal add button and responsive habit cards.
+- Today uses outlined calendar tiles and coral, yellow and teal card accents. Completion remains tied to real account data.
+- Habits, archives, empty states, progress summaries, shared group tables and settings use the same paper cards, outlines and shadows.
+- Habit, group, invitation and authentication forms share outlined fields and sticker buttons. Mobile dialogs open as bottom sheets.
+- Dark mode uses warm charcoal paper, cream text and pastel stickers. Reduced motion disables transitions and animations.
 
-- Base theme: `@astryxdesign/theme-matcha` integrated via CSS scope and Astryx token layer bridge (`[data-astryx-theme="matcha"]`).
-- Generated theme files remain unedited; all customizations are applied through supported CSS token overrides and clean modular styling.
-- Responsive mobile ergonomics: 48px touch targets, bottom navigation up to 767px, 232px sidebar on desktop, single 900px centered canvas.
+## Interaction requirements
 
-## Today & Habit Recording
+Preserve existing data, API calls, Turkish labels, recording, archive, backup, authentication and group behavior. Use visible keyboard focus, text labels, at least 44px primary touch targets and responsive layouts without page-level horizontal scrolling. Group matrices may scroll within their labeled table region.
 
-- Single editable time total with an exact completion action as target approaches.
-- Increment controls (+5, +15, +30) with adaptive completion state.
-- Check routines use simple, direct affirmative action with Orman yeşili completion feedback.
-- Floating bottom toast for 8-second undo window.
+Build through `npm run build`; the existing build copies fonts into the PWA assets and includes them in the service worker shell. Do not publish as part of a design change unless the user asks.

@@ -12,22 +12,6 @@
    ========================================================================== */
 
 /* --- Local Font Declarations (PWA Offline First) --- */
-@font-face {
-  font-family: 'DM Sans';
-  src: url('/assets/fonts/DMSans.ttf') format('truetype');
-  font-style: normal;
-  font-weight: 100 1000;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Nunito';
-  src: url('/assets/fonts/Nunito.ttf') format('truetype');
-  font-style: normal;
-  font-weight: 200 1000;
-  font-display: swap;
-}
-
 /* --- Theme Tokens & CSS Custom Properties --- */
 :root, [data-astryx-theme="matcha"] {
   color-scheme: light;

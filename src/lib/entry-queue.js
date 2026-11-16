@@ -14,7 +14,7 @@ export function createEntryQueue(options) {
       else storage.removeItem(storageKey);
     } catch { /* Storage may be unavailable; the in-memory draft remains usable. */ }
   }
-  const view = e => e ? ({ value: e.value, deleted: e.deleted, status: e.status, error: e.error, previous: { ...e.previous }, canUndo: e.canUndo }) : null;
+  const view = e => e ? ({ value: e.value, deleted: e.deleted, status: e.status, error: e.error, previous: { ...e.previous }, canUndo: e.canUndo, restored: Boolean(e.restored) }) : null;
   function notify(e) { if (!disposed) { persist(); onChange?.(e.id, e.day, view(e)); } }
   function validate(value) {
     if (value === '' || value === null || typeof value === 'boolean' || (typeof value === 'string' && !value.trim())) throw new TypeError('Miktar gerekli.');
@@ -33,7 +33,7 @@ export function createEntryQueue(options) {
         if (typeof draft.id !== 'string' || typeof draft.day !== 'string') continue;
         try {
           const e = make(draft.id, draft.day);
-          Object.assign(e, { value: validate(draft.value), deleted: Boolean(draft.deleted), status: 'error', error: 'Kaydedilmemiş kayıt. Yeniden dene.', canUndo: true });
+          Object.assign(e, { value: validate(draft.value), deleted: Boolean(draft.deleted), status: 'error', error: 'Kaydedilmemiş kayıt. Güncel veriyi kontrol ederek yeniden dene.', canUndo: true, restored: true });
           entries.set(keyFor(e.id, e.day), e);
         } catch { /* Ignore damaged drafts. */ }
       }
@@ -102,7 +102,7 @@ export function createEntryQueue(options) {
   function retry(id, day) {
     const e = entries.get(keyFor(id, day));
     if (disposed || !e) return Promise.resolve(null);
-    e.status = 'pending'; e.error = ''; notify(e);
+    e.status = 'pending'; e.error = ''; e.restored = false; notify(e);
     return flush(id, day);
   }
   function undo(id, day) {
@@ -116,6 +116,7 @@ export function createEntryQueue(options) {
   }
   return {
     set, get: (id, day) => view(entries.get(keyFor(id, day))), flush, retry, undo,
+    entries: () => [...entries.values()].map(e => ({ id: e.id, day: e.day, ...view(e) })),
     hasPending: () => [...entries.values()].some(e => e.status !== 'saved'),
     dispose({ clear = false } = {}) {
       if (disposed) return;

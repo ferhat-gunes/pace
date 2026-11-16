@@ -28,7 +28,7 @@ PACE uses supportive, neutral status labels. Unscheduled days do not count as mi
 
 The demo is intentionally local to the current browser and marked **Örnek görünüm**. It is not account-backed and should not be used for important records.
 
-Open the deployed site with `?demo=1`, or run a static server from the repository root and visit `/?demo=1`.
+Open the deployed site with `?demo=1`, or run `npm ci` and `npm run dev`, then visit the shown local URL with `?demo=1`.
 
 ## Cloudflare Pages setup
 
@@ -47,7 +47,7 @@ Email-code endpoints remain optional. To enable that delivery service, configure
 
 ### Local Pages preview
 
-Run `npm run build` and use Wrangler with a local D1 database and a local `.dev.vars` file. Copy `.dev.vars.example` to `.dev.vars` with development-only values. Do not commit the copied file. Run `npm run check`, `npm test`, and `npm run build` for source, behavior, and build checks.
+Run `npm run build` and use Wrangler with a local D1 database and a local `.dev.vars` file. Copy `.dev.vars.example` to `.dev.vars` with development-only values. Do not commit the copied file. Run `npm run check`, `npm test`, and `npm run build` for source, behavior, and build checks. Run `npm run test:browser` for the repeatable React workflow/accessibility suite (it starts its own local server), `npm run test:pwa` after a build, and `npm run test:pwa:browser` for actual offline reload/lazy-route checks. Chromium must be installed or supplied through `CHROMIUM_PATH`.
 
 ## Repository layout
 

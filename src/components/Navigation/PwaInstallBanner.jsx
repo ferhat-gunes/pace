@@ -6,6 +6,8 @@ export default function PwaInstallBanner() {
   const [isIos, setIsIos] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [dismissed, setDismissed] = useState(true);
+  const [installError, setInstallError] = useState('');
+  const [installing, setInstalling] = useState(false);
 
   useEffect(() => {
     // Check if already standalone PWA
@@ -26,7 +28,7 @@ export default function PwaInstallBanner() {
 
     // Check iOS Safari
     const ua = window.navigator.userAgent.toLowerCase();
-    const iosDevice = /iphone|ipad|ipod/.test(ua) && !window.MSStream;
+    const iosDevice = (/iphone|ipad|ipod/.test(ua) || navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1) && !window.MSStream;
     setIsIos(iosDevice);
 
     // Android/Desktop Chrome install event
@@ -36,6 +38,8 @@ export default function PwaInstallBanner() {
       setDismissed(false);
     };
 
+    const installed=()=>{setIsStandalone(true);setDeferredPrompt(null);setDismissed(true);};
+    window.addEventListener('appinstalled', installed);
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
 
     if (iosDevice) {
@@ -44,6 +48,7 @@ export default function PwaInstallBanner() {
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+      window.removeEventListener('appinstalled', installed);
     };
   }, []);
 
@@ -55,13 +60,15 @@ export default function PwaInstallBanner() {
   };
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setDismissed(true);
-    }
-    setDeferredPrompt(null);
+    if (!deferredPrompt || installing) return;
+    setInstalling(true);setInstallError('');
+    try {
+      await deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') setDismissed(true);
+      else setInstallError('Kurulum iptal edildi. Daha sonra tarayıcı menüsünden uygulamayı yükleyebilirsin.');
+    } catch { setInstallError('Kurulum başlatılamadı. Tarayıcı menüsündeki yükleme seçeneğini kullanabilirsin.'); }
+    finally { setDeferredPrompt(null);setInstalling(false); }
   };
 
   if (isStandalone || dismissed) return null;
@@ -89,11 +96,13 @@ export default function PwaInstallBanner() {
         </p>
       </div>
 
+      {installError && <p role="status" className="pwa-banner-subtitle">{installError}</p>}
       <div className="pwa-banner-actions">
         {!isIos && deferredPrompt && (
           <button
             type="button"
             className="button button-primary pwa-btn-install"
+            disabled={installing}
             onClick={handleInstallClick}
           >
             Yükle

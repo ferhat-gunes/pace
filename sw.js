@@ -15,7 +15,6 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE)
       .then((c) => c.addAll(SHELL))
-      .then(() => self.skipWaiting())
   );
 });
 
@@ -53,9 +52,8 @@ self.addEventListener('fetch', (event) => {
         const timer = setTimeout(() => controller.abort(), 1800);
         try {
           const res = await fetch(req, { cache: 'no-cache', signal: controller.signal });
-          if (res.ok) {
-            await cache.put('/index.html', res.clone());
-          }
+          if (res.ok) return res;
+          if (res.status >= 500) { const cached = await cache.match('/index.html', { ignoreVary: true }); if (cached) return cached; }
           return res;
         } catch {
           const cached = await cache.match('/index.html', { ignoreVary: true });
@@ -73,7 +71,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       (async () => {
         const cache = await caches.open(CACHE);
-        const cached = await cache.match(req);
+        const cached = await cache.match(req, { ignoreVary: true });
         if (cached) return cached;
 
         try {

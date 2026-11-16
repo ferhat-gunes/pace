@@ -1,0 +1,332 @@
+{
+  "date": "2026-11-16T11:28:17.341Z",
+  "results": [
+    {
+      "theme": "light",
+      "width": 320,
+      "view": "today",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "view": "habits",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "view": "progress",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "view": "groups",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "view": "settings",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "light",
+      "width": 390,
+      "view": "today",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "light",
+      "width": 390,
+      "view": "habits",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "light",
+      "width": 390,
+      "view": "progress",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "light",
+      "width": 390,
+      "view": "groups",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "light",
+      "width": 390,
+      "view": "settings",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "view": "today",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "view": "habits",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "view": "progress",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "view": "groups",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "view": "settings",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "light",
+      "width": 1440,
+      "view": "today",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "light",
+      "width": 1440,
+      "view": "habits",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "light",
+      "width": 1440,
+      "view": "progress",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "light",
+      "width": 1440,
+      "view": "groups",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "light",
+      "width": 1440,
+      "view": "settings",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "view": "today",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "view": "habits",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "view": "progress",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "view": "groups",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "view": "settings",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "dark",
+      "width": 390,
+      "view": "today",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "dark",
+      "width": 390,
+      "view": "habits",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "dark",
+      "width": 390,
+      "view": "progress",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "dark",
+      "width": 390,
+      "view": "groups",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "dark",
+      "width": 390,
+      "view": "settings",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "view": "today",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "view": "habits",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "view": "progress",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "view": "groups",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "view": "settings",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "view": "today",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "view": "habits",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "view": "progress",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "view": "groups",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "view": "settings",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "dark",
+      "width": 390,
+      "view": "habit-modal",
+      "violations": []
+    }
+  ],
+  "errors": []
+}
