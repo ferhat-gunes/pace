@@ -6,6 +6,7 @@ assert.match(worker,/pace-shell-[a-f0-9]{16}/);
 async function walk(path){const out=[];for(const e of await readdir(path,{withFileTypes:true})){const p=path+'/'+e.name;out.push(...(e.isDirectory()?await walk(p):[p]))}return out}
 const files=await walk('dist/assets');let bytes=0;
 for(const f of files){bytes+=(await stat(f)).size;assert.ok(shell.includes('/'+f.slice(5)),`precache missing ${f}`)}
+assert.ok(files.some(f=>/DiscoverView.*\.js$/.test(f)));
 assert.ok(files.some(f=>/GroupsView.*\.js$/.test(f)));
 assert.ok(files.some(f=>/SettingsView.*\.js$/.test(f)));
 assert.ok(files.some(f=>/ProgressView.*\.js$/.test(f)));

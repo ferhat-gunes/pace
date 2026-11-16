@@ -1,5 +1,10 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense, lazy } from 'react';
 import { useNavigation, clearInviteQuery } from './state/useNavigation.js';
+import { useGamification } from './state/useGamification.js';
+import { localDateIso } from './lib/date.js';
+import { checkAndTriggerDailyReminder, updateAppBadge, fetchSocialInbox, dismissNudge } from './lib/notifications.js';
+import { isFeatureEnabled } from './lib/telemetry.js';
+import { stateFor, isPlannedOn } from './lib/rules.js';
 import { useHabits } from './state/useHabits.js';
 import * as api from './lib/api.js';
 import Sidebar from './components/Navigation/Sidebar.jsx';
@@ -17,6 +22,7 @@ import PwaInstallBanner from './components/Navigation/PwaInstallBanner.jsx';
 const ProgressView = lazy(() => import('./components/ProgressView.jsx'));
 const GroupsView = lazy(() => import('./components/GroupsView.jsx'));
 const SettingsView = lazy(() => import('./components/SettingsView.jsx'));
+const DiscoverView = lazy(() => import('./components/DiscoverView.jsx'));
 const AuthModal = lazy(() => import('./components/AuthModal.jsx'));
 
 export default function App() {
@@ -29,6 +35,13 @@ export default function App() {
   const [signOutError, setSignOutError] = useState('');
   const [signingOut, setSigningOut] = useState(false);
   const [pendingAction,setPendingAction] = useState(null);
+  const [authMode,setAuthMode] = useState('login');
+  const [capabilities,setCapabilities] = useState({email_code_enabled:false,push_enabled:false});
+  const [socialInbox,setSocialInbox] = useState([]);
+  const [highlightedPresetId,setHighlightedPresetId] = useState(null);
+  const [migrationRequest,setMigrationRequest] = useState(null);
+  const [migrationBusy,setMigrationBusy] = useState(false);
+  const [migrationError,setMigrationError] = useState('');
 
   const {
     habits,
@@ -36,6 +49,7 @@ export default function App() {
     groups,
     groupsError,
     user,
+    guestMode, guestBackup, serverGamification, confirmedCheckins, guestDraftCount, migrateGuestToCloud, setAuthRequired,
     setUser,
     weekStart,
     updateWeekStart,
@@ -60,12 +74,44 @@ export default function App() {
     loadData,
   } = useHabits();
 
+  const inboxOwner=useRef(null);inboxOwner.current=api.isDemo()?'demo-user':user?.id;
+  const confirmed = confirmedCheckins || checkins.filter(c => !c.sync_status || c.sync_status === 'saved');
+  const gamification = useGamification(confirmed, habits, serverGamification, Boolean(user && !api.isDemo()), user?.id || (api.isDemo() ? 'demo-user' : 'guest'), weekStart);
+  useEffect(() => {
+    Promise.resolve(api.getAuthCapabilities?.()).then(res => { if(res) setCapabilities({email_code_enabled:Boolean(res.email_code_enabled),push_enabled:Boolean(res.push_enabled)}); }).catch(()=>{});
+  }, []);
+  const refreshInbox = useCallback(async () => {
+    const id=api.isDemo()?'demo-user':user?.id;
+    if(!id){setSocialInbox([]);return;}
+    const items=await fetchSocialInbox(id);if(inboxOwner.current===id)setSocialInbox(items);
+  }, [user?.id]);
+  useEffect(()=>{let active=true;const refresh=async()=>{if(active)await refreshInbox()};void refresh();const timer=setInterval(refresh,30000);return()=>{active=false;clearInterval(timer)}},[refreshInbox]);
+  const dismissInbox = id => { dismissNudge(id);setSocialInbox(items=>items.filter(item=>item.id!==id)); };
+  useEffect(()=>{
+    const today=localDateIso();
+    const unfinished=habits.filter(h=>isPlannedOn(h,today,confirmed,weekStart)&&stateFor(h,today,confirmed,weekStart).status!=='done').length;
+    updateAppBadge(unfinished);const remind=()=>{try{checkAndTriggerDailyReminder(habits,confirmed)}catch{}};remind();
+    const timer=setInterval(remind,60000);return()=>clearInterval(timer);
+  },[habits,confirmedCheckins,weekStart]);
+  useEffect(()=>{
+    const today=localDateIso();
+    const planned=habits.filter(h=>isPlannedOn(h,today,confirmed,weekStart));
+    if(planned.length && planned.every(h=>stateFor(h,today,confirmed,weekStart).status==='done'))gamification.awardAllDoneBonus(today);
+  },[habits,confirmedCheckins,weekStart,gamification.awardAllDoneBonus]);
+  useEffect(()=>{
+    if(!gamification.levelCelebrationPending)return;
+    const close=e=>{if(e.key==='Escape')gamification.clearLevelCelebration()};addEventListener('keydown',close);return()=>removeEventListener('keydown',close);
+  },[gamification.levelCelebrationPending,gamification.clearLevelCelebration]);
+
   // Check URL query parameters for deep linking (e.g. ?join= or ?invite=)
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
       const token = params.get('join') || params.get('invite');
-      if (params.get('auth')==='login') setAuthModalOpen(true);
+      if (['login','register'].includes(params.get('auth'))) {setAuthMode(params.get('auth'));setAuthModalOpen(true);}
+      const requestedView=params.get('view');
+      if(!location.hash&&['today','habits','discover','progress','groups','settings'].includes(requestedView))setView(requestedView);
+      if(params.get('preset')){setHighlightedPresetId(params.get('preset'));if(!location.hash)setView('discover');}
       if (token) {
         setInviteToken(token);
         setView('groups');
@@ -86,11 +132,17 @@ export default function App() {
     items[next]?.click();
   };
 
-  const openAuth = () => { if(api.demoMode){api.exitDemo();return;}setAuthModalOpen(true); };
+  const openAuth = (mode='login') => { if(api.demoMode){api.exitDemo();return;}setAuthMode(typeof mode==='string'?mode:'login');setAuthModalOpen(true); };
   const openCreateHabit = () => {
-    if(!api.demoMode&&!user){setPendingAction('createHabit');openAuth();return;}
+    if(!api.demoMode&&!user&&!guestMode){setPendingAction('createHabit');openAuth();return;}
     setEditingHabit(null);setHabitModalOpen(true);
   };
+  const addStarterHabits = async (presets=[],{authorized=false}={}) => {
+    if(!authorized&&!api.demoMode&&!user&&!guestMode){setPendingAction({type:'presets',presets});openAuth();return;}
+    for(const preset of presets)await addHabit({name:preset.name,tracking:preset.tracking||'check',direction:preset.direction||'at_least',unit:preset.unit||'',target:preset.target||1,schedule:preset.schedule||{type:'daily'},progression:preset.progression||{enabled:false,step:0,cap:null},debt:preset.debt||{enabled:false,cap:null},start_date:selectedDate});
+  };
+  const confirmGuestMigration=async()=>{if(migrationBusy)return;setMigrationBusy(true);setMigrationError('');try{const result=await migrateGuestToCloud?.({confirmed:true});if(result?.success===false)throw new Error(result.error||'Yerel kayıtlar aktarılamadı.');setMigrationRequest(null);await loadData();}catch(error){setMigrationError(error.message)}finally{setMigrationBusy(false)}};
+
   const handleSignOut = async ({accountDeleted=false} = {}) => {
     if(signingOut)return;
     if(api.demoMode){api.exitDemo();return;}
@@ -112,7 +164,7 @@ export default function App() {
         Ana içeriğe atla
       </a>
 
-      <Sidebar currentView={currentView} setView={setView} syncState={syncState} />
+      <Sidebar currentView={currentView} setView={setView} syncState={syncState} user={user} onOpenAuth={openAuth} />
 
       <div className="main-area">
         <TopBar
@@ -120,6 +172,7 @@ export default function App() {
           user={user}
           onOpenAuth={openAuth}
           syncState={syncState}
+          streak={gamification.streak} streakFreezes={gamification.streakFreezes} isStreakFrozenToday={gamification.isStreakFrozenToday} buyStreakFreeze={gamification.buyStreakFreeze} gems={gamification.gems} level={gamification.level} xp={gamification.xp}
         />
 
         <main id="main-content" className="content-wrap" tabIndex={-1}>
@@ -128,6 +181,8 @@ export default function App() {
           <UpdateBanner blocked={isHabitModalOpen || isAuthModalOpen || Boolean(pendingEntries?.length)} />
           {api.demoMode && <aside className="context-banner" aria-label="Demo bilgisi"><strong>Örnek görünüm</strong><span>Değişiklikler yalnızca bu tarayıcıda saklanır; hesabına aktarılmaz.</span><button type="button" className="button button-quiet" onClick={api.exitDemo}>Kendi hesabıma geç</button></aside>}
           {/kaydedilemedi|Arşivlenemedi|Geri yüklenemedi|Kayıt değişti|Cihazda bekliyor/.test(syncState) && <p className="inline-message" role="status">{syncState}</p>}
+          {guestMode && !api.demoMode && <aside className="context-banner"><strong>Misafir olarak deniyorsun</strong><span>Rutinlerin bu cihazda saklanır. Hesabına aktarım için girişten sonra ayrıca onayın alınır.</span><button type="button" className="button button-quiet" onClick={()=>openAuth('register')}>Hesap oluştur</button></aside>}
+          {migrationRequest && <aside className="context-banner" aria-label="Misafir kayıtlarını aktarma"><strong>{migrationRequest.count || guestDraftCount} yerel alışkanlığı hesabına aktarmak ister misin?</strong><span>Aktarım onaylanana kadar misafir kayıtların bu cihazda korunur.</span>{migrationError&&<p role="alert">{migrationError}</p>}<button type="button" className="button button-primary" disabled={migrationBusy} onClick={confirmGuestMigration}>{migrationBusy?'Aktarılıyor…':'Onayla ve hesabıma aktar'}</button><button type="button" className="button button-quiet" disabled={migrationBusy} onClick={()=>setMigrationRequest(null)}>Şimdilik cihazda tut</button></aside>}
           {storageError && <p className="inline-message" role="alert">{storageError}</p>}
           {signOutError && <p className="inline-message" role="alert">{signOutError}</p>}
           {pendingEntries?.length > 0 && <aside className="context-banner" aria-label="Kaydetme bekleyen kayıtlar"><strong>{pendingEntries.length} kayıt eşitleme bekliyor</strong>{pendingEntries.map(e=><div className="pending-entry" key={JSON.stringify([e.id,e.day])}><span>{habits.find(h=>h.id===e.id)?.name || 'Alışkanlık'} · {e.day}: {e.value} — {e.status==='conflict'?'Başka cihazda değişti':e.error||'Kaydediliyor…'}</span>{['error','conflict'].includes(e.status)&&<button type="button" className="button button-quiet" onClick={()=>retryEntry(e.id,e.day)}>Taslağı yeniden gönder</button>}</div>)}</aside>}
@@ -150,6 +205,8 @@ export default function App() {
                   habits={habits}
                   checkins={checkins}
                   logCheckin={logCheckin}
+                  gamification={gamification} socialInbox={socialInbox} onDismissInbox={dismissInbox}
+                  onAddStarterHabits={addStarterHabits} guestMode={guestMode&&!api.demoMode} onOpenAuth={openAuth}
                   entryStates={entryStates} retryEntry={retryEntry} undoEntry={undoEntry}
                   completionStats={completionStats}
                   filterMode={filterMode}
@@ -173,17 +230,18 @@ export default function App() {
               )}
 
               <Suspense fallback={<div role="status" aria-live="polite" className="loading-state" style={{ padding: '40px', textAlign: 'center', color: 'var(--muted)' }}>Yükleniyor…</div>}>
+                {currentView === 'discover' && (isFeatureEnabled('discover_rhythm_trials') ? <DiscoverView habits={habits} onAddPreset={preset=>addStarterHabits([preset])} highlightedPresetId={highlightedPresetId} onClearHighlight={()=>setHighlightedPresetId(null)} onGoToday={()=>setView('today')} /> : <section id="view-discover" className="page-view"><h1>Keşfet</h1><p>Ritim denemeleri şu an kapalı.</p></section>)}
                 {currentView === 'progress' && (
-                  <ProgressView habits={habits} checkins={checkins} weekStart={weekStart} />
+                  <ProgressView habits={habits} checkins={checkins} weekStart={weekStart} gamification={gamification} />
                 )}
 
                 {currentView === 'groups' && (
-                  <GroupsView weekStart={weekStart} onRequireAuth={openAuth} loadGroupsError={groupsError} groups={groups} user={user} loadData={loadData} initialInviteToken={inviteToken} onClearInviteToken={() => {setInviteToken(null);clearInviteQuery();}} />
+                  <GroupsView gamification={gamification} socialInbox={socialInbox} onSocialRefresh={refreshInbox} onDismissInbox={dismissInbox} guestMode={guestMode} onOpenAuth={openAuth} weekStart={weekStart} onRequireAuth={openAuth} loadGroupsError={groupsError} groups={groups} user={user} loadData={loadData} initialInviteToken={inviteToken} onClearInviteToken={() => {setInviteToken(null);clearInviteQuery();}} />
                 )}
 
                 {currentView === 'settings' && (
                   <SettingsView
-                    user={user}
+                    user={user} setUser={setUser} guestMode={guestMode} guestBackup={guestBackup} onOpenAuth={openAuth} pushEnabled={capabilities.push_enabled}
                     habits={habits}
                     checkins={checkins}
                     weekStart={weekStart}
@@ -201,6 +259,7 @@ export default function App() {
         </main>
       </div>
 
+      {gamification.levelCelebrationPending && <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="level-modal-title" onClick={gamification.clearLevelCelebration}><div className="dialog-sheet" style={{textAlign:'center',maxWidth:400}} onClick={e=>e.stopPropagation()}><h2 id="level-modal-title">Seviye {gamification.levelCelebrationPending}!</h2><p>Düzenli adımlarınla ilerliyorsun. Yeni seviyen kutlu olsun.</p><button type="button" className="button button-primary" onClick={gamification.clearLevelCelebration}>Devam et</button></div></div>}
       <MobileNav currentView={currentView} setView={setView} />
 
       <HabitModal
@@ -215,8 +274,16 @@ export default function App() {
         {isAuthModalOpen && (
           <AuthModal
             isOpen={isAuthModalOpen}
+            initialMode={authMode} emailCodeEnabled={capabilities.email_code_enabled} guestHabitsCount={guestMode&&!api.demoMode?habits.length:0}
             onClose={() => setAuthModalOpen(false)}
-            onAuthSuccess={async(u) => { setUser(u); await loadData(); const url=new URL(location.href);url.searchParams.delete('auth');history.replaceState({},'',url.pathname+url.search+url.hash);if(pendingAction==='createHabit'){setPendingAction(null);setEditingHabit(null);setHabitModalOpen(true);} }}
+            onAuthSuccess={async(u) => {
+              setUser(u);setAuthRequired?.(false);await loadData();
+              const migration=await migrateGuestToCloud?.();if(migration?.requiresConfirmation)setMigrationRequest(migration);
+              const url=new URL(location.href);url.searchParams.delete('auth');history.replaceState({},'',url.pathname+url.search+url.hash);
+              if(pendingAction==='createHabit'){setPendingAction(null);setEditingHabit(null);setHabitModalOpen(true);}
+              else if(pendingAction?.type==='presets'){const presets=pendingAction.presets;setPendingAction(null);await addStarterHabits(presets,{authorized:true});}
+              void refreshInbox();
+            }}
           />
         )}
       </Suspense>

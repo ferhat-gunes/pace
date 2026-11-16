@@ -15,7 +15,7 @@ try{
   await page.waitForFunction(t=>(document.documentElement.getAttribute('data-theme')==='dark')===(t==='dark'),theme);
   for(const width of [320,390,768,1440]){
    await page.setViewportSize({width,height:width<768?844:1000});const nav=width<768?'.mobile-nav':'.sidebar';
-   for(const view of ['today','habits','progress','groups','settings']){
+   for(const view of ['today','habits','discover','progress','groups','settings']){
     await page.locator(`${nav} [data-view="${view}"]`).click();await page.locator(`#view-${view} h1`).waitFor();await page.evaluate(()=>document.fonts.ready);
     await page.addScriptTag({path:require.resolve('axe-core/axe.min.js')});
     const result=await page.evaluate(async()=>{

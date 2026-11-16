@@ -1,0 +1,11 @@
+name = "pace-push-dispatcher"
+main = "workers/push-dispatcher.js"
+compatibility_date = "2026-10-26"
+
+[triggers]
+crons = ["*/15 * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pace"
+database_id = "5f888b87-7dc0-4052-8c7a-c0893f12dcdc"

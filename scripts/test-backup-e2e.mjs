@@ -1,3 +1,4 @@
+import { fulfillFeatureRequest } from './browser-feature-contracts.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -13,6 +14,7 @@ try {
   const unknown = [], errors = [];
   page.on('pageerror', e => errors.push(e.message));
   await page.route('**/api/**', async route => {
+    if(await fulfillFeatureRequest(route))return;
     const req = route.request(), path = new URL(req.url()).pathname;
     let status = 200, body;
     if (path === '/api/habits' && req.method() === 'GET') body = { user, habits, checkins: records, week_start: 1 };

@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "check": "node --check \"assets/js/app.js\" && node --check \"assets/js/api.js\" && node --check \"assets/js/rules.js\" && node --check \"assets/js/entry-queue.js\" && node --check \"assets/js/habit-form.js\" && node --check \"functions/lib/auth.js\" && node --check \"functions/lib/password.js\" && node --check \"functions/api/[[path]].js\" && node --check \"functions/_middleware.js\" && node --check \"sw.js\" && node --check \"scripts/build.mjs\" && node --check assets/js/state-sync.js && node --check assets/js/statistics.js && node --check assets/js/entry-affordances.js && node --check scripts/test-groups-and-social.mjs && node --check scripts/test-auth-security.mjs",
-    "test": "node scripts/test-entry-queue.mjs && node scripts/test-habit-form.mjs && node scripts/test-habit-rules.mjs && node --test scripts/test-state-sync.mjs && node --test scripts/test-statistics.mjs && node --test scripts/test-entry-affordances.mjs && node --test scripts/test-groups-and-social.mjs && node --test scripts/test-group-creation.mjs && node --test scripts/test-auth-security.mjs && node --test scripts/test-account-sync.mjs scripts/test-auth-ui.mjs scripts/test-backup-roundtrip.mjs scripts/test-group-ui.mjs scripts/test-habit-editor.mjs scripts/test-today-statistics.mjs scripts/test-review-regressions.mjs scripts/test-api-contracts.mjs && node --test scripts/test-real-api.mjs",
+    "check": "node --check \"assets/js/app.js\" && node --check \"assets/js/api.js\" && node --check \"assets/js/rules.js\" && node --check \"assets/js/entry-queue.js\" && node --check \"assets/js/habit-form.js\" && node --check \"functions/lib/auth.js\" && node --check \"functions/lib/password.js\" && node --check \"functions/api/[[path]].js\" && node --check \"functions/_middleware.js\" && node --check \"sw.js\" && node --check \"scripts/build.mjs\" && node --check assets/js/state-sync.js && node --check assets/js/statistics.js && node --check assets/js/entry-affordances.js && node --check scripts/test-groups-and-social.mjs && node --check scripts/test-auth-security.mjs && node --check src/lib/notifications.js && node --check src/lib/telemetry.js && node --check src/lib/discoverCatalog.js && node --check functions/lib/webpush.js && node --check workers/push-dispatcher.js",
+    "test": "node scripts/test-entry-queue.mjs && node scripts/test-habit-form.mjs && node scripts/test-habit-rules.mjs && node --test scripts/test-state-sync.mjs && node --test scripts/test-statistics.mjs && node --test scripts/test-entry-affordances.mjs && node --test scripts/test-groups-and-social.mjs && node --test scripts/test-group-creation.mjs && node --test scripts/test-auth-security.mjs && node --test scripts/test-account-sync.mjs scripts/test-auth-ui.mjs scripts/test-backup-roundtrip.mjs scripts/test-group-ui.mjs scripts/test-habit-editor.mjs scripts/test-today-statistics.mjs scripts/test-review-regressions.mjs scripts/test-api-contracts.mjs && node --test scripts/test-real-api.mjs && node --test scripts/test-simulation-features.mjs scripts/test-p0-p3-fixes.mjs scripts/test-discover-and-telemetry.mjs scripts/test-preserved-api.mjs && node --test scripts/test-guest-store.mjs",
     "test:ux": "node scripts/test-ux-e2e.mjs",
     "dev": "vite --host 0.0.0.0",
     "preview": "vite preview --host 0.0.0.0",
@@ -18,7 +18,9 @@
   "dependencies": {
     "@astryxdesign/core": "^0.7.11",
     "@astryxdesign/theme-matcha": "^0.7.11",
+    "canvas-confetti": "^1.9.4",
     "lucide-react": "^1.70.0",
+    "motion": "^14.14.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },

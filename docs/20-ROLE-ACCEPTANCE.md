@@ -1,3 +1,5 @@
+> Yayın güncellemesi: Güncel main özellikleri korunarak yapılan birleşim ve 49 durumluk test özeti için [yayın notuna](RELEASE-2026-11-16.md) bak.
+
 # 20 eleştiri rolü — düzeltme ve kabul kaydı
 
 16 Kasım 2026. Çalışma yalnız mevcut PACE taslağında yapıldı; yayın, üretim veritabanı veya canlı hesap değişikliği yapılmadı.

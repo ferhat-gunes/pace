@@ -1,3 +1,4 @@
+import { fulfillFeatureRequest } from './browser-feature-contracts.mjs';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { existsSync } from 'node:fs';
@@ -8,6 +9,7 @@ try{
  let authorized=true,deleted=false;const unexpected=[];
  const user={id:'review-user',email:'review@example.test',week_start:1};
  await page.route('**/api/**',async route=>{
+    if(await fulfillFeatureRequest(route))return;
   const path=new URL(route.request().url()).pathname,method=route.request().method();let status=200,body;
   if(path==='/api/habits'&&method==='GET'){if(authorized)body={user,habits:[],checkins:[]};else{status=401;body={error:'Giriş gerekli'}}}
   else if(path==='/api/groups'&&method==='GET')body={groups:[]};

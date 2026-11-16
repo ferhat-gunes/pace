@@ -1,3 +1,4 @@
+import { fulfillFeatureRequest } from './browser-feature-contracts.mjs';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright';
@@ -17,6 +18,7 @@ try {
   const writes = [], calls = [], unexpected = [], pageErrors = [];
   page.on('pageerror', err => pageErrors.push(err.message));
   await page.route('**/api/**', async route => {
+    if(await fulfillFeatureRequest(route))return;
     const req = route.request(), path = new URL(req.url()).pathname, method = req.method();
     const body = req.postData() ? req.postDataJSON() : null;
     calls.push({ path, method, body });

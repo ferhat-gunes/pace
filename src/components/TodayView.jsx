@@ -1,9 +1,11 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { Plus, Check, Minus, ChevronLeft, ChevronRight, RotateCcw, Sparkles } from 'lucide-react';
 import { addDays, formatNumber, formatTarget, latestCheckins, recordFor, settingsAt, goalFor, stateFor, weekDays as calendarWeek } from '../lib/rules';
 import { dailyCompletion } from '../lib/statistics.js';
 import { resolveRolloverSelection, useLocalDate } from '../lib/local-date.js';
 import { parseEntryAmount } from '../lib/numeric-entry.js';
+import DailyEngagement from './DailyEngagement.jsx';
+const OnboardingStarter=lazy(()=>import('./OnboardingStarter.jsx'));
 import { triggerHaptic, triggerConfetti } from '../lib/celebration';
 
 const shortDay = day => new Intl.DateTimeFormat('tr-TR', { weekday: 'short' }).format(new Date(day + 'T12:00:00'));
@@ -13,7 +15,7 @@ const entryKey = (id, day) => JSON.stringify([id, day]);
 export default function TodayView({
   selectedDate, setSelectedDate, todayHabits = [], habits = [], checkins = [], logCheckin,
   completionStats = { completed: 0, total: 0, percentage: 0 }, filterMode = 'planned',
-  setFilterMode, onOpenAddModal, weekStart = 1, entryStates = {}, retryEntry, undoEntry,
+  setFilterMode, onOpenAddModal, onAddStarterHabits, guestMode=false, onOpenAuth, gamification, socialInbox=[], onDismissInbox, weekStart = 1, entryStates = {}, retryEntry, undoEntry,
 }) {
   const todayIso = useLocalDate();
   const previousToday = useRef(todayIso);
@@ -68,6 +70,7 @@ export default function TodayView({
   return (
     <section className="page-view" id="view-today" aria-labelledby="page-title">
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">{announcement}</div>
+      <DailyEngagement gamification={gamification} checkins={normalized} socialInbox={socialInbox} onDismissInbox={onDismissInbox} />
       <div className="today-heading-wrap" style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
           <div>
@@ -99,7 +102,7 @@ export default function TodayView({
       </div>
       {future && <p className="inline-message" role="status">Gelecek günün planını görüntülüyorsun. Kayıt girişi o gün açılır.</p>}
       {isAllDone && <div className="celebration-card" role="status"><Sparkles size={20} aria-hidden="true" /><strong> Güzel bir ritim!</strong><p>Bu tarihin planlanan hedefleri tamamlandı. Kendi ritminde devam et.</p></div>}
-      {todayHabits.length === 0 ? <div className="empty-state panel-card" style={{ padding: '40px 24px', textAlign: 'center' }}>
+      {!hasHabits && onAddStarterHabits ? <Suspense fallback={<p role="status">Başlangıç rutinleri yükleniyor…</p>}><OnboardingStarter onAddStarterHabits={onAddStarterHabits} onOpenCustomModal={onOpenAddModal} /></Suspense> : todayHabits.length === 0 ? <div className="empty-state panel-card" style={{ padding: '40px 24px', textAlign: 'center' }}>
         <h2>{hasHabits && filterMode === 'planned' ? 'Bu tarih için plan yok' : 'İlk alışkanlığınla başla'}</h2>
         <p>{hasHabits ? 'Planlanmamış günler eksik sayılmaz. İstersen diğer alışkanlıklarını görüntüleyebilirsin.' : 'Küçük bir hedef seç; ilerlemeni kendi ritminde takip et.'}</p>
         <button type="button" className="button button-primary" onClick={hasHabits && filterMode === 'planned' ? () => setFilterMode?.('all') : onOpenAddModal}>{hasHabits && filterMode === 'planned' ? 'Tüm alışkanlıkları gör' : 'İlk Alışkanlığını Ekle +'}</button>

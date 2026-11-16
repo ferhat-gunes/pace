@@ -3,9 +3,11 @@ import { Download, Upload, LogOut, CheckCircle2, AlertTriangle } from 'lucide-re
 import * as api from '../lib/api';
 import { BACKUP_LIMITS, backupPreview, buildPersonalBackup } from '../lib/backup.js';
 import { dateKey } from '../lib/rules.js';
+import AccountSecuritySettings from './Settings/AccountSecuritySettings.jsx';
+import NotificationSettings from './Settings/NotificationSettings.jsx';
 import { useTheme } from '../theme/ThemeProvider.jsx';
 
-export default function SettingsView({ user, habits = [], checkins = [], groups = [], pendingEntries = [], weekStart = 1, updateWeekStart, importBackup, onSignOut, onClearLocalData }) {
+export default function SettingsView({ user, habits = [], checkins = [], groups = [], pendingEntries = [], weekStart = 1, updateWeekStart, importBackup, onSignOut, onClearLocalData, setUser, guestMode = false, guestBackup = null, onOpenAuth = null, pushEnabled = false }) {
   const { preference, setPreference } = useTheme();
   const [notice, setNotice] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -14,7 +16,8 @@ export default function SettingsView({ user, habits = [], checkins = [], groups 
   const [confirmClear, setConfirmClear] = useState(false);
   const [deletePhrase, setDeletePhrase] = useState('');
   const isDemo = api.demoMode;
-  const authorized = Boolean(user?.id) && !isDemo;
+  const authorized = Boolean(user?.id) && !isDemo && !guestMode;
+  const personalAvailable = authorized || isDemo || guestMode;
   const ownedGroups = groups.filter(g => g.role === 'owner' || g.owner_id === user?.id).length;
   const pendingCount = pendingEntries.length;
   const inform = (message, error = false) => setNotice({ message, error });
@@ -23,7 +26,7 @@ export default function SettingsView({ user, habits = [], checkins = [], groups 
     if (busy) return;
     setBusy('export');
     try {
-      const source = await api.exportData();
+      const source = guestMode ? (typeof guestBackup === 'function' ? guestBackup() : guestBackup) || {user:null,habits,checkins,week_start:weekStart} : await api.exportData();
       const data = buildPersonalBackup({ user: source.user || user, habits: source.habits, checkins: source.checkins, weekStart: source.week_start ?? weekStart, pendingCount });
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       if (blob.size > BACKUP_LIMITS.bytes) throw new Error('Bu yedek desteklenen 2 MiB sınırını aşıyor; içe aktarılabilir bir dosya oluşturulamadı.');
@@ -105,23 +108,26 @@ export default function SettingsView({ user, habits = [], checkins = [], groups 
       <div className="settings-layout">
         <section className="settings-section">
           <h2>Hesap bilgileri</h2>
-          <div className="settings-row"><div><strong id="account-email">{isDemo ? 'Örnek hesap' : user?.email || 'Giriş yapılmadı'}</strong>
-            <p>{isDemo ? 'Demo kayıtları yalnızca bu tarayıcıda saklanır; gerçek hesabına aktarılmaz.' : authorized ? 'Kayıtların hesabında, çevrimdışı kopyan ve bekleyen taslakların bu cihazda saklanır.' : 'Kayıtlarını eşitlemek için giriş yap.'}</p></div>
+          <div className="settings-row"><div><strong id="account-email">{isDemo ? 'Örnek hesap' : guestMode ? 'Bu cihazdaki kişisel alanın' : user?.email || 'Giriş yapılmadı'}</strong>
+            <p>{isDemo ? 'Demo kayıtları yalnızca bu tarayıcıda saklanır; gerçek hesabına aktarılmaz.' : guestMode ? 'Misafir kayıtların yalnızca bu tarayıcıda saklanır. Hesabına geçerken aktarımı seçebilirsin.' : authorized ? 'Kayıtların hesabında, çevrimdışı kopyan ve bekleyen taslakların bu cihazda saklanır.' : 'Kayıtlarını eşitlemek için giriş yap.'}</p></div>
             {(authorized || isDemo) && <button type="button" className="button button-quiet" disabled={Boolean(busy)} onClick={async () => { try { await onSignOut?.(); } catch (err) { inform('Çıkış yapılamadı: ' + err.message, true); } }}><LogOut size={16} aria-hidden="true" /> {isDemo ? 'Demodan çık' : 'Çıkış yap'}</button>}
           </div>
           {authorized && onClearLocalData && <div className="settings-row"><div><strong>Cihazdaki yerel kopya</strong><p>Hesabını silmeden bu cihazdaki önbelleği temizleyebilirsin. Bekleyen taslaklar varsa önce eşitle veya geri al.</p></div>
             {!confirmClear ? <button type="button" className="button button-quiet" disabled={Boolean(busy) || pendingCount > 0} onClick={() => setConfirmClear(true)}>Yerel kopyayı temizle</button> : <div className="inline-message"><p>Sunucudaki kayıtlar korunur. Bu cihazdaki kopyayı temizlemek istiyor musun?</p><div className="heading-actions"><button type="button" className="button button-quiet" disabled={Boolean(busy)} onClick={() => setConfirmClear(false)}>Vazgeç</button><button type="button" className="button button-danger-quiet" disabled={Boolean(busy)} onClick={clearLocal}>Evet, yerel kopyayı temizle</button></div></div>}
           </div>}
         </section>
+        {guestMode && onOpenAuth && <section className="settings-section"><h2>Hesabınla eşitle</h2><p>Bu cihazdaki rutinlerini kaybetmeden hesabına geçebilirsin. Aktarım girişten sonra açıkça sunulur.</p><div className="heading-actions"><button type="button" className="button button-primary" onClick={()=>onOpenAuth('register')}>Hesap oluştur</button><button type="button" className="button button-quiet" onClick={()=>onOpenAuth('login')}>Giriş yap</button></div></section>}
+        {authorized && <AccountSecuritySettings user={user} setUser={setUser}/>}
+        <NotificationSettings authorized={authorized} pushEnabled={pushEnabled}/>
         <section className="settings-section">
           <h2>Tercihler</h2>
-          <label className="settings-row" htmlFor="week-start-select"><div><strong>Haftanın ilk günü</strong><p>Takvimin ve haftalık hedeflerin başladığı gün.</p></div><select id="week-start-select" value={weekStart} disabled={Boolean(busy) || (!authorized && !isDemo)} onChange={e => saveWeekStart(e.target.value)}><option value="1">Pazartesi</option><option value="0">Pazar</option></select></label>
+          <label className="settings-row" htmlFor="week-start-select"><div><strong>Haftanın ilk günü</strong><p>Takvimin ve haftalık hedeflerin başladığı gün.</p></div><select id="week-start-select" value={weekStart} disabled={Boolean(busy) || !personalAvailable} onChange={e => saveWeekStart(e.target.value)}><option value="1">Pazartesi</option><option value="0">Pazar</option></select></label>
           <label className="settings-row" htmlFor="theme-select"><div><strong>Görünüm teması</strong><p>Açık, koyu veya cihazının tema tercihi.</p></div><select id="theme-select" value={preference} onChange={e => { setPreference(e.target.value); inform('Tema tercihi güncellendi.'); }}><option value="light">Açık (Krem)</option><option value="dark">Koyu (Gece)</option><option value="system">Sistem</option></select></label>
           <div className="settings-row"><div><strong>Saat dilimi</strong><p>Kayıt günleri cihazının yerel takvimini kullanır.</p></div><span id="device-timezone">{Intl.DateTimeFormat().resolvedOptions().timeZone}</span></div>
         </section>
         <section className="settings-section">
           <h2>Verilerin ve yedekleme</h2>
-          <div className="settings-row"><div><strong>Kişisel yedek</strong><p>E-posta adresini, kişisel alışkanlıklarını, tarihsel kurallarını ve günlük kayıtlarını içerir. Grup verileri, parolalar ve kurtarma kodları dahil değildir.</p><p>Sunucuda doğrulanmış kayıtlar dışa aktarılır. {pendingCount ? `${pendingCount} eşitlenmemiş taslak bu yedeğe dahil edilmez.` : 'Eşitlenmemiş değişiklikler yedeğe dahil edilmez.'} Dosyanı özel bir yerde sakla.</p></div><div className="heading-actions"><button type="button" className="button button-quiet" disabled={Boolean(busy) || (!authorized && !isDemo)} onClick={handleExport} aria-label="Yedeği JSON olarak dışa aktar"><Download size={16} aria-hidden="true" /> {busy === 'export' ? 'Yedek hazırlanıyor…' : 'Dışa aktar'}</button><label htmlFor="backup-upload-input" className="button button-quiet"><Upload size={16} aria-hidden="true" /><span>Yedeği yükle</span><input id="backup-upload-input" type="file" accept=".json,application/json" disabled={Boolean(busy) || (!authorized && !isDemo)} onChange={handleImportFile} className="sr-only" /></label></div></div>
+          <div className="settings-row"><div><strong>Kişisel yedek</strong><p>E-posta adresini, kişisel alışkanlıklarını, tarihsel kurallarını ve günlük kayıtlarını içerir. Grup verileri, parolalar ve kurtarma kodları dahil değildir.</p><p>{guestMode?'Bu tarayıcıdaki kişisel kayıtlar':'Sunucuda doğrulanmış kayıtlar'} dışa aktarılır. {pendingCount ? `${pendingCount} eşitlenmemiş taslak bu yedeğe dahil edilmez.` : 'Eşitlenmemiş değişiklikler yedeğe dahil edilmez.'} Dosyanı özel bir yerde sakla.</p></div><div className="heading-actions"><button type="button" className="button button-quiet" disabled={Boolean(busy) || !personalAvailable} onClick={handleExport} aria-label="Yedeği JSON olarak dışa aktar"><Download size={16} aria-hidden="true" /> {busy === 'export' ? 'Yedek hazırlanıyor…' : 'Dışa aktar'}</button><label htmlFor="backup-upload-input" className="button button-quiet"><Upload size={16} aria-hidden="true" /><span>Yedeği yükle</span><input id="backup-upload-input" type="file" accept=".json,application/json" disabled={Boolean(busy) || !personalAvailable} onChange={handleImportFile} className="sr-only" /></label></div></div>
           <p className="table-hint">En fazla 2 MiB, 500 alışkanlık ve 10.000 günlük kayıt. Dosya seçimi hesabını değiştirmez; önce önizleme gösterilir.</p>
           {busy === 'read' && <p role="status">Dosya okunuyor ve doğrulanıyor…</p>}
           {preview && <section className="inline-message" aria-labelledby="backup-preview-title"><h3 id="backup-preview-title">Yedeği içe aktarmadan önce</h3><p>{preview.filename}: {preview.habits} alışkanlık, {preview.records} günlük kayıt ve {preview.versions} geçmiş kural.</p><p>{preview.matchingHabits} alışkanlığın mevcut kimliği eşleşiyor: bunların ayarları ve geçmiş kuralları yedektekiyle değiştirilecek. Aynı alışkanlık/gündeki kayıtlar yedekteki değerle güncellenir. Yedekte olmayan alışkanlık ve kayıtlar silinmez; grup verileri değişmez.</p><p>Dosyadaki hafta başlangıcı tercihi de uygulanır. Başka hesaba ait kimlik çakışmaları yeni kimliklerle aktarılır.</p>{pendingCount > 0 && <p role="alert">Önce {pendingCount} bekleyen taslağı eşitle veya yerel kopyayı temizle. İçe aktarma bekleyen değerlerin üzerine yazmamalı.</p>}<div className="heading-actions"><button type="button" className="button button-quiet" disabled={Boolean(busy)} onClick={() => setPreview(null)}>İçe aktarmaktan vazgeç</button><button type="button" className="button button-primary" disabled={Boolean(busy) || pendingCount > 0} onClick={confirmImport}>{busy === 'import' ? 'İçe aktarılıyor…' : 'Onayla ve içe aktar'}</button></div></section>}

@@ -1,3 +1,4 @@
+import { fulfillFeatureRequest } from './browser-feature-contracts.mjs';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { existsSync } from 'node:fs';
@@ -10,6 +11,7 @@ try {
  const habits=[{id:'h',name:'Kısa yürüyüş',start_date:'2026-11-16',tracking:'quantity',target:.25,unit:'km',direction:'at_least',schedule:{type:'daily'},progression:{enabled:false},debt:{enabled:false}},{id:'w',name:'Haftalık meditasyon',start_date:'2026-11-16',tracking:'check',target:1,schedule:{type:'weekly_quota',times_per_week:2},progression:{enabled:false},debt:{enabled:false}}];
  let checkins=[{id:'a',habit_id:'w',habit_date:'2026-11-16',value:1,revision:1},{id:'b',habit_id:'w',habit_date:'2026-11-17',value:1,revision:1}];let puts=[];
  await page.route('**/api/**',async route=>{
+    if(await fulfillFeatureRequest(route))return;
   const req=route.request(),path=new URL(req.url()).pathname;
   let body;
   if(path==='/api/habits'&&req.method()==='GET')body={user,habits,checkins};

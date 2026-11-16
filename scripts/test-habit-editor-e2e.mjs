@@ -1,3 +1,4 @@
+import { fulfillFeatureRequest } from './browser-feature-contracts.mjs';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright';
@@ -51,6 +52,7 @@ try {
   let attempts = 0;
   let savedHabits = [];
   await formPage.route('**/api/**', async route => {
+    if(await fulfillFeatureRequest(route))return;
     const req = route.request(), path = new URL(req.url()).pathname;
     if (path === '/api/habits' && req.method() === 'GET') return route.fulfill({ json: { user: { id: 'editor-test', email: 'editor@example.test' }, habits: savedHabits, checkins: [] } });
     if (path === '/api/groups' && req.method() === 'GET') return route.fulfill({ json: { groups: [] } });

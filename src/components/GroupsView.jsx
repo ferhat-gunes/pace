@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Users, UserPlus, Copy, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import * as api from '../lib/api';
 import { dateKey, weekDays, addDays } from '../lib/rules.js';
+import GroupSocialPanel from './Groups/GroupSocialPanel.jsx';
 import { dayLabel, latestGroupLog, groupDayState, groupWeekSummary, groupHabitSettings, groupWriteBody, groupSettings, requireGroupDetail, requireGroupSuccess } from '../lib/group-ui.js';
 
 const fieldStyle = { display: 'block', marginBottom: 16 };
@@ -30,7 +31,7 @@ function HabitFields({ draft, setDraft, optional = false }) {
   </>;
 }
 
-export default function GroupsView({ groups = [], loadGroupsError = '', user, loadData, weekStart = 1, initialInviteToken = null, onClearInviteToken = null, onRequireAuth = null }) {
+export default function GroupsView({ groups = [], loadGroupsError = '', user, loadData, weekStart = 1, initialInviteToken = null, onClearInviteToken = null, onRequireAuth = null, gamification = null, onSocialRefresh = null }) {
   const contextKey = `pace-group-context:${user?.id || 'guest'}`;
   const readContext = () => { try { return JSON.parse(sessionStorage.getItem(contextKey) || '{}'); } catch { return {}; } };
   const [selected, setSelected] = useState(() => readContext().selected || groups[0]?.id || null);
@@ -68,7 +69,7 @@ export default function GroupsView({ groups = [], loadGroupsError = '', user, lo
   }, [initialInviteToken, previewAttempt]);
   useEffect(() => { if (user?.id && invite && modal === null) setModal('accept'); }, [user?.id]);
   const close = useCallback(() => { if (lock.current) return; setModal(null); setRecord(null); setConfirmation(null); setError(''); setInvite(null); onClearInviteToken?.(); }, [onClearInviteToken]);
-  useEffect(() => { const esc = e => { if (e.key === 'Escape') close(); }; window.addEventListener('keydown', esc); return () => window.removeEventListener('keydown', esc); }, [close]);
+  useEffect(() => { const esc = e => { if (e.key === 'Escape' && modal) close(); }; window.addEventListener('keydown', esc); return () => window.removeEventListener('keydown', esc); }, [close, modal]);
   async function run(kind, task) {
     if (lock.current) return;
     lock.current = true; setBusy(kind); setError(''); setNotice('');
@@ -167,6 +168,7 @@ export default function GroupsView({ groups = [], loadGroupsError = '', user, lo
             return <td key={day} style={{ textAlign: 'center' }}>{own && day <= today ? <button className={`button ${state === 'Tamamlandı' ? 'button-complete' : 'button-quiet'}`} disabled={!!busy} onClick={() => openRecord(habit, day)} aria-label={`${habit.name}, ${dayLabel(day)}: ${state}. Kaydı düzenle`}>{state === 'Tamamlandı' ? '✓' : log && !log.deleted ? log.value : '+'}</button> : <span aria-label={`${dayLabel(day)}: ${state}`}>{state === 'Tamamlandı' ? '✓' : day > today ? '·' : '—'}<span className="sr-only">{state}</span></span>}</td>;
           })}<td>{summary.elapsed ? `${summary.completed}/${summary.elapsed} · %${summary.percentage}` : 'Henüz başlamadı'}</td></tr>;
         }))}</tbody></table></div>}
+        <GroupSocialPanel group={active} members={members} habits={habits} checkins={checkins} reactions={detail?.reactions || []} user={user} anchor={anchor} weekStart={weekStart} gamification={gamification} onRefresh={()=>refresh(active.id)} onSocialRefresh={onSocialRefresh}/>
         <section style={{ marginTop: 28 }} aria-labelledby="group-members-title"><h3 id="group-members-title">Üyeler ve yönetim</h3><p className="table-hint">{isOwner ? 'Grup lideri olarak üyeleri ve ortak hedefleri yönetebilirsin.' : 'Üye olarak kendi kayıtlarını düzenleyebilirsin. Yönetim işlemleri grup liderine aittir.'}</p>{members.map(member => <div key={member.user_id} className="settings-row" style={{ ...actionsStyle, justifyContent: 'space-between' }}><strong>{member.display_name || 'Üye'} {member.role === 'owner' ? '· Lider' : '· Üye'}</strong>{isOwner && member.user_id !== user?.id && <div style={actionsStyle}><button className="button button-quiet" disabled={!!busy} onClick={() => confirm('transfer', member)}>Liderliği devret</button><button className="button button-danger-quiet" disabled={!!busy} onClick={() => confirm('kick', member)}>Üyeyi çıkar</button></div>}</div>)}{isOwner && <div style={{ ...actionsStyle, marginTop: 20 }}><button className="button button-primary" disabled={!!busy} onClick={() => { setDraft(blankHabit()); open('habit'); }}>Ortak alışkanlık ekle</button><button className="button button-quiet" disabled={!!busy} onClick={() => { setName(active.name); setDescription(active.description || ''); open('edit'); }}>Grubu düzenle</button><button className="button button-danger-quiet" disabled={!!busy} onClick={() => confirm('delete')}>Grubu sil</button></div>}</section>
       </>}
     </div>}

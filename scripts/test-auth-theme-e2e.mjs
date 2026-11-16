@@ -1,3 +1,4 @@
+import { fulfillFeatureRequest } from './browser-feature-contracts.mjs';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright';
@@ -20,6 +21,7 @@ try {
   const registerReceived = new Promise(resolve => { resolveRegister = resolve; });
   const registerGate = new Promise(resolve => { releaseRegister = resolve; });
   await page.route('**/api/**', async route => {
+    if(await fulfillFeatureRequest(route))return;
     const req = route.request();
     const path = new URL(req.url()).pathname;
     let status = 200;

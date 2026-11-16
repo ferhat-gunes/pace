@@ -1,7 +1,7 @@
 import { settingsAt } from './rules.js';
 import { validateBackup } from './backup.js';
 const DEMO_KEY='pace_demo_state_v1';
-const params=new URLSearchParams(location.search);
+const params=new URLSearchParams(globalThis.location?.search||'');
 function rememberedDemo(){try{return sessionStorage.getItem('pace_demo')==='1'}catch{return false}}
 export const demoMode=params.has('demo') || rememberedDemo();
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
@@ -76,6 +76,7 @@ export function validateResponse(path,method,payload){
     const field=path==='groups'?'group':'habit';if(!payload[field]?.id)throw responseError('Oluşturulan kayıt doğrulanamadı.');
   }else if(/\/invites$/.test(path)||method==='GET'&&/^invites\//.test(path)){
     if(!has('invite'))throw responseError('Davet yanıtı doğrulanamadı.');
+  }else if(method==='POST'&&/\/reactions$/.test(path)){if(!payload.reaction?.id)throw responseError('Tepki yanıtı doğrulanamadı.');
   }else if(method!=='GET'&&!path.startsWith('auth/')&&payload.ok!==true)throw responseError('İşlemin tamamlandığı doğrulanamadı. Yeniden dene.');
   return payload;
 }
@@ -106,14 +107,29 @@ function demoRequest(path,options={}){
   let s=getDemo();
   if(!s.groups) s.groups=[];
   if(!s.group_details) s.group_details={};
+  if(!s.gamification)s.gamification={xp:0,gems:10,streakFreezes:1,usedFreezeDates:{},claimedDates:{},allDoneBonusDates:{}};
+  if(!s.social_inbox)s.social_inbox=[];
   const method=options.method||'GET';
   const body=options.body?JSON.parse(options.body):{};
   const grouped=path.match(/^groups\/([^/]+)/);
   if(grouped&&s.group_details[grouped[1]]){
     const detail=s.group_details[grouped[1]],member=detail.members.find(m=>m.user_id===s.user.id);
     if(!member)throw responseError('Grup bulunamadı.',404);
-    const memberAction=method==='GET'||/\/(invites|leave)$/.test(path)||/\/check-ins\//.test(path);
+    const memberAction=method==='GET'||/\/(invites|leave|reactions)$/.test(path)||/\/check-ins\//.test(path);
     if(!memberAction&&member.role!=='owner')throw responseError('Yalnızca grup lideri bu işlemi yapabilir.',403);
+  }
+  if(path==='auth/capabilities'&&method==='GET')return Promise.resolve({email_code_enabled:false,push_enabled:false});
+  if(path==='push/public-key'&&method==='GET')return Promise.resolve({public_key:null});
+  if(path==='push/subscribe'&&(method==='POST'||method==='DELETE'))return Promise.resolve({ok:true});
+  if(path==='push/preferences'&&method==='PATCH')return Promise.resolve({ok:true});
+  if(path==='gamification'&&method==='GET')return Promise.resolve({gamification:s.gamification});
+  if(path==='gamification'&&method==='PUT'){s.gamification={...s.gamification,...body};saveDemo(s);return Promise.resolve({ok:true});}
+  if(path==='social/inbox'&&method==='GET')return Promise.resolve({items:s.social_inbox.filter(x=>!x.read)});
+  const inboxReadMatch=path.match(/^social\/inbox\/([^/]+)\/read$/);
+  if(inboxReadMatch&&method==='POST'){
+    s.social_inbox=s.social_inbox.map(x=>x.id===inboxReadMatch[1]?{...x,read:true}:x);
+    saveDemo(s);
+    return Promise.resolve({ok:true});
   }
   if(path==='auth/me')return Promise.resolve({user:s.user});
   if(path==='habits'&&method==='GET')return Promise.resolve(s);
@@ -295,6 +311,30 @@ function demoRequest(path,options={}){
     s.invites={...(s.invites||{}),[token]:invite};saveDemo(s);
     return {invite};
   }
+  const reactionMatch=path.match(/^groups\/([^/]+)\/reactions$/);
+  if(reactionMatch&&method==='POST'){
+    const gId=reactionMatch[1];
+    const details=s.group_details[gId];
+    if(!details?.members.some(m=>m.user_id===body.target_user_id)||body.target_user_id===s.user.id)throw responseError('Geçersiz hedef üye.',400);
+    const sent=(details.reactions||[]).filter(r=>r.sender_user_id===s.user.id&&r.target_user_id===body.target_user_id&&r.habit_date===(body.habit_date||today()));
+    if(sent.length>=3)throw responseError('Bugün bu arkadaşına yeterince tepki gönderdin.',429);
+    const reaction={
+      id:'rx-'+crypto.randomUUID().slice(0,8),
+      group_id:gId,
+      sender_user_id:'demo-user',
+      target_user_id:body.target_user_id,
+      habit_date:body.habit_date||today(),
+      reaction_type:body.reaction_type==='nudge'?'nudge':'cheer',
+      emoji:body.emoji||'👏',
+      message:body.message||'',
+      created_at:new Date().toISOString()
+    };
+    if(details){
+      details.reactions=[reaction,...(details.reactions||[])];
+      saveDemo(s);
+    }
+    return Promise.resolve({reaction});
+  }
   const inviteAction=path.match(/^invites\/([^/]+)(\/respond)?$/);
   if(inviteAction){
     const token=decodeURIComponent(inviteAction[1]),invite=s.invites?.[token],details=invite&&s.group_details[invite.group_id];
@@ -359,7 +399,7 @@ export const leaveGroup=(id)=>request(`groups/${id}/leave`,{method:'POST'});
 export const kickGroupMember=(groupId,userId)=>request(`groups/${groupId}/members/${userId}`,{method:'DELETE'});
 export const transferGroup=(groupId,newOwnerId)=>request(`groups/${groupId}/transfer`,{method:'POST',body:JSON.stringify({new_owner_id:newOwnerId})});
 export const createGroupHabit=(groupId,data)=>request(`groups/${groupId}/habits`,{method:'POST',body:JSON.stringify(data)});
-export const createGroupInvite=(groupId,data)=>request(`groups/${groupId}/invites`,{method:'POST',body:JSON.stringify(data)});
+export const createGroupInvite=(groupId,data)=>request(`groups/${groupId}/invites`,{method:'POST',body:JSON.stringify(typeof data==='string'?{invite_type:data}:data)});
 export const getInvitePreview=(code)=>request(`invites/${encodeURIComponent(code)}`);
 export const respondInvite=(code,action)=>request(`invites/${encodeURIComponent(code)}/respond`,{method:'POST',body:JSON.stringify({action})});
 export const setGroupCheckin=(groupId,habitId,day,body)=>request(`groups/${groupId}/habits/${habitId}/check-ins/${day}`,{method:'PUT',body:JSON.stringify(body)});
@@ -370,3 +410,16 @@ export const importData=(data)=>request('import',{method:'POST',body:JSON.string
 export function startDemo(){sessionStorage.setItem('pace_demo','1');location.href='/?demo=1'}
 
 export function exitDemo(){try{sessionStorage.removeItem('pace_demo')}catch{}const url=new URL(location.href);url.searchParams.delete('demo');url.searchParams.set('auth','login');url.hash='today';location.assign(url.pathname+url.search+url.hash)}
+
+export const getAuthCapabilities=()=>request('auth/capabilities');
+export const getGamification=()=>request('gamification');
+export const saveGamification=(data)=>request('gamification',{method:'PUT',body:JSON.stringify(data)});
+export const sendGroupReaction=(groupId,data)=>request(`groups/${groupId}/reactions`,{method:'POST',body:JSON.stringify(data)});
+export const getSocialInbox=()=>request('social/inbox');
+export const markSocialInboxRead=(id)=>request(`social/inbox/${encodeURIComponent(id)}/read`,{method:'POST',body:'{}'});
+export const getPushPublicKey=()=>request('push/public-key');
+export const subscribePush=(payload)=>request('push/subscribe',{method:'POST',body:JSON.stringify(payload)});
+export const unsubscribePush=(endpoint)=>request('push/subscribe',{method:'DELETE',body:JSON.stringify({endpoint})});
+export const updatePushPreferences=(prefs)=>request('push/preferences',{method:'PATCH',body:JSON.stringify(prefs)});
+export const changePassword=(data)=>request('account/password',{method:'POST',body:JSON.stringify(data)});
+export const regenerateRecoveryCode=(password)=>request('account/recovery-code',{method:'POST',body:JSON.stringify({password})});

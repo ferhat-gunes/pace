@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-16T11:28:17.341Z",
+  "date": "2026-11-16T11:56:43.473Z",
   "results": [
     {
       "theme": "light",
@@ -20,6 +20,14 @@
     {
       "theme": "light",
       "width": 320,
+      "view": "discover",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "light",
+      "width": 320,
       "view": "progress",
       "overflow": false,
       "violations": [],
@@ -60,6 +68,14 @@
     {
       "theme": "light",
       "width": 390,
+      "view": "discover",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "light",
+      "width": 390,
       "view": "progress",
       "overflow": false,
       "violations": [],
@@ -93,6 +109,14 @@
       "theme": "light",
       "width": 768,
       "view": "habits",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "view": "discover",
       "overflow": false,
       "violations": [],
       "smallTargets": []
@@ -140,6 +164,14 @@
     {
       "theme": "light",
       "width": 1440,
+      "view": "discover",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "light",
+      "width": 1440,
       "view": "progress",
       "overflow": false,
       "violations": [],
@@ -180,6 +212,14 @@
     {
       "theme": "dark",
       "width": 320,
+      "view": "discover",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "dark",
+      "width": 320,
       "view": "progress",
       "overflow": false,
       "violations": [],
@@ -220,6 +260,14 @@
     {
       "theme": "dark",
       "width": 390,
+      "view": "discover",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "dark",
+      "width": 390,
       "view": "progress",
       "overflow": false,
       "violations": [],
@@ -260,6 +308,14 @@
     {
       "theme": "dark",
       "width": 768,
+      "view": "discover",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "dark",
+      "width": 768,
       "view": "progress",
       "overflow": false,
       "violations": [],
@@ -293,6 +349,14 @@
       "theme": "dark",
       "width": 1440,
       "view": "habits",
+      "overflow": false,
+      "violations": [],
+      "smallTargets": []
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "view": "discover",
       "overflow": false,
       "violations": [],
       "smallTargets": []
