@@ -6,6 +6,7 @@ import { localDateIso, addDaysIso } from '../lib/date';
 import { triggerHaptic, triggerConfetti } from '../lib/celebration';
 import { playPop, playSuccess, playStep } from '../lib/soundFx';
 import OnboardingStarter from './OnboardingStarter.jsx';
+import FrictionMicroSurvey from './Common/FrictionMicroSurvey.jsx';
 
 const MONTH_NAMES = [
   'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
@@ -545,15 +546,18 @@ export default function TodayView({
             padding: '12px 14px',
             marginBottom: '12px',
             display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
+            flexDirection: 'column',
+            gap: '6px',
           }}
         >
-          <span style={{ fontSize: '22px' }}>🌱</span>
-          <div style={{ fontSize: '13px', color: 'var(--ink)', lineHeight: 1.4 }}>
-            <strong style={{ display: 'block', fontSize: '13px' }}>Kaldığın yerden hafifçe devam et</strong>
-            Ara vermek normaldir. Bugün sadece tek bir küçük adımla ritmine dönebilirsin.
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '22px' }}>🌱</span>
+            <div style={{ fontSize: '13px', color: 'var(--ink)', lineHeight: 1.4 }}>
+              <strong style={{ display: 'block', fontSize: '13px' }}>Kaldığın yerden hafifçe devam et</strong>
+              Ara vermek normaldir. Bugün sadece tek bir küçük adımla ritmine dönebilirsin.
+            </div>
           </div>
+          <FrictionMicroSurvey todayIso={todayIso} />
         </div>
       )}
 

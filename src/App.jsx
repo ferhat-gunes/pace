@@ -18,20 +18,23 @@ import HabitsView from './components/HabitsView.jsx';
 import HabitModal from './components/HabitModal.jsx';
 import { ErrorBoundary } from './components/Common/ErrorBoundary.jsx';
 import PwaInstallBanner from './components/Navigation/PwaInstallBanner.jsx';
+import { trackEvent, isFeatureEnabled } from './lib/telemetry.js';
 
 // Code splitting for secondary routes
 const ProgressView = lazy(() => import('./components/ProgressView.jsx'));
 const GroupsView = lazy(() => import('./components/GroupsView.jsx'));
 const SettingsView = lazy(() => import('./components/SettingsView.jsx'));
+const DiscoverView = lazy(() => import('./components/DiscoverView.jsx'));
 const AuthModal = lazy(() => import('./components/AuthModal.jsx'));
 
 export default function App() {
-  const [currentView, setView] = useState('today'); // 'today' | 'habits' | 'progress' | 'groups' | 'settings'
+  const [currentView, setView] = useState('today'); // 'today' | 'habits' | 'discover' | 'progress' | 'groups' | 'settings'
   const [isHabitModalOpen, setHabitModalOpen] = useState(false);
   const [editingHabit, setEditingHabit] = useState(null);
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState('login');
   const [inviteToken, setInviteToken] = useState(null);
+  const [highlightedPresetId, setHighlightedPresetId] = useState(null);
   const [capabilities, setCapabilities] = useState({ email_code_enabled: false, push_enabled: false });
   const [socialInbox, setSocialInbox] = useState([]);
 
@@ -299,6 +302,7 @@ export default function App() {
                   <HabitsView
                     habits={habits}
                     onOpenAddModal={handleOpenAddModal}
+                    onOpenDiscover={() => setView('discover')}
                     onEditHabit={handleOpenEditModal}
                     togglePauseHabit={togglePauseHabit}
                     archiveHabit={archiveHabit}
@@ -309,6 +313,16 @@ export default function App() {
                 )}
 
                 <Suspense fallback={<div style={{ padding: '40px', textAlign: 'center', color: 'var(--muted)' }}>Yükleniyor…</div>}>
+                  {currentView === 'discover' && isFeatureEnabled('discover_rhythm_trials') && (
+                    <DiscoverView
+                      habits={habits}
+                      onAddPreset={(preset) => handleAddStarterHabits([preset])}
+                      highlightedPresetId={highlightedPresetId}
+                      onClearHighlight={() => setHighlightedPresetId(null)}
+                      onGoToday={() => setView('today')}
+                    />
+                  )}
+
                   {currentView === 'progress' && (
                     <ProgressView
                       habits={habits}

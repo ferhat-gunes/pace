@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { Plus, Archive, RotateCcw, AlertCircle, Pencil, Pause, Play } from 'lucide-react';
+import { Plus, Archive, RotateCcw, AlertCircle, Pencil, Pause, Play, Compass } from 'lucide-react';
 import { motion } from 'motion/react';
 import { playPop, playSuccess } from '../lib/soundFx';
 import { formatTarget } from '../lib/rules';
+import { isFeatureEnabled } from '../lib/telemetry';
 
 export default function HabitsView({
   habits = [],
   onOpenAddModal,
+  onOpenDiscover,
   onEditHabit,
   togglePauseHabit,
   archiveHabit,
@@ -37,19 +39,36 @@ export default function HabitsView({
             {activeHabits.length} aktif rutin
           </p>
         </div>
-        <motion.button
-          type="button"
-          whileTap={{ scale: 0.95, y: 2 }}
-          className="btn-3d btn-3d-green"
-          aria-label="Yeni alışkanlık ekle"
-          style={{ minHeight: '44px', padding: '0 18px', fontSize: '14px', borderRadius: '14px' }}
-          onClick={() => {
-            playPop();
-            onOpenAddModal();
-          }}
-        >
-          Alışkanlık Ekle +
-        </motion.button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {isFeatureEnabled('discover_rhythm_trials') && onOpenDiscover && (
+            <button
+              type="button"
+              className="btn btn-soft"
+              aria-label="Ritim denemelerini keşfet"
+              style={{ minHeight: '44px', padding: '0 14px', fontSize: '13px', borderRadius: '14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              onClick={() => {
+                playPop();
+                onOpenDiscover();
+              }}
+            >
+              <Compass size={16} aria-hidden="true" />
+              <span>Ritim Keşfet</span>
+            </button>
+          )}
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.95, y: 2 }}
+            className="btn-3d btn-3d-green"
+            aria-label="Yeni alışkanlık ekle"
+            style={{ minHeight: '44px', padding: '0 18px', fontSize: '14px', borderRadius: '14px' }}
+            onClick={() => {
+              playPop();
+              onOpenAddModal();
+            }}
+          >
+            Alışkanlık Ekle +
+          </motion.button>
+        </div>
       </div>
 
       {/* Undo Toast Notification */}

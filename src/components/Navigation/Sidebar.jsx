@@ -1,11 +1,13 @@
 import React from 'react';
-import { CalendarDays, ListChecks, ChartNoAxesColumnIncreasing, Users, Settings, LogIn, UserCheck } from 'lucide-react';
+import { CalendarDays, ListChecks, Compass, ChartNoAxesColumnIncreasing, Users, Settings, LogIn, UserCheck } from 'lucide-react';
 import * as api from '../../lib/api';
+import { isFeatureEnabled } from '../../lib/telemetry';
 
 export default function Sidebar({ currentView = 'today', setView, syncState = 'Bağlantı hazır', user = null, onOpenAuth }) {
   const items = [
     { id: 'today', label: 'Bugün', icon: CalendarDays },
     { id: 'habits', label: 'Alışkanlıklar', icon: ListChecks },
+    ...(isFeatureEnabled('discover_rhythm_trials') ? [{ id: 'discover', label: 'Keşfet', icon: Compass }] : []),
     { id: 'progress', label: 'İlerleme', icon: ChartNoAxesColumnIncreasing },
     { id: 'groups', label: 'Gruplar', icon: Users },
   ];
