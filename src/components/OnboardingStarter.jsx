@@ -1,13 +1,10 @@
 import React, { useState } from 'react';
-import { motion } from 'motion/react';
-import { Check, Plus } from 'lucide-react';
-import { playPop, playSuccess } from '../lib/soundFx';
-import { triggerHaptic } from '../lib/celebration';
+import { Plus } from 'lucide-react';
+import { Button, StatusMarker } from './ui/index.js';
 
 const STARTER_PRESETS = [
   {
     id: 'preset-water',
-    icon: '💧',
     name: 'Su iç',
     subtitle: 'Günde 6 bardak',
     tracking: 'quantity',
@@ -18,7 +15,6 @@ const STARTER_PRESETS = [
   },
   {
     id: 'preset-read',
-    icon: '📖',
     name: 'Kitap oku',
     subtitle: 'Günde 15 dakika',
     tracking: 'quantity',
@@ -29,7 +25,6 @@ const STARTER_PRESETS = [
   },
   {
     id: 'preset-walk',
-    icon: '🚶',
     name: 'Yürüyüş yap',
     subtitle: 'Haftada 3 gün',
     tracking: 'check',
@@ -40,7 +35,6 @@ const STARTER_PRESETS = [
   },
   {
     id: 'preset-focus',
-    icon: '🧘',
     name: 'Nefes & Odak',
     subtitle: 'Günde 5 dakika',
     tracking: 'quantity',
@@ -56,8 +50,6 @@ export default function OnboardingStarter({ onAddStarterHabits, onOpenCustomModa
   const [submitting, setSubmitting] = useState(false);
 
   const togglePreset = (id) => {
-    playPop();
-    triggerHaptic('light');
     setSelectedIds((prev) => {
       if (prev.includes(id)) {
         return prev.filter((x) => x !== id);
@@ -72,8 +64,6 @@ export default function OnboardingStarter({ onAddStarterHabits, onOpenCustomModa
   const handleStartSelected = async () => {
     if (selectedIds.length === 0 || submitting) return;
     setSubmitting(true);
-    playSuccess();
-    triggerHaptic('success');
     try {
       const chosen = STARTER_PRESETS.filter((p) => selectedIds.includes(p.id)).map((p) => ({
         name: p.name,
@@ -95,32 +85,21 @@ export default function OnboardingStarter({ onAddStarterHabits, onOpenCustomModa
   };
 
   return (
-    <div className="empty-state card-chunky" style={{ padding: '24px 18px', textAlign: 'left' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-        <div
-          style={{
-            width: '46px',
-            height: '46px',
-            borderRadius: '14px',
-            background: 'var(--primary-soft)',
-            color: 'var(--primary)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '24px',
-            flexShrink: 0,
-          }}
-        >
-          🌱
-        </div>
-        <div>
-          <h2 style={{ fontSize: '18px', color: 'var(--ink)', margin: '0 0 2px', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
-            Kendi ritmini 30 saniyede kur
-          </h2>
-          <p style={{ color: 'var(--muted)', fontSize: '13px', margin: 0, lineHeight: 1.4 }}>
-            En fazla 3 küçük rutin seç; bugün ilk adımını hemen işaretle.
-          </p>
-        </div>
+    <div
+      style={{
+        padding: 'var(--space-6)',
+        border: '1px solid var(--border)',
+        background: 'var(--surface)',
+        textAlign: 'left',
+      }}
+    >
+      <div style={{ marginBottom: 'var(--space-4)' }}>
+        <h2 style={{ fontSize: '18px', color: 'var(--fg)', margin: '0 0 var(--space-1)', fontWeight: 700 }}>
+          Kendi ritmini 30 saniyede kur
+        </h2>
+        <p style={{ color: 'var(--muted)', fontSize: '13px', margin: 0, lineHeight: 1.4 }}>
+          En fazla 3 rutin seç; bugün ilk adımını hemen işaretle.
+        </p>
       </div>
 
       <div
@@ -128,9 +107,9 @@ export default function OnboardingStarter({ onAddStarterHabits, onOpenCustomModa
         aria-label="Başlangıç rutinleri"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-          gap: '8px',
-          margin: '16px 0',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: 'var(--space-2)',
+          margin: 'var(--space-4) 0',
         }}
       >
         {STARTER_PRESETS.map((preset) => {
@@ -141,74 +120,53 @@ export default function OnboardingStarter({ onAddStarterHabits, onOpenCustomModa
               type="button"
               aria-pressed={isSelected}
               onClick={() => togglePreset(preset.id)}
-              className="btn-3d btn-3d-gray"
               style={{
                 minHeight: '56px',
-                padding: '10px 12px',
-                borderRadius: '16px',
+                padding: 'var(--space-3)',
+                display: 'flex',
+                alignItems: 'center',
                 justifyContent: 'space-between',
+                gap: 'var(--space-3)',
                 textAlign: 'left',
-                borderColor: isSelected ? 'var(--green)' : 'var(--border)',
-                background: isSelected ? 'var(--green-soft)' : 'var(--surface)',
-                boxShadow: isSelected ? '0 3px 0 var(--green)' : undefined,
+                border: isSelected ? '2px solid var(--signal)' : '1px solid var(--border)',
+                background: isSelected ? 'var(--surface-2)' : 'var(--bg)',
+                color: 'var(--fg)',
+                cursor: 'pointer',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                <span style={{ fontSize: '20px', flexShrink: 0 }}>{preset.icon}</span>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {preset.name}
-                  </div>
-                  <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted)' }}>
-                    {preset.subtitle}
-                  </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {preset.name}
+                </div>
+                <div className="mono" style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px' }}>
+                  {preset.subtitle}
                 </div>
               </div>
-              {isSelected && (
-                <span
-                  style={{
-                    width: '20px',
-                    height: '20px',
-                    borderRadius: '999px',
-                    background: 'var(--green)',
-                    color: '#fff',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  <Check size={13} strokeWidth={3} />
-                </span>
-              )}
+              <StatusMarker status={isSelected ? 'done' : 'missed'} size={14} />
             </button>
           );
         })}
       </div>
 
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        <motion.button
-          type="button"
-          className="btn-3d btn-3d-green"
+      <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+        <Button
+          variant="primary"
+          size="md"
           disabled={selectedIds.length === 0 || submitting}
-          whileTap={{ scale: 0.96, y: 2 }}
-          style={{ flex: '1 1 180px', minHeight: '48px', padding: '0 18px', fontSize: '14px', borderRadius: '16px' }}
+          loading={submitting}
+          style={{ flex: '1 1 180px' }}
           onClick={handleStartSelected}
         >
           {submitting ? 'Ekleniyor…' : `Seçilenlerle Başla (${selectedIds.length})`}
-        </motion.button>
-        <button
-          type="button"
-          className="btn-3d btn-3d-gray"
-          style={{ flex: '0 1 auto', minHeight: '48px', padding: '0 14px', fontSize: '13px', borderRadius: '16px' }}
-          onClick={() => {
-            playPop();
-            onOpenCustomModal?.();
-          }}
+        </Button>
+        <Button
+          variant="secondary"
+          size="md"
+          onClick={() => onOpenCustomModal?.()}
         >
-          <Plus size={16} />
+          <Plus size={16} strokeWidth={1.5} aria-hidden="true" />
           <span>Kendin Yaz</span>
-        </button>
+        </Button>
       </div>
     </div>
   );

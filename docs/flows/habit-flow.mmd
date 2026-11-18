@@ -1,0 +1,32 @@
+flowchart TD
+    Start(["HabitsView (#/habits) or TodayView CTA"]) --> Action{"Select Habit Action"}
+
+    Action -->|"Create New"| OpenCreate["Open HabitModal (Create)"]
+    OpenCreate --> FillForm["Set Title, Type (Boolean/Quantity), Target, Schedule, Reminder"]
+    FillForm --> ValidateForm{"Valid Input?"}
+    ValidateForm -->|No| InlineErr["Show Inline Validation Error"]
+    InlineErr --> FillForm
+    ValidateForm -->|Yes| SaveCreate{"Authenticated?"}
+    SaveCreate -->|Yes| PostHabit["POST /api/habits"]
+    SaveCreate -->|No| SaveGuest["Save to GuestStore"]
+    PostHabit -->|201 Created| UpdateList["Update Habits State & Close Modal"]
+    PostHabit -->|Error| ApiErr["Show Error & Retry Option"]
+    ApiErr --> FillForm
+    SaveGuest --> UpdateList
+
+    Action -->|"Edit Existing"| OpenEdit["Open HabitModal (Edit)"]
+    OpenEdit --> ModifyFields["Modify Fields (Creates New Habit Version)"]
+    ModifyFields --> SaveEdit["PUT /api/habits/:id"]
+    SaveEdit -->|200 OK| UpdateList
+    SaveEdit -->|Error| ApiErr
+
+    Action -->|"Pause / Resume"| TogglePause["PATCH /api/habits/:id (status: paused/active)"]
+    TogglePause --> UpdateList
+
+    Action -->|"Archive"| ConfirmArchive["Archive Habit (status: archived)"]
+    ConfirmArchive --> UpdateList
+
+    Action -->|"Restore Archived"| RestoreHabit["PATCH /api/habits/:id (status: active)"]
+    RestoreHabit --> UpdateList
+
+    UpdateList --> End(["Updated Habit List"])

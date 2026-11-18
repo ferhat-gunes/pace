@@ -17,6 +17,7 @@ import { ErrorBoundary } from './components/Common/ErrorBoundary.jsx';
 import { useDialogAccessibility } from './state/useDialogAccessibility.js';
 import UpdateBanner from './components/Navigation/UpdateBanner.jsx';
 import PwaInstallBanner from './components/Navigation/PwaInstallBanner.jsx';
+import { InlineFeedback, Button, LoadingState, ErrorState } from './components/ui/index.js';
 
 // Code splitting for secondary routes
 const ProgressView = lazy(() => import('./components/ProgressView.jsx'));
@@ -98,10 +99,6 @@ export default function App() {
     const planned=habits.filter(h=>isPlannedOn(h,today,confirmed,weekStart));
     if(planned.length && planned.every(h=>stateFor(h,today,confirmed,weekStart).status==='done'))gamification.awardAllDoneBonus(today);
   },[habits,confirmedCheckins,weekStart,gamification.awardAllDoneBonus]);
-  useEffect(()=>{
-    if(!gamification.levelCelebrationPending)return;
-    const close=e=>{if(e.key==='Escape')gamification.clearLevelCelebration()};addEventListener('keydown',close);return()=>removeEventListener('keydown',close);
-  },[gamification.levelCelebrationPending,gamification.clearLevelCelebration]);
 
   // Check URL query parameters for deep linking (e.g. ?join= or ?invite=)
   useEffect(() => {
@@ -159,7 +156,7 @@ export default function App() {
   };
 
   return (
-    <div id="app" onKeyDown={handleCompositeKeys} className="app-shell astryx-app-shell" data-astryx-component="app-shell">
+    <div id="app" onKeyDown={handleCompositeKeys} className="app-shell">
       <a href="#main-content" className="skip-link">
         Ana içeriğe atla
       </a>
@@ -179,22 +176,73 @@ export default function App() {
           <ErrorBoundary key={currentView}>
           <PwaInstallBanner />
           <UpdateBanner blocked={isHabitModalOpen || isAuthModalOpen || Boolean(pendingEntries?.length)} />
-          {api.demoMode && <aside className="context-banner" aria-label="Demo bilgisi"><strong>Örnek görünüm</strong><span>Değişiklikler yalnızca bu tarayıcıda saklanır; hesabına aktarılmaz.</span><button type="button" className="button button-quiet" onClick={api.exitDemo}>Kendi hesabıma geç</button></aside>}
-          {/kaydedilemedi|Arşivlenemedi|Geri yüklenemedi|Kayıt değişti|Cihazda bekliyor/.test(syncState) && <p className="inline-message" role="status">{syncState}</p>}
-          {guestMode && !api.demoMode && <aside className="context-banner"><strong>Misafir olarak deniyorsun</strong><span>Rutinlerin bu cihazda saklanır. Hesabına aktarım için girişten sonra ayrıca onayın alınır.</span><button type="button" className="button button-quiet" onClick={()=>openAuth('register')}>Hesap oluştur</button></aside>}
-          {migrationRequest && <aside className="context-banner" aria-label="Misafir kayıtlarını aktarma"><strong>{migrationRequest.count || guestDraftCount} yerel alışkanlığı hesabına aktarmak ister misin?</strong><span>Aktarım onaylanana kadar misafir kayıtların bu cihazda korunur.</span>{migrationError&&<p role="alert">{migrationError}</p>}<button type="button" className="button button-primary" disabled={migrationBusy} onClick={confirmGuestMigration}>{migrationBusy?'Aktarılıyor…':'Onayla ve hesabıma aktar'}</button><button type="button" className="button button-quiet" disabled={migrationBusy} onClick={()=>setMigrationRequest(null)}>Şimdilik cihazda tut</button></aside>}
-          {storageError && <p className="inline-message" role="alert">{storageError}</p>}
-          {signOutError && <p className="inline-message" role="alert">{signOutError}</p>}
-          {pendingEntries?.length > 0 && <aside className="context-banner" aria-label="Kaydetme bekleyen kayıtlar"><strong>{pendingEntries.length} kayıt eşitleme bekliyor</strong>{pendingEntries.map(e=><div className="pending-entry" key={JSON.stringify([e.id,e.day])}><span>{habits.find(h=>h.id===e.id)?.name || 'Alışkanlık'} · {e.day}: {e.value} — {e.status==='conflict'?'Başka cihazda değişti':e.error||'Kaydediliyor…'}</span>{['error','conflict'].includes(e.status)&&<button type="button" className="button button-quiet" onClick={()=>retryEntry(e.id,e.day)}>Taslağı yeniden gönder</button>}</div>)}</aside>}
-          {loadError && <aside className="context-banner is-error" role="alert">
-            <strong>{loadError.unauthorized ? 'Alışkanlıkların için giriş yap' : 'Veriler yüklenemedi'}</strong>
-            <span>{loadError.unauthorized ? 'Hesabına giriş yaparak kayıtlarına ulaşabilirsin.' : loadError.message}</span>
-            <button type="button" className="button button-primary" onClick={loadError.unauthorized ? openAuth : loadData}>{loadError.unauthorized ? 'Giriş yap' : 'Yeniden dene'}</button>{loadError.unauthorized&&<button type="button" className="button button-quiet" onClick={api.startDemo}>Örnek görünümü dene</button>}
-          </aside>}
+          {api.demoMode && (
+            <InlineFeedback
+              tone="neutral"
+              action={<Button variant="tertiary" size="sm" onClick={api.exitDemo}>Kendi hesabıma geç</Button>}
+            >
+              <strong>Örnek görünüm</strong> — Değişiklikler yalnızca bu tarayıcıda saklanır; hesabına aktarılmaz.
+            </InlineFeedback>
+          )}
+          {/kaydedilemedi|Arşivlenemedi|Geri yüklenemedi|Kayıt değişti|Cihazda bekliyor/.test(syncState) && (
+            <InlineFeedback tone="neutral" role="status">{syncState}</InlineFeedback>
+          )}
+          {guestMode && !api.demoMode && (
+            <InlineFeedback
+              tone="neutral"
+              action={<Button variant="tertiary" size="sm" onClick={() => openAuth('register')}>Hesap oluştur</Button>}
+            >
+              <strong>Misafir olarak deniyorsun</strong> — Rutinlerin bu cihazda saklanır. Hesabına aktarım için girişten sonra ayrıca onayın alınır.
+            </InlineFeedback>
+          )}
+          {migrationRequest && (
+            <InlineFeedback
+              tone="neutral"
+              action={
+                <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+                  <Button variant="primary" size="sm" disabled={migrationBusy} onClick={confirmGuestMigration}>
+                    {migrationBusy ? 'Aktarılıyor…' : 'Onayla ve hesabıma aktar'}
+                  </Button>
+                  <Button variant="tertiary" size="sm" disabled={migrationBusy} onClick={() => setMigrationRequest(null)}>
+                    Şimdilik cihazda tut
+                  </Button>
+                </div>
+              }
+            >
+              <strong>{migrationRequest.count || guestDraftCount} yerel alışkanlığı hesabına aktarmak ister misin?</strong> Aktarım onaylanana kadar misafir kayıtların bu cihazda korunur.
+              {migrationError && <div role="alert" style={{ marginTop: 'var(--space-1)' }}>{migrationError}</div>}
+            </InlineFeedback>
+          )}
+          {storageError && <InlineFeedback tone="error" role="alert">{storageError}</InlineFeedback>}
+          {signOutError && <InlineFeedback tone="error" role="alert">{signOutError}</InlineFeedback>}
+          {pendingEntries?.length > 0 && (
+            <InlineFeedback tone="neutral">
+              <strong>{pendingEntries.length} kayıt eşitleme bekliyor</strong>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
+                {pendingEntries.map(e => (
+                  <div className="pending-entry" key={JSON.stringify([e.id, e.day])}>
+                    <span className="mono">{habits.find(h => h.id === e.id)?.name || 'Alışkanlık'} · {e.day}: {e.value} — {e.status === 'conflict' ? 'Başka cihazda değişti' : e.error || 'Kaydediliyor…'}</span>
+                    {['error', 'conflict'].includes(e.status) && (
+                      <Button variant="tertiary" size="sm" onClick={() => retryEntry(e.id, e.day)}>Taslağı yeniden gönder</Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </InlineFeedback>
+          )}
+          {loadError && (
+            <ErrorState
+              title={loadError.unauthorized ? 'Alışkanlıkların için giriş yap' : 'Veriler yüklenemedi'}
+              message={loadError.unauthorized ? 'Hesabına giriş yaparak kayıtlarına ulaşabilirsin.' : loadError.message}
+              onRetry={loadError.unauthorized ? openAuth : loadData}
+              retryLabel={loadError.unauthorized ? 'Giriş yap' : 'Yeniden dene'}
+              action={loadError.unauthorized ? (
+                <Button variant="tertiary" size="sm" onClick={api.startDemo}>Örnek görünümü dene</Button>
+              ) : null}
+            />
+          )}
           {loading && habits.length === 0 ? (
-            <div role="status" aria-live="polite" className="loading-state" style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--muted)' }}>
-              <div style={{ fontSize: '16px', fontWeight: 600 }}>Alışkanlıklar yükleniyor…</div>
-            </div>
+            <LoadingState label="Alışkanlıklar yükleniyor…" />
           ) : (
             <>
               {currentView === 'today' && (
@@ -229,7 +277,7 @@ export default function App() {
                 />
               )}
 
-              <Suspense fallback={<div role="status" aria-live="polite" className="loading-state" style={{ padding: '40px', textAlign: 'center', color: 'var(--muted)' }}>Yükleniyor…</div>}>
+              <Suspense fallback={<LoadingState label="Yükleniyor…" />}>
                 {currentView === 'discover' && (isFeatureEnabled('discover_rhythm_trials') ? <DiscoverView habits={habits} onAddPreset={preset=>addStarterHabits([preset])} highlightedPresetId={highlightedPresetId} onClearHighlight={()=>setHighlightedPresetId(null)} onGoToday={()=>setView('today')} /> : <section id="view-discover" className="page-view"><h1>Keşfet</h1><p>Ritim denemeleri şu an kapalı.</p></section>)}
                 {currentView === 'progress' && (
                   <ProgressView habits={habits} checkins={checkins} weekStart={weekStart} gamification={gamification} />
@@ -259,7 +307,6 @@ export default function App() {
         </main>
       </div>
 
-      {gamification.levelCelebrationPending && <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="level-modal-title" onClick={gamification.clearLevelCelebration}><div className="dialog-sheet" style={{textAlign:'center',maxWidth:400}} onClick={e=>e.stopPropagation()}><h2 id="level-modal-title">Seviye {gamification.levelCelebrationPending}!</h2><p>Düzenli adımlarınla ilerliyorsun. Yeni seviyen kutlu olsun.</p><button type="button" className="button button-primary" onClick={gamification.clearLevelCelebration}>Devam et</button></div></div>}
       <MobileNav currentView={currentView} setView={setView} />
 
       <HabitModal

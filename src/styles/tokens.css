@@ -1,0 +1,80 @@
+/* Disciplined Brutalism Design Tokens — PACE */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Core Palette */
+  --bg: #0E0E0E;
+  --fg: #F2F0EA;
+  --fg-muted: #9A9891;
+  --surface-1: #171717;
+  --surface-2: #202020;
+  --border: #373737;
+  --border-strong: #52524E;
+
+  /* Acid Green Signal — ONLY for streak number, done status, primary action, current user highlight */
+  --signal: #C8FF2E;
+  --signal-fg: #0E0E0E;
+  --signal-hover: #D4FF57;
+  --signal-text: #C8FF2E;
+
+  /* Semantic Status */
+  --danger: #FF4D4D;
+  --danger-fg: #0E0E0E;
+  --warning: #F5B700;
+
+  /* Shape & Borders */
+  --radius: 0px;
+  --border-hairline: 1px;
+  --border-major: 2px;
+
+  /* 4px Spacing Scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Typography */
+  --font-sans: 'Inter Tight', 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  --font-display: 'Space Grotesk', 'Inter Tight', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Motion — 100-150ms sharp easing, no bounce */
+  --ease-sharp: cubic-bezier(0.2, 0, 0, 1);
+  --duration-fast: 100ms;
+  --duration-base: 150ms;
+
+  /* Z-index layers */
+  --z-base: 1;
+  --z-sticky: 20;
+  --z-nav: 30;
+  --z-modal: 50;
+  --z-toast: 60;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #F2F0EA;
+  --fg: #0E0E0E;
+  --fg-muted: #5A5852;
+  --surface-1: #E6E4DD;
+  --surface-2: #DCD9D0;
+  --border: #C2BFB6;
+  --border-strong: #8E8B82;
+
+  --signal: #C8FF2E;
+  --signal-fg: #0E0E0E;
+  --signal-hover: #B8F01A;
+  --signal-text: #3A5200;
+
+  --danger: #D92B2B;
+  --danger-fg: #F2F0EA;
+  --warning: #B88600;
+}

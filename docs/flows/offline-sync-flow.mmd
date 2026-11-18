@@ -1,0 +1,28 @@
+flowchart TD
+    Start(["EntryQueue & Backup System"]) --> Trigger{"Sync or Backup?"}
+
+    Trigger -->|"Offline Entry Queue"| CheckOnline{"Navigator Online?"}
+    CheckOnline -->|No| StoreQueue["Store Mutation in Local EntryQueue"]
+    StoreQueue --> WaitOnline["Listen for 'online' Event"]
+    WaitOnline --> CheckOnline
+    CheckOnline -->|Yes| FlushQueue["Flush Pending Queue Items (FIFO)"]
+
+    FlushQueue --> SendOCC["POST /api/entries (with expectedVersion)"]
+    SendOCC -->|200 OK| RemoveItem["Remove from Queue & Update Local Cache"]
+    SendOCC -->|409 Conflict| FetchLatest["GET /api/entries (Latest Server State)"]
+    FetchLatest --> Reconcile["Merge / Apply Server-Wins or User-Choice"]
+    Reconcile --> RemoveItem
+    SendOCC -->|5xx / Timeout| Backoff["Exponential Backoff & Retry Later"]
+
+    Trigger -->|"Manual Export"| BuildJSON["Serialize Habits, Entries & Settings (backup.js)"]
+    BuildJSON --> DownloadFile["Download pace-backup.json"]
+
+    Trigger -->|"Manual Import"| SelectFile["Select JSON Backup File"]
+    SelectFile --> ValidateJSON{"Valid Schema?"}
+    ValidateJSON -->|No| ImportErr["Show Invalid Backup Format Error"]
+    ValidateJSON -->|Yes| ApplyImport["Import to GuestStore or POST /api/bootstrap/import"]
+    ApplyImport --> RefreshApp["Re-hydrate App State"]
+
+    RemoveItem --> End(["Sync Complete"])
+    DownloadFile --> End
+    RefreshApp --> End

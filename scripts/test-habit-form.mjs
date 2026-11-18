@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {normalizeHabitForm as normalize, describeHabitRules as describe} from '../assets/js/habit-form.js';
+import {normalizeHabitForm as normalize, describeHabitRules as describe} from '../src/lib/habit-form.js';
 
 const base={name:' Oku ',tracking:'quantity',direction:'at_least',target:20,unit:' dakika ',scheduleType:'daily',days:[1,3,5],quota:3,progressionEnabled:false,step:1,cap:'',debtEnabled:false,debtCap:''};
 let count=0;

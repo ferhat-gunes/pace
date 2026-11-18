@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createEntryQueue } from '../assets/js/entry-queue.js';
+import { createEntryQueue } from '../src/lib/entry-queue.js';
 const day='2026-10-27';
 const tick=()=>new Promise(r=>setTimeout(r,0));
 function setup(extra={}){let record={value:0,revision:0,deleted:0};const calls=[];let fail=null;let gate=null;const q=createEntryQueue({readRecord:()=>record,write:async body=>{calls.push(body);if(gate)await gate;if(fail)throw fail;return {checkin:{value:body.value,deleted:body.deleted?1:0,revision:record.revision+1}}},accept:(_id,_day,r)=>{record=r.checkin},...extra});return {q,calls,get record(){return record},set record(v){record=v},set fail(v){fail=v},set gate(v){gate=v}}}

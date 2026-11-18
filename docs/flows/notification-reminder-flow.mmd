@@ -1,0 +1,26 @@
+flowchart TD
+    Start(["Notification & Reminder System"]) --> Channel{"Notification Channel"}
+
+    Channel -->|"Daily Habit Reminder"| CheckPerm{"Browser Notification Permission?"}
+    CheckPerm -->|Default| RequestPerm["Request Notification Permission"]
+    RequestPerm -->|Granted| SubPush["Subscribe to Web Push (VAPID)"]
+    RequestPerm -->|Denied| FallbackInApp["Use In-App Reminder Banner Only"]
+
+    CheckPerm -->|Granted| SubPush
+    SubPush --> SaveSub["POST /api/push/subscribe"]
+    SaveSub -->|200 OK| WorkerSchedule["push-dispatcher.js Schedules Daily Reminder"]
+    SaveSub -->|Error| RetrySub["Show Push Setup Error & Retry"]
+
+    Channel -->|"Social Inbox (Group Activity)"| PollInbox["GET /api/notifications"]
+    PollInbox --> HasUnread{"Unread Items > 0?"}
+    HasUnread -->|Yes| ShowBadge["Show Unread Count Badge in Nav"]
+    HasUnread -->|No| ClearBadge["Hide Badge"]
+
+    ShowBadge --> OpenInbox["User Opens Notification Inbox"]
+    OpenInbox --> TapItem["Tap Notification Item"]
+    TapItem --> MarkRead["POST /api/notifications/read"]
+    MarkRead --> NavigateTarget["Navigate to Group / Invite / Habit"]
+
+    WorkerSchedule --> End(["Notifications Active"])
+    FallbackInApp --> End
+    NavigateTarget --> End

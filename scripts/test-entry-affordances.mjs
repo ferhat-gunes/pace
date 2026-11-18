@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {completionFor} from '../assets/js/entry-affordances.js';
+import {completionFor} from '../src/lib/entry-affordances.js';
 const h={tracking:'quantity',direction:'at_least',unit:'dakika'};
 test('19/20 offers exact target instead of overshooting by five',()=>assert.deepEqual(completionFor(h,19,20),{target:20,remaining:1}));
 test('minute shortcut only appears within the smallest step',()=>{assert.equal(completionFor(h,12,20),null);assert.equal(completionFor(h,15,20).target,20)});

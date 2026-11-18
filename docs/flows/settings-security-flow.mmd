@@ -1,0 +1,26 @@
+flowchart TD
+    Start(["SettingsView (#/settings)"]) --> Section{"Select Setting"}
+
+    Section -->|"Theme (Dark / Light)"| ToggleTheme["Toggle Dark (#0E0E0E) / Light (#F2F0EA)"]
+    ToggleTheme --> PersistTheme["Save to localStorage & Update CSS Tokens"]
+
+    Section -->|"Change Password"| OpenPwd["Enter Current & New Password"]
+    OpenPwd --> PostPwd["POST /api/auth/password"]
+    PostPwd -->|200 OK| PwdSuccess["Show Password Updated Confirmation"]
+    PostPwd -->|401 / Error| PwdErr["Show Validation / Auth Error"]
+
+    Section -->|"Regenerate Recovery Code"| ConfirmRegen["Confirm Code Regeneration"]
+    ConfirmRegen --> PostRegen["POST /api/auth/recovery-code"]
+    PostRegen -->|200 OK| DisplayCode["Display New One-Time Recovery Code"]
+    PostRegen -->|Error| RegenErr["Show Error & Retry"]
+
+    Section -->|"Export / Import Data"| TriggerBackup["Run Offline-Sync Backup Export/Import Flow"]
+
+    Section -->|"Sign Out"| PostLogout["POST /api/auth/logout"]
+    PostLogout --> ClearState["Clear Session & Redirect to Onboarding"]
+
+    PersistTheme --> End(["Settings Updated"])
+    PwdSuccess --> End
+    DisplayCode --> End
+    TriggerBackup --> End
+    ClearState --> End

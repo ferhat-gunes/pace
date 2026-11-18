@@ -1,0 +1,19 @@
+flowchart TD
+    Start(["GroupsView (#/groups/:id)"]) --> LoadPanel["Load GroupSocialPanel (Members, Matrix, Feed)"]
+    LoadPanel --> Action{"Select Group Action"}
+
+    Action -->|"Check In Shared Habit"| TapShared["Tap Shared Habit Row"]
+    TapShared --> OptimisticMatrix["Update Member Matrix Cell (#C8FF2E)"]
+    OptimisticMatrix --> PostCheckin["POST /api/groups/:id/checkins"]
+    PostCheckin -->|200 OK| RefreshFeed["Update Activity Feed & Group Progress"]
+    PostCheckin -->|Error| RollbackMatrix["Revert Matrix Cell & Show Error"]
+
+    Action -->|"React to Member Activity"| SelectReaction["Tap Reaction on Feed Item"]
+    SelectReaction --> PostReaction["POST /api/groups/:id/reactions"]
+    PostReaction -->|200 OK| UpdateCounts["Update Reaction Count"]
+    PostReaction -->|Error| ReactionErr["Show Inline Error"]
+
+    Action -->|"View Member Matrix"| InspectMatrix["Inspect Daily/Weekly Member Completion Grid"]
+    InspectMatrix --> End(["Group State Updated"])
+    RefreshFeed --> End
+    UpdateCounts --> End

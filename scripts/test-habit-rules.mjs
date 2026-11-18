@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {scheduled,dueToday,goalFor,stateFor,settingsAt} from '../assets/js/rules.js';
+import {scheduled,dueToday,goalFor,stateFor,settingsAt} from '../src/lib/rules.js';
 import * as server from '../functions/api/[[path]].js';
 const base={id:'h',name:'Read',start_date:'2026-10-19',tracking:'quantity',direction:'at_least',target:10,unit:'min',schedule:{type:'daily'},progression:{enabled:true,step:2,cap:null},debt:{enabled:true},paused:false,archived_at:null};
 const version=(effective_from,settings)=>({effective_from,settings:{...base,...settings}});

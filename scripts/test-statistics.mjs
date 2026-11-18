@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {habitStatistics} from '../assets/js/statistics.js';
+import {habitStatistics} from '../src/lib/statistics.js';
 const habit={id:'h',name:'Oku',start_date:'2026-01-01',tracking:'quantity',unit:'dakika',target:20,direction:'at_least',schedule:{type:'daily'},progression:{enabled:false},debt:{enabled:false}};
 const log=(day,value,extra={})=>({habit_id:'h',habit_date:day,value,revision:1,...extra});
 const stats=(h,logs,start='')=>habitStatistics(h,logs,{start,end:'2026-01-10'});

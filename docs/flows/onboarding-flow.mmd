@@ -1,0 +1,22 @@
+flowchart TD
+    Start(["First-Time User / Empty State"]) --> Welcome["Welcome Screen (Disciplined Brutalism)"]
+    Welcome --> Choice{"Select Entry Mode"}
+
+    Choice -->|"Start as Guest"| InitGuest["Initialize Local GuestStore"]
+    InitGuest --> PickPreset{"Add Starter Habit?"}
+    PickPreset -->|Yes| CreateFirst["Create First Habit (1-Tap Preset or Custom)"]
+    PickPreset -->|No| EnterToday["Enter #/today (Empty State CTA)"]
+    CreateFirst --> EnterToday
+
+    Choice -->|"Try Demo Mode"| LoadDemo["Seed Sample Habits & 14-Day History"]
+    LoadDemo --> EnterToday
+
+    Choice -->|"Sign In / Register"| OpenAuth["Open AuthModal"]
+    OpenAuth --> AuthResult{"Auth Succeeded?"}
+    AuthResult -->|Yes| BootstrapCloud["GET /api/bootstrap"]
+    BootstrapCloud -->|Success| EnterToday
+    BootstrapCloud -->|Error| AuthError["Show Inline Error & Retry"]
+    AuthError --> OpenAuth
+    AuthResult -->|Cancel| Welcome
+
+    EnterToday --> End(["Active User on TodayView"])

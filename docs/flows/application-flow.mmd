@@ -1,0 +1,42 @@
+flowchart TD
+    Start(["App Launch / URL Open"]) --> Boundary["ErrorBoundary & ThemeInit"]
+    Boundary --> CheckStorage["Check LocalStorage & Session"]
+    CheckStorage --> HasInvite{"URL has #/invite/:token?"}
+
+    HasInvite -->|Yes| InviteFlow["Load InvitePreview Flow"]
+    HasInvite -->|No| CheckAuth{"Authenticated Session?"}
+
+    CheckAuth -->|Yes| FetchBootstrap["GET /api/bootstrap"]
+    FetchBootstrap -->|200 OK| HydrateCloud["Hydrate Cloud State"]
+    FetchBootstrap -->|401 Unauthorized| ClearSession["Clear Session & Fallback"]
+    FetchBootstrap -->|Network Error / Offline| HydrateCache["Hydrate Local Cache + Offline Banner"]
+
+    CheckAuth -->|No| CheckGuest{"Guest / Demo Data Exists?"}
+    CheckGuest -->|Yes| HydrateGuest["Hydrate GuestStore"]
+    CheckGuest -->|No| Onboarding["Onboarding Flow (Guest / Demo / Auth)"]
+
+    Onboarding -->|Complete| HydrateGuest
+    Onboarding -->|Auth Success| HydrateCloud
+    ClearSession --> Onboarding
+
+    HydrateCloud --> MainShell["Main App Shell (Hash Router)"]
+    HydrateCache --> MainShell
+    HydrateGuest --> MainShell
+
+    MainShell --> RouteToday["#/today (TodayView)"]
+    MainShell --> RouteHabits["#/habits (HabitsView)"]
+    MainShell --> RouteProgress["#/progress (ProgressView)"]
+    MainShell --> RouteGroups["#/groups (GroupsView)"]
+    MainShell --> RouteDiscover["#/discover (DiscoverView)"]
+    MainShell --> RouteSettings["#/settings (SettingsView)"]
+
+    RouteToday --> DailyCheckin["Daily Check-in Flow"]
+    RouteHabits --> HabitMgmt["Habit Management Flow"]
+    RouteGroups --> GroupFlows["Group Creation / Invite / Check-in"]
+    RouteSettings --> SettingsFlows["Settings / Security / Backup"]
+
+    DailyCheckin --> OfflineCheck{"Online?"}
+    OfflineCheck -->|No| OfflineSync["Offline Entry Queue Flow"]
+    OfflineCheck -->|Yes| SyncSuccess["Update UI & Gamification"]
+
+    Boundary -->|Uncaught Render Error| ErrorRecovery["Error Recovery Flow"]

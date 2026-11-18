@@ -1,0 +1,31 @@
+flowchart TD
+    Start(["Open AuthModal"]) --> Mode{"Select Auth Mode"}
+
+    Mode -->|"Sign In"| LoginForm["Enter Email & Password"]
+    LoginForm --> PostLogin["POST /api/auth/login"]
+    PostLogin -->|200 OK| CheckGuestData{"Local Guest Data Exists?"}
+    PostLogin -->|401 / Error| LoginErr["Show Invalid Credentials Error"]
+    LoginErr --> LoginForm
+
+    Mode -->|"Register"| RegForm["Enter Name, Email & Password"]
+    RegForm --> PostReg["POST /api/auth/register"]
+    PostReg -->|201 Created| ShowRecovery["Display One-Time Recovery Code"]
+    ShowRecovery --> CheckGuestData
+    PostReg -->|409 / Error| RegErr["Show Registration Error"]
+    RegErr --> RegForm
+
+    Mode -->|"Recovery Code"| RecForm["Enter Email, Recovery Code & New Password"]
+    RecForm --> PostRec["POST /api/auth/recover"]
+    PostRec -->|200 OK| CheckGuestData
+    PostRec -->|400 / 401| RecErr["Show Invalid Recovery Code Error"]
+    RecErr --> RecForm
+
+    CheckGuestData -->|Yes| PromptMigrate{"Migrate Guest Data to Cloud?"}
+    PromptMigrate -->|Yes| SyncGuest["POST /api/bootstrap/import"]
+    SyncGuest -->|Success| ClearGuest["Clear GuestStore"]
+    SyncGuest -->|Error| KeepGuest["Retain GuestStore & Retry Option"]
+    PromptMigrate -->|No| ClearGuest
+    CheckGuestData -->|No| FetchCloud["GET /api/bootstrap"]
+
+    ClearGuest --> FetchCloud
+    FetchCloud --> End(["Authenticated Session Active"])

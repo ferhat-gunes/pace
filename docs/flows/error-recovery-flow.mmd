@@ -1,0 +1,20 @@
+flowchart TD
+    Start(["Runtime / Network / UI Error"]) --> Source{"Error Source?"}
+
+    Source -->|"React Render Crash"| CatchBoundary["ErrorBoundary Catches Error"]
+    CatchBoundary --> ShowFallback["Render Disciplined Brutalism Error Screen"]
+    ShowFallback --> UserAction{"User Action?"}
+    UserAction -->|"Reload App"| Reload["window.location.reload()"]
+    UserAction -->|"Reset Local Cache"| ClearCache["Clear Corrupted Cache & Reload"]
+
+    Source -->|"API 401 Unauthorized"| Handle401["Clear Expired Session"]
+    Handle401 --> PromptSignIn["Redirect to AuthModal / Onboarding"]
+
+    Source -->|"API 5xx / Validation Error"| ShowInline["Display Inline Error Banner (No Silent Failure)"]
+    ShowInline --> RetryBtn["User Taps Retry"]
+    RetryBtn --> End(["Recovered"])
+
+    Source -->|"Network Offline"| SwitchOffline["Activate Offline Fallback Mode"]
+    SwitchOffline --> QueueLocal["Route Mutations to EntryQueue / GuestStore"]
+    QueueLocal --> ShowBanner["Show Persistent Offline Status Bar"]
+    ShowBanner --> End

@@ -1,0 +1,31 @@
+flowchart TD
+    Start(["Group Detail or Invite URL (#/invite/:token)"]) --> Branch{"Sender or Recipient?"}
+
+    Branch -->|"Sender (Group Member)"| InviteMode{"Invite Method?"}
+    InviteMode -->|"Copy Invite Link"| GenLink["POST /api/groups/:id/invites (link)"]
+    GenLink --> CopyClipboard["Copy URL to Clipboard & Show Toast"]
+    InviteMode -->|"Send Email Invite"| EnterEmail["Enter Recipient Email"]
+    EnterEmail --> PostEmail["POST /api/groups/:id/invites (email)"]
+    PostEmail -->|201 Created| SentToast["Show Invite Sent Confirmation"]
+    PostEmail -->|Error| InviteErr["Show Error & Retry"]
+
+    Branch -->|"Recipient (Opens #/invite/:token)"| FetchPreview["GET /api/invites/:token"]
+    FetchPreview -->|404 / Expired| InvalidInvite["Show Expired/Invalid Invite State"]
+    FetchPreview -->|200 OK| ShowPreview["Display Group Name, Members & Shared Habits"]
+
+    ShowPreview --> IsAuth{"Authenticated?"}
+    IsAuth -->|No| AuthGate["Prompt Sign In / Register (Preserves Token)"]
+    AuthGate --> Decision
+    IsAuth -->|Yes| Decision{"Accept or Decline?"}
+
+    Decision -->|Accept| PostAccept["POST /api/invites/:token/accept"]
+    PostAccept -->|200 OK| JoinGroup["Add to Group & Redirect to #/groups/:id"]
+    PostAccept -->|Error| AcceptErr["Show Error & Retry"]
+
+    Decision -->|Decline| PostDecline["POST /api/invites/:token/decline"]
+    PostDecline --> RedirectHome["Redirect to #/today"]
+
+    CopyClipboard --> End(["Invite Flow Complete"])
+    SentToast --> End
+    JoinGroup --> End
+    RedirectHome --> End

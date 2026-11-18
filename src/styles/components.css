@@ -1,0 +1,290 @@
+/* Disciplined Brutalism Component Primitives — PACE */
+.db-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  border: var(--border-hairline) solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transition: background-color var(--duration-fast) var(--ease-sharp),
+              color var(--duration-fast) var(--ease-sharp),
+              border-color var(--duration-fast) var(--ease-sharp),
+              transform var(--duration-fast) var(--ease-sharp);
+}
+
+.db-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.db-btn:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+.db-btn:disabled,
+.db-btn[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.db-btn--primary {
+  background-color: var(--signal);
+  color: var(--signal-fg);
+  border-color: var(--signal);
+}
+.db-btn--primary:hover:not(:disabled) {
+  background-color: var(--signal-hover);
+  border-color: var(--signal-hover);
+}
+
+.db-btn--secondary {
+  background-color: var(--surface-1);
+  color: var(--fg);
+  border-color: var(--border-strong);
+}
+.db-btn--secondary:hover:not(:disabled) {
+  background-color: var(--surface-2);
+  border-color: var(--fg);
+}
+
+.db-btn--tertiary {
+  background-color: transparent;
+  color: var(--fg);
+  border-color: transparent;
+}
+.db-btn--tertiary:hover:not(:disabled) {
+  background-color: var(--surface-1);
+  border-color: var(--border);
+}
+
+.db-btn--destructive {
+  background-color: var(--danger);
+  color: var(--danger-fg);
+  border-color: var(--danger);
+}
+.db-btn--destructive:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.db-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: var(--border-hairline) solid var(--border);
+  background-color: var(--surface-1);
+  color: var(--fg);
+  transition: background-color var(--duration-fast) var(--ease-sharp),
+              border-color var(--duration-fast) var(--ease-sharp);
+}
+.db-icon-btn:hover:not(:disabled) {
+  background-color: var(--surface-2);
+  border-color: var(--fg);
+}
+.db-icon-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.db-icon-btn:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+.db-icon-btn[aria-pressed="true"] {
+  border-color: var(--signal);
+  color: var(--signal-text);
+}
+.db-icon-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Interactive Nav, Row, Reaction & Toggle Controls */
+.db-tab {
+  transition: background-color var(--duration-fast) var(--ease-sharp),
+              color var(--duration-fast) var(--ease-sharp),
+              border-color var(--duration-fast) var(--ease-sharp);
+}
+.db-tab:hover:not(:disabled) {
+  background-color: var(--surface-1);
+  color: var(--fg);
+}
+.db-tab:active:not(:disabled) {
+  background-color: var(--surface-2);
+}
+.db-tab:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: -2px;
+}
+.db-tab:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.db-bottom-nav-item {
+  transition: background-color var(--duration-fast) var(--ease-sharp),
+              color var(--duration-fast) var(--ease-sharp);
+}
+.db-bottom-nav-item:hover:not(:disabled) {
+  background-color: var(--surface-2);
+  color: var(--fg);
+}
+.db-bottom-nav-item:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.db-bottom-nav-item:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: -2px;
+}
+.db-bottom-nav-item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.db-habit-row {
+  transition: background-color var(--duration-fast) var(--ease-sharp);
+}
+.db-habit-row:hover {
+  background-color: var(--surface-2);
+}
+.db-habit-row:active {
+  background-color: var(--bg);
+}
+.db-habit-row:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: -2px;
+}
+
+.db-reaction {
+  transition: background-color var(--duration-fast) var(--ease-sharp),
+              border-color var(--duration-fast) var(--ease-sharp),
+              color var(--duration-fast) var(--ease-sharp);
+}
+.db-reaction:hover:not(:disabled) {
+  border-color: var(--fg);
+  color: var(--fg);
+}
+.db-reaction:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.db-reaction:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+.db-reaction:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.db-toggle:hover:not(:disabled) > span:first-child {
+  border-color: var(--fg);
+}
+.db-toggle:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.db-toggle:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+.db-toggle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Form Controls */
+.db-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.db-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-muted);
+}
+
+.db-input,
+.db-textarea,
+.db-select {
+  width: 100%;
+  min-height: 40px;
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--surface-1);
+  border: var(--border-hairline) solid var(--border);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  transition: border-color var(--duration-fast) var(--ease-sharp),
+              background-color var(--duration-fast) var(--ease-sharp);
+}
+
+.db-input:hover:not(:disabled),
+.db-textarea:hover:not(:disabled),
+.db-select:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.db-input:focus,
+.db-textarea:focus,
+.db-select:focus {
+  outline: none;
+  border-color: var(--signal);
+  background-color: var(--surface-2);
+}
+
+.db-input[aria-invalid="true"],
+.db-textarea[aria-invalid="true"],
+.db-select[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.db-input:disabled,
+.db-textarea:disabled,
+.db-select:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.db-field-error {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--danger);
+}
+
+/* StatusMarker */
+.db-status-marker {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--border-strong);
+  background-color: transparent;
+  transition: background-color var(--duration-fast) var(--ease-sharp),
+              border-color var(--duration-fast) var(--ease-sharp);
+}
+.db-status-marker--done {
+  background-color: var(--signal);
+  border-color: var(--signal);
+}
+.db-status-marker--missed {
+  background-color: transparent;
+  border-color: var(--border-strong);
+}
+.db-status-marker--partial {
+  background-color: var(--surface-2);
+  border-color: var(--signal);
+  border-bottom-width: 6px;
+}
+.db-status-marker--rest {
+  border-style: dashed;
+  border-color: var(--fg-muted);
+}

@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Compass, Plus, Check, Share2, Sparkles } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Plus, Check, Share2 } from 'lucide-react';
 import {
   DISCOVER_CATEGORIES,
   DISCOVER_PRESETS,
@@ -9,6 +8,7 @@ import {
 } from '../lib/discoverCatalog';
 import { trackEvent } from '../lib/telemetry';
 import { playPop, playSuccess } from '../lib/soundFx';
+import { Button, Header, InlineFeedback, StatBlock, TabNav } from './ui/index.js';
 
 export default function DiscoverView({
   habits = [],
@@ -94,234 +94,152 @@ export default function DiscoverView({
     }
   };
 
+  const categoryTabs = useMemo(
+    () => DISCOVER_CATEGORIES.map((category) => ({ id: category, label: category })),
+    []
+  );
+
   return (
-    <section className="page-view" id="view-discover" aria-labelledby="discover-title">
-      <div
-        className="page-heading"
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '20px',
-          flexWrap: 'wrap',
-          gap: '12px',
+    <section id="view-discover" aria-labelledby="discover-title" style={{ display: 'flex', flexDirection: 'column' }}>
+      <Header
+        title="Ritim Denemeleri"
+        subtitle="Yarış veya sıralama baskısı olmadan, tek dokunuşla kendi hızında yeni rutinler dene."
+        actions={
+          <Button variant="secondary" onClick={() => onGoToday?.()}>
+            Bugün’e Dön
+          </Button>
+        }
+      />
+
+      <TabNav
+        tabs={categoryTabs}
+        activeId={selectedCategory}
+        onChange={(id) => {
+          playPop();
+          setSelectedCategory(id);
         }}
-      >
-        <div>
-          <h1
-            id="discover-title"
+      />
+
+      <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+        {highlightedPreset && (
+          <div
             style={{
-              margin: 0,
-              fontSize: 'clamp(22px, 4vw, 28px)',
-              color: 'var(--ink)',
-              fontFamily: 'var(--font-heading)',
-              fontWeight: 800,
+              border: '2px solid var(--signal)',
+              backgroundColor: 'var(--surface-1)',
+              padding: 'var(--space-3)',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
+              justifyContent: 'space-between',
+              gap: 'var(--space-3)',
+              flexWrap: 'wrap',
             }}
           >
-            <Compass size={24} aria-hidden="true" style={{ color: 'var(--primary)' }} />
-            <span>Ritim Denemeleri</span>
-          </h1>
-          <p className="section-subtitle" style={{ color: 'var(--muted)', fontSize: '13px', margin: '4px 0 0' }}>
-            Yarış veya sıralama baskısı olmadan, tek dokunuşla kendi hızında yeni rutinler dene.
-          </p>
+            <InlineFeedback message={`Paylaşılan öneri: ${highlightedPreset.name}`} tone="signal" />
+            {onClearHighlight && (
+              <Button variant="secondary" onClick={onClearHighlight}>
+                Tümünü Gör
+              </Button>
+            )}
+          </div>
+        )}
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 'var(--space-2)' }}>
+          <StatBlock label="Şablon" value={visiblePresets.length} />
+          <StatBlock label="Listende" value={existingNames.size} highlight={existingNames.size > 0} />
         </div>
 
-        <button
-          type="button"
-          className="btn btn-soft"
-          style={{ minHeight: '44px', padding: '0 14px', fontSize: '13px' }}
-          onClick={() => onGoToday?.()}
-        >
-          Bugün’e Dön
-        </button>
-      </div>
-
-      {highlightedPreset && (
         <div
-          className="card-chunky"
           style={{
-            background: 'var(--primary-soft)',
-            borderColor: 'var(--primary)',
-            padding: '12px 14px',
-            marginBottom: '16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '10px',
-            flexWrap: 'wrap',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+            gap: 'var(--space-3)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--ink)' }}>
-            <Sparkles size={18} style={{ color: 'var(--primary-dark)' }} aria-hidden="true" />
-            <span>
-              Paylaşılan öneri: <strong>{highlightedPreset.name}</strong>
-            </span>
-          </div>
-          {onClearHighlight && (
-            <button
-              type="button"
-              className="btn btn-soft"
-              style={{ minHeight: '36px', padding: '0 10px', fontSize: '12px' }}
-              onClick={onClearHighlight}
-            >
-              Tümünü Gör
-            </button>
-          )}
-        </div>
-      )}
+          {visiblePresets.map((preset) => {
+            const alreadyAdded = existingNames.has(preset.name.toLowerCase());
+            const isAdding = addingId === preset.id;
+            const isShared = sharedId === preset.id;
+            const isHighlighted = highlightedPresetId === preset.id;
 
-      {/* Category Filter Pills */}
-      <div
-        role="tablist"
-        aria-label="Ritim kategorileri"
-        style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '18px' }}
-      >
-        {DISCOVER_CATEGORIES.map((category) => {
-          const active = selectedCategory === category;
-          return (
-            <button
-              key={category}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => {
-                playPop();
-                setSelectedCategory(category);
-              }}
-              style={{
-                minHeight: '40px',
-                padding: '0 14px',
-                borderRadius: '999px',
-                border: active ? '1.5px solid var(--primary)' : '1.5px solid var(--border)',
-                background: active ? 'var(--primary-soft)' : 'var(--surface)',
-                color: active ? 'var(--primary-dark)' : 'var(--ink)',
-                fontSize: '13px',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              {category}
-            </button>
-          );
-        })}
-      </div>
+            return (
+              <article
+                key={preset.id}
+                style={{
+                  border: isHighlighted ? '2px solid var(--signal)' : '1px solid var(--border)',
+                  backgroundColor: 'var(--surface-1)',
+                  padding: 'var(--space-4)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  gap: 'var(--space-3)',
+                  transition: 'border-color 120ms linear',
+                }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)' }}>
+                    <span
+                      className="mono"
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                        color: 'var(--fg)',
+                        border: '1px solid var(--border-strong)',
+                        backgroundColor: 'var(--surface-2)',
+                        padding: '2px var(--space-2)',
+                      }}
+                    >
+                      {preset.category}
+                    </span>
+                    <span className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)' }}>
+                      {preset.durationLabel}
+                    </span>
+                  </div>
 
-      {/* Presets Grid */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-          gap: '14px',
-        }}
-      >
-        {visiblePresets.map((preset) => {
-          const alreadyAdded = existingNames.has(preset.name.toLowerCase());
-          const isAdding = addingId === preset.id;
-          const isShared = sharedId === preset.id;
-
-          return (
-            <motion.article
-              key={preset.id}
-              layout
-              className="card-chunky"
-              style={{
-                padding: '16px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                gap: '14px',
-                borderColor: highlightedPresetId === preset.id ? 'var(--primary)' : undefined,
-              }}
-            >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: 800,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.04em',
-                      color: 'var(--primary-dark)',
-                      background: 'var(--primary-soft)',
-                      padding: '3px 8px',
-                      borderRadius: '999px',
-                    }}
-                  >
-                    {preset.category}
-                  </span>
-                  <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted)' }}>
-                    {preset.durationLabel}
-                  </span>
+                  <h2 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--fg)' }}>
+                    {preset.name}
+                  </h2>
+                  <p style={{ fontSize: '13px', lineHeight: 1.45, color: 'var(--fg-muted)' }}>
+                    {preset.description}
+                  </p>
                 </div>
 
-                <h2 style={{ margin: '4px 0 0', fontSize: '16px', fontWeight: 800, color: 'var(--ink)' }}>
-                  {preset.name}
-                </h2>
-                <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.45, color: 'var(--muted)' }}>
-                  {preset.description}
-                </p>
-              </div>
+                <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+                  <Button
+                    variant={alreadyAdded ? 'secondary' : 'primary'}
+                    disabled={alreadyAdded || isAdding}
+                    loading={isAdding}
+                    onClick={() => handleAdd(preset)}
+                    style={{ flex: 1 }}
+                  >
+                    {alreadyAdded ? (
+                      <>
+                        <Check size={16} aria-hidden="true" />
+                        <span>Listende Var</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus size={16} aria-hidden="true" />
+                        <span>{isAdding ? 'Ekleniyor…' : 'Ritimime Ekle'}</span>
+                      </>
+                    )}
+                  </Button>
 
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  disabled={alreadyAdded || isAdding}
-                  className={alreadyAdded ? 'btn btn-soft' : 'btn-3d btn-3d-green'}
-                  style={{
-                    flex: 1,
-                    minHeight: '44px',
-                    padding: '0 12px',
-                    fontSize: '13px',
-                    borderRadius: '12px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                  }}
-                  onClick={() => handleAdd(preset)}
-                >
-                  {alreadyAdded ? (
-                    <>
-                      <Check size={16} aria-hidden="true" />
-                      <span>Listende Var</span>
-                    </>
-                  ) : (
-                    <>
-                      <Plus size={16} aria-hidden="true" />
-                      <span>{isAdding ? 'Ekleniyor...' : 'Ritimime Ekle'}</span>
-                    </>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  className="btn btn-soft"
-                  aria-label={`${preset.name} ritimini arkadaşına öner`}
-                  title="Arkadaşına Öner"
-                  style={{
-                    minWidth: '44px',
-                    minHeight: '44px',
-                    padding: '0 10px',
-                    borderRadius: '12px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '4px',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                  }}
-                  onClick={() => handleShare(preset)}
-                >
-                  {isShared ? <Check size={16} aria-hidden="true" /> : <Share2 size={16} aria-hidden="true" />}
-                  {isShared && <span>Kopyalandı</span>}
-                </button>
-              </div>
-            </motion.article>
-          );
-        })}
+                  <Button
+                    variant="secondary"
+                    aria-label={`${preset.name} ritimini arkadaşına öner`}
+                    title="Arkadaşına Öner"
+                    onClick={() => handleShare(preset)}
+                  >
+                    {isShared ? <Check size={16} aria-hidden="true" /> : <Share2 size={16} aria-hidden="true" />}
+                    {isShared && <span>Kopyalandı</span>}
+                  </Button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
       </div>
     </section>
   );

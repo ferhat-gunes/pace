@@ -1,0 +1,22 @@
+flowchart TD
+    Start(["GroupsView (#/groups)"]) --> CheckAuth{"Authenticated?"}
+    CheckAuth -->|No| PromptAuth["Show Auth Prompt (Sign In Required for Groups)"]
+    PromptAuth --> EndGuest(["Return or Open AuthModal"])
+
+    CheckAuth -->|Yes| TapCreate["Tap Create Group"]
+    TapCreate --> FillGroup["Enter Group Name & Description"]
+    FillGroup --> Validate{"Valid Name?"}
+    Validate -->|No| InlineErr["Show Validation Error"]
+    InlineErr --> FillGroup
+
+    Validate -->|Yes| PostGroup["POST /api/groups"]
+    PostGroup -->|201 Created| AddShared{"Add Shared Habit Now?"}
+    PostGroup -->|Error| ApiErr["Show Error & Retry"]
+    ApiErr --> FillGroup
+
+    AddShared -->|Yes| OpenHabitForm["Define Shared Habit (Title, Type, Target)"]
+    OpenHabitForm --> PostShared["POST /api/groups/:id/habits"]
+    PostShared -->|201 Created| GroupReady["Open Group Detail & Social Panel"]
+    AddShared -->|No| GroupReady
+
+    GroupReady --> End(["Group Active"])

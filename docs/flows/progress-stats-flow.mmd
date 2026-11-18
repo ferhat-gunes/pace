@@ -1,0 +1,19 @@
+flowchart TD
+    Start(["ProgressView (#/progress)"]) --> LoadData["Load Habits & Entries (Cloud or GuestStore)"]
+    LoadData --> Compute["Run statistics.js & rules.js"]
+
+    Compute --> CalcStreaks["Calculate Current & Best Streaks"]
+    Compute --> CalcRates["Calculate 7-Day / 30-Day / All-Time Completion %"]
+    Compute --> BuildCalendar["Build Calendar Heatmap / History Grid"]
+
+    CalcStreaks --> RenderHero["Render Hero Streak Number & Summary"]
+    CalcRates --> RenderTable["Render Per-Habit Breakdown Table"]
+    BuildCalendar --> RenderGrid["Render Sharp Rectangular Calendar Grid"]
+
+    RenderGrid --> Filter{"User Filters by Habit or Date Range?"}
+    Filter -->|Yes| Recompute["Recompute Filtered Stats"]
+    Recompute --> RenderHero
+    Filter -->|No| TapDay{"Tap Calendar Day?"}
+    TapDay -->|Yes| ShowDayDetail["Show Day's Completed & Missed Habits"]
+    TapDay -->|No| End(["Stats View Idle"])
+    ShowDayDetail --> End

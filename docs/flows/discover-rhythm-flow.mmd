@@ -1,0 +1,17 @@
+flowchart TD
+    Start(["DiscoverView (#/discover)"]) --> LoadCatalog["Load Curated Rhythm & Habit Presets"]
+    LoadCatalog --> Browse["Browse Categories (Focus, Health, Sleep, Movement)"]
+    Browse --> SelectPreset["Tap Preset Habit / Rhythm Pack"]
+    SelectPreset --> Preview["Preview Frequency, Target & Description"]
+    Preview --> Adopt{"Adopt Preset?"}
+
+    Adopt -->|No| Browse
+    Adopt -->|Yes| CheckAuth{"Authenticated?"}
+    CheckAuth -->|Yes| PostHabit["POST /api/habits (from preset)"]
+    CheckAuth -->|No| SaveGuest["Add to GuestStore"]
+
+    PostHabit -->|201 Created| Confirm["Show Added Confirmation & Link to #/today"]
+    PostHabit -->|Error| ApiErr["Show Error & Retry"]
+    SaveGuest --> Confirm
+
+    Confirm --> End(["Preset Adopted"])

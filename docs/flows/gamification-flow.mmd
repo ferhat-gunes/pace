@@ -1,0 +1,15 @@
+flowchart TD
+    Start(["Daily Check-in Completed"]) --> CalcBase["Award Base Habit XP"]
+    CalcBase --> CheckAllDone{"All Scheduled Habits Done Today?"}
+
+    CheckAllDone -->|Yes| AwardBonus["Award All-Done Daily Bonus XP"]
+    CheckAllDone -->|No| UpdateTotal["Update Total XP"]
+
+    AwardBonus --> UpdateTotal
+    UpdateTotal --> CheckLevel{"Total XP >= Next Level Threshold?"}
+
+    CheckLevel -->|Yes| LevelUp["Increment User Level & Update Badge"]
+    CheckLevel -->|No| RenderProgress["Update Subtle Monospace XP / Level Indicator"]
+
+    LevelUp --> RenderProgress
+    RenderProgress --> End(["Gamification State Updated"])

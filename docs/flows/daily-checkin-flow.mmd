@@ -1,0 +1,28 @@
+flowchart TD
+    Start(["TodayView (#/today)"]) --> SelectHabit["Tap Habit Row"]
+    SelectHabit --> CheckType{"Habit Type?"}
+
+    CheckType -->|"Boolean (1-Tap)"| ToggleDone["Toggle Done / Undone Optimistically"]
+    CheckType -->|"Quantity / Duration"| OpenQty["Open Inline Quantity Stepper / Input"]
+    OpenQty --> EnterVal["Enter Value & Confirm"]
+    EnterVal --> ToggleDone
+
+    ToggleDone --> UpdateUI["Update Status Marker (#C8FF2E) & Streak"]
+    UpdateUI --> CheckMode{"Authenticated?"}
+
+    CheckMode -->|No| SaveLocal["Persist to GuestStore (localStorage)"]
+    SaveLocal --> CheckBonus["Evaluate All-Done Daily Bonus & XP"]
+
+    CheckMode -->|Yes| EnqueueOCC["Enqueue in EntryQueue (with version/OCC)"]
+    EnqueueOCC --> SendSync["POST /api/entries (Optimistic Concurrency)"]
+    SendSync -->|200 OK| CommitSync["Mark Queue Item Synced"]
+    CommitSync --> CheckBonus
+
+    SendSync -->|409 Conflict| ResolveOCC["Fetch Latest Entry & Reconcile"]
+    ResolveOCC --> UpdateUI
+
+    SendSync -->|Network Error / Offline| KeepQueued["Keep in Local EntryQueue (Pending)"]
+    KeepQueued --> ShowOffline["Show Offline / Pending Sync Indicator"]
+    ShowOffline --> End(["Check-in Recorded Locally"])
+
+    CheckBonus --> End
