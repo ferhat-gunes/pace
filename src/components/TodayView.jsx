@@ -263,6 +263,14 @@ export default function TodayView({
             const formId = `entry-${h.id}`;
             const rowComplete = weekly ? weeklyState.status === 'done' : isDone;
 
+            const progressPct = Math.round(displayProgress * 100);
+            const smartSteps =
+              !isDone && h.direction !== 'at_most'
+                ? (target >= 100 ? [10, 25] : target >= 20 ? [5, 10] : target >= 10 ? [5] : []).filter(
+                    (step) => value + step < target
+                  )
+                : [];
+
             return (
               <article
                 key={h.id}
@@ -273,13 +281,10 @@ export default function TodayView({
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   flexWrap: 'wrap',
-                  gap: 'var(--space-4)',
-                  backgroundColor: rowComplete ? 'var(--surface-2)' : undefined,
-                  borderColor: rowComplete ? 'var(--signal)' : undefined,
-                  borderLeft: rowComplete ? '3px solid var(--signal)' : undefined,
+                  gap: 'var(--space-3)',
                 }}
               >
-                <div className="habit-main" style={{ flex: '1 1 220px', minWidth: 0 }}>
+                <div className="habit-main" style={{ flex: '1 1 200px', minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                     <StatusMarker status={rowComplete ? 'done' : 'missed'} size={12} />
                     <button
@@ -306,40 +311,33 @@ export default function TodayView({
                       </strong>
                     </button>
                   </div>
-                  <span className="habit-meta mono" style={{ display: 'block', marginTop: 'var(--space-1)', fontSize: '12px' }}>
-                    {formatTarget(h)}
-                  </span>
+
+                  {h.tracking === 'quantity' ? (
+                    <div className="habit-meta mono" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap', marginTop: '2px', fontSize: '12px', color: 'var(--fg-muted)' }}>
+                      <span>
+                        {record ? formatNumber(value) : '0'} / {formatNumber(target)} {h.unit}
+                      </span>
+                      <span style={{ color: rowComplete ? 'var(--signal-text)' : 'var(--fg-muted)', fontWeight: 700 }}>
+                        {h.direction === 'at_most'
+                          ? record
+                            ? isDone
+                              ? '· Sınır içinde'
+                              : '· Sınır aşıldı'
+                            : '· Kayıt yok'
+                          : `· %${progressPct}`}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="habit-meta mono" style={{ display: 'block', marginTop: '2px', fontSize: '12px' }}>
+                      {formatTarget(h)}
+                    </span>
+                  )}
 
                   {weekly && (
-                    <p className="weekly-quota-summary mono" style={{ margin: 'var(--space-2) 0', fontWeight: 700, fontSize: '12px' }}>
+                    <p className="weekly-quota-summary mono" style={{ margin: 'var(--space-2) 0 0', fontWeight: 700, fontSize: '12px' }}>
                       Bu hafta {weeklyState.actual} / {weeklyState.goal} gün
                       {weeklyState.status === 'done' ? ' · Haftalık hedef tamamlandı' : ''}
                     </p>
-                  )}
-
-                  {h.tracking === 'quantity' && (
-                    <div className="habit-progress" style={{ marginTop: 'var(--space-3)' }}>
-                      <div className="progress-label mono" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', gap: 'var(--space-2)', marginBottom: 'var(--space-1)' }}>
-                        <span>
-                          {weekly ? 'Seçili gün: ' : ''}
-                          {record ? formatNumber(value) : 'Kayıt yok'} / {formatNumber(target)} {h.unit}
-                        </span>
-                        <span>
-                          {h.direction === 'at_most'
-                            ? record
-                              ? isDone
-                                ? 'Sınır içinde'
-                                : 'Sınır aşıldı'
-                              : 'Henüz kayıt yok'
-                            : `%${Math.round(displayProgress * 100)}`}
-                        </span>
-                      </div>
-                      <ProgressBar
-                        value={Math.round(displayProgress * 100)}
-                        max={100}
-                        label={`${h.name} ${weekly ? 'seçili gün' : ''} ilerleme`}
-                      />
-                    </div>
                   )}
 
                   {weekly && h.tracking === 'check' && (
@@ -390,11 +388,8 @@ export default function TodayView({
                         e.preventDefault();
                         saveEdit(h.id);
                       }}
-                      style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'center', width: '100%' }}
+                      style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'center', maxWidth: '100%' }}
                     >
-                      <label htmlFor={`${formId}-amount`} style={{ fontSize: '13px', flexBasis: '100%' }}>
-                        {h.name} miktarı ({h.unit || 'birim'})
-                      </label>
                       <input
                         id={`${formId}-amount`}
                         type="text"
@@ -413,10 +408,10 @@ export default function TodayView({
                           }
                         }}
                         aria-invalid={Boolean(editError)}
-                        aria-describedby={`${formId}-hint${editError ? ` ${formId}-error` : ''}`}
-                        aria-label={`${h.name} miktarı`}
+                        aria-describedby={editError ? `${formId}-error` : undefined}
+                        aria-label={`${h.name} miktarı (${h.unit || 'birim'})`}
                         className="db-input mono"
-                        style={{ width: 'min(180px, 100%)', minHeight: 44, padding: '8px 12px', fontSize: 16 }}
+                        style={{ width: '112px', minHeight: 44, padding: '8px 10px', fontSize: 16 }}
                       />
                       <Button type="submit" variant="primary" size="md" disabled={future}>
                         Kaydet
@@ -424,63 +419,93 @@ export default function TodayView({
                       <Button type="button" variant="tertiary" size="md" onClick={() => closeEdit(h.id)}>
                         Vazgeç
                       </Button>
-                      <span id={`${formId}-hint`} style={{ fontSize: '12px', flexBasis: '100%', color: 'var(--fg-muted)' }}>
-                        0–1.000.000; ondalık için virgül veya nokta kullanabilirsin. Değer yalnız Kaydet ile gönderilir.
-                      </span>
                       {editError && (
-                        <span id={`${formId}-error`} role="alert" style={{ color: 'var(--fg)', flexBasis: '100%', fontSize: '12px', fontWeight: 600 }}>
+                        <span id={`${formId}-error`} role="alert" style={{ color: 'var(--danger)', flexBasis: '100%', fontSize: '12px', fontWeight: 600 }}>
                           {editError}
                         </span>
                       )}
                     </form>
                   ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-                      <IconButton
-                        label={`${h.name} miktarını 1 azalt`}
-                        disabled={future || value <= 0}
-                        onClick={() => quickStep(h, -1)}
-                      >
-                        <Minus size={16} strokeWidth={1.5} aria-hidden="true" />
-                      </IconButton>
-                      <Button
-                        variant="secondary"
-                        size="md"
-                        disabled={future}
-                        aria-label={`${h.name} güncel miktar: ${value}, değiştirmek için tıkla`}
-                        title="Miktarı düzenle"
-                        ref={(el) => {
-                          if (el) amountControls.current.set(h.id, el);
-                          else amountControls.current.delete(h.id);
-                        }}
-                        onClick={() => beginEdit(h.id, value)}
-                        className="mono"
-                      >
-                        {formatNumber(value)}
-                      </Button>
-                      <Button
-                        variant="primary"
-                        size="md"
-                        disabled={future || value >= 1000000}
-                        aria-label={`${h.name} miktarını 1 artır`}
-                        onClick={() => quickStep(h, 1)}
-                      >
-                        <Plus size={16} strokeWidth={1.5} aria-hidden="true" />
-                      </Button>
-                      {!isDone && h.direction !== 'at_most' && target - value > 1 && (
-                        <Button
-                          variant="tertiary"
-                          size="md"
-                          disabled={future}
-                          title={`Kalan ${formatNumber(target - value)} ${h.unit || ''} tamamla`}
-                          onClick={() => logCheckin?.(h.id, target)}
-                          className="mono"
+                    <div className="quantity-controls">
+                      <div className="quantity-stepper" role="group" aria-label={`${h.name} miktar kontrolü`}>
+                        <button
+                          type="button"
+                          className="quantity-stepper__btn"
+                          aria-label={`${h.name} miktarını 1 azalt`}
+                          disabled={future || value <= 0}
+                          onClick={() => quickStep(h, -1)}
                         >
-                          +{formatNumber(target - value)}
-                        </Button>
+                          <Minus size={16} strokeWidth={1.75} aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          className="quantity-stepper__btn quantity-stepper__btn--value"
+                          disabled={future}
+                          aria-label={`${h.name} güncel miktar: ${value}, elle girmek için dokun`}
+                          title="Elle miktar gir"
+                          ref={(el) => {
+                            if (el) amountControls.current.set(h.id, el);
+                            else amountControls.current.delete(h.id);
+                          }}
+                          onClick={() => beginEdit(h.id, value)}
+                        >
+                          {formatNumber(value)}
+                        </button>
+                        <button
+                          type="button"
+                          className="quantity-stepper__btn quantity-stepper__btn--plus"
+                          aria-label={`${h.name} miktarını 1 artır`}
+                          disabled={future || value >= 1000000}
+                          onClick={() => quickStep(h, 1)}
+                        >
+                          <Plus size={16} strokeWidth={2.25} aria-hidden="true" />
+                        </button>
+                      </div>
+
+                      {(smartSteps.length > 0 || (!isDone && h.direction !== 'at_most' && target - value > 1)) && (
+                        <div className="quantity-chips">
+                          {smartSteps.map((step) => (
+                            <Button
+                              key={step}
+                              variant="secondary"
+                              size="md"
+                              disabled={future}
+                              aria-label={`${h.name} miktarını ${step} artır`}
+                              onClick={() => quickStep(h, step)}
+                              className="mono"
+                            >
+                              +{formatNumber(step)}
+                            </Button>
+                          ))}
+                          {!isDone && h.direction !== 'at_most' && target - value > 1 && (
+                            <Button
+                              variant="tertiary"
+                              size="md"
+                              disabled={future}
+                              title={`Kalan ${formatNumber(target - value)} ${h.unit || ''} tamamla`}
+                              onClick={() => logCheckin?.(h.id, target)}
+                            >
+                              Tamamla
+                            </Button>
+                          )}
+                        </div>
                       )}
                     </div>
                   )}
                 </div>
+
+                {h.tracking === 'quantity' && (
+                  <div
+                    className="quantity-bottom-bar"
+                    role="progressbar"
+                    aria-label={`${h.name} ilerleme`}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={progressPct}
+                  >
+                    <div className="quantity-bottom-bar__fill" style={{ width: `${progressPct}%` }} />
+                  </div>
+                )}
 
                 {entry && (
                   <div className="entry-feedback" style={{ flexBasis: '100%', display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>

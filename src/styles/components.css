@@ -336,3 +336,104 @@
 .db-spin {
   animation: db-spin 1s linear infinite;
 }
+
+/* TodayView Habit Row & Quantity Stepper */
+#today-list .habit-row {
+  position: relative;
+  padding: var(--space-4);
+  border: var(--border-hairline) solid var(--border);
+  background-color: var(--surface-1);
+}
+
+#today-list .habit-row.is-quantity {
+  padding-bottom: calc(var(--space-4) + 4px);
+}
+
+#today-list .habit-row.is-complete {
+  background-color: var(--surface-2);
+  border-color: var(--signal);
+  border-left: 3px solid var(--signal);
+}
+
+.quantity-bottom-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background-color: var(--surface-2);
+  overflow: hidden;
+}
+
+.quantity-bottom-bar__fill {
+  height: 100%;
+  background-color: var(--signal);
+  transition: width var(--duration-base) var(--ease-sharp);
+}
+
+.quantity-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.quantity-stepper {
+  display: inline-flex;
+  align-items: stretch;
+  border: var(--border-hairline) solid var(--border-strong);
+  background-color: var(--bg);
+}
+
+.quantity-stepper__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-right: var(--border-hairline) solid var(--border);
+  background-color: transparent;
+  color: var(--fg);
+  transition: background-color var(--duration-fast) var(--ease-sharp),
+              color var(--duration-fast) var(--ease-sharp);
+}
+
+.quantity-stepper__btn:last-child {
+  border-right: 0;
+}
+
+.quantity-stepper__btn--value {
+  min-width: 56px;
+  padding: 0 var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.quantity-stepper__btn--plus {
+  background-color: var(--signal);
+  color: var(--signal-fg);
+}
+
+.quantity-stepper__btn--plus:hover:not(:disabled) {
+  background-color: var(--signal-hover);
+}
+
+.quantity-stepper__btn:hover:not(:disabled):not(.quantity-stepper__btn--plus) {
+  background-color: var(--surface-2);
+}
+
+.quantity-stepper__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.quantity-chips {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
