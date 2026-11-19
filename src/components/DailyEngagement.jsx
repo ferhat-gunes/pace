@@ -81,7 +81,7 @@ export default function DailyEngagement({ gamification, checkins = [], socialInb
             </div>
             <Button
               variant="primary"
-              size="sm"
+              size="md"
               disabled={!g.isQuestCompleted || g.isQuestClaimed}
               onClick={g.claimDailyChest}
             >

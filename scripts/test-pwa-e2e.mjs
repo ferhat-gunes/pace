@@ -12,6 +12,9 @@ try{
  await p.goto(base+'/?demo=1');await p.locator('#view-today').waitFor();
  await p.evaluate(async()=>{await navigator.serviceWorker.ready; if(!navigator.serviceWorker.controller)await new Promise(resolve=>navigator.serviceWorker.addEventListener('controllerchange',resolve,{once:true}));});
  await context.setOffline(true);await p.reload();try{await p.locator('#view-today').waitFor()}catch(error){console.log('OFFLINE BODY',(await p.locator('body').innerText()).slice(0,1000));console.log('CACHES',await p.evaluate(async()=>{const keys=await caches.keys();return Promise.all(keys.map(async k=>[k,(await(await caches.open(k)).keys()).map(r=>r.url)]))}));throw error}
- for(const view of ['discover','groups','progress','settings']){await p.locator(`.mobile-nav [data-view="${view}"]`).click();await p.locator(`#view-${view} h1`).waitFor();}
+ await p.locator('.mobile-nav [data-view="habits"]').click();await p.locator('#view-habits h1').waitFor();
+ await p.getByRole('button',{name:'Rutin şablonlarını keşfet',exact:true}).click();await p.locator('#view-discover h1').waitFor();
+ for(const view of ['groups','progress']){await p.locator(`.mobile-nav [data-view="${view}"]`).click();await p.locator(`#view-${view} h1`).waitFor();}
+ await p.evaluate(()=>{location.hash='#settings';});await p.locator('#view-settings h1').waitFor();
  console.log('PASS: production offline reload plus previously unvisited lazy group/progress/settings screens');
 }finally{await browser?.close();server.kill('SIGTERM')}

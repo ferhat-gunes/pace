@@ -16,7 +16,16 @@ try{
   for(const width of [320,390,768,1440]){
    await page.setViewportSize({width,height:width<768?844:1000});const nav=width<768?'.mobile-nav':'.sidebar';
    for(const view of ['today','habits','discover','progress','groups','settings']){
-    await page.locator(`${nav} [data-view="${view}"]`).click();await page.locator(`#view-${view} h1`).waitFor();await page.evaluate(()=>document.fonts.ready);
+    if(width<768&&view==='discover'){
+     await page.locator('.mobile-nav [data-view="habits"]').click();
+     await page.locator('#view-habits h1').waitFor();
+     await page.getByRole('button',{name:'Rutin şablonlarını keşfet',exact:true}).click();
+    }else if(width<768&&view==='settings'){
+     await page.evaluate(()=>{location.hash='#settings';});
+    }else{
+     await page.locator(`${nav} [data-view="${view}"]`).click();
+    }
+    await page.locator(`#view-${view} h1`).waitFor();await page.evaluate(()=>document.fonts.ready);
     await page.addScriptTag({path:require.resolve('axe-core/axe.min.js')});
     const result=await page.evaluate(async()=>{
      const report=await axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}});
@@ -28,10 +37,10 @@ try{
    }
   }
  }
- await page.setViewportSize({width:390,height:844});await page.locator('.mobile-nav [data-view="today"]').click();await page.locator('.mobile-fab').click();
- await page.getByRole('dialog').waitFor();await page.addScriptTag({path:require.resolve('axe-core/axe.min.js')});
+ await page.setViewportSize({width:390,height:844});await page.locator('.mobile-nav [data-view="today"]').click();await page.getByRole('button',{name:'Yeni alışkanlık ekle',exact:true}).filter({visible:true}).first().click();
+ await page.locator('#view-habit-form h1').waitFor();await page.addScriptTag({path:require.resolve('axe-core/axe.min.js')});
  const modal=await page.evaluate(async()=>{const r=await axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}});return r.violations.map(v=>({id:v.id,impact:v.impact,nodes:v.nodes.map(n=>({target:n.target,summary:n.failureSummary}))}))});
- results.push({theme:'dark',width:390,view:'habit-modal',violations:modal});await page.screenshot({path:`${output}/dark-390-habit-modal.png`});
+ results.push({theme:'dark',width:390,view:'habit-form',violations:modal});await page.screenshot({path:`${output}/dark-390-habit-form.png`});
  await writeFile(`${output}/results.json`,JSON.stringify({date:new Date().toISOString(),results,errors},null,2));
  assert.deepEqual(errors,[],'browser runtime errors');
  assert.equal(results.filter(r=>r.overflow).length,0,'page overflow');

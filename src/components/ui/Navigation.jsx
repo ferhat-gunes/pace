@@ -57,8 +57,9 @@ export function BackNav({ label = 'Geri', onBack, actions, className = '' }) {
 
 export function TabNav({ tabs = [], activeId, onChange, className = '' }) {
   return (
-    <nav
-      aria-label="Tabs"
+    <div
+      role="tablist"
+      aria-label="Sekmeler"
       className={`db-tab-nav ${className}`.trim()}
       style={{
         display: 'flex',
@@ -100,7 +101,7 @@ export function TabNav({ tabs = [], activeId, onChange, className = '' }) {
           </button>
         );
       })}
-    </nav>
+    </div>
   );
 }
 

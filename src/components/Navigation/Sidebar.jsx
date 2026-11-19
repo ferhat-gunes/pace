@@ -58,7 +58,7 @@ export default function Sidebar({ currentView = 'today', setView, syncState = 'B
         {!isAuthenticated && (
           <Button
             variant="primary"
-            size="sm"
+            size="md"
             onClick={() => onOpenAuth?.('login')}
             style={{ width: '100%', justifyContent: 'flex-start', marginBottom: 'var(--space-2)' }}
           >

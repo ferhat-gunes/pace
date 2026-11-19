@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { chromium } from 'playwright';
 import { fulfillFeatureRequest } from './browser-feature-contracts.mjs';
 
@@ -263,6 +264,7 @@ async function runSuite() {
     }
 
     browser = await chromium.launch({
+      executablePath: process.env.CHROMIUM_PATH || (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined),
       headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
@@ -347,12 +349,11 @@ async function runSuite() {
 
     await test('Tier 1 (Feature Coverage)', 'T1-F5-4: Light mode inverted theme toggleable and applied to documentElement', async () => {
       const { context, page, state } = await newPage();
-      await page.goto(BASE_URL, { waitUntil: 'networkidle' });
-      const toggle = page.getByRole('button', { name: /Açık temaya geç|Karanlık temaya geç/i }).first();
-      await toggle.click();
+      await page.goto(`${BASE_URL}/#settings`, { waitUntil: 'networkidle' });
+      await page.locator('#theme-select').selectOption('light');
       await page.waitForTimeout(100);
       const themeAttr = await page.evaluate(() => document.documentElement.getAttribute('data-theme') || document.documentElement.className);
-      if (!themeAttr) throw new Error('Theme attribute/class not updated on documentElement');
+      if (themeAttr !== 'light') throw new Error(`Expected data-theme="light", got "${themeAttr}"`);
       await context.close();
     });
 
@@ -404,7 +405,7 @@ async function runSuite() {
         user: { id: 'user-1', email: 'tester@pace.app', name: 'Pace Tester' },
       });
       await page.goto(`${BASE_URL}/#habits`, { waitUntil: 'networkidle' });
-      await page.getByRole('button', { name: 'Yeni alışkanlık ekle' }).first().click();
+      await page.getByRole('button', { name: /Bildirimler/i }).first().click();
       const dialog = page.getByRole('dialog');
       await dialog.waitFor({ state: 'visible', timeout: 5000 });
       await page.keyboard.press("Escape");
@@ -417,9 +418,8 @@ async function runSuite() {
 
     await test('Tier 1 (Feature Coverage)', 'T1-F6-5: Toast / inline feedback announces status changes without blocking interaction', async () => {
       const { context, page, state } = await newPage();
-      await page.goto(`${BASE_URL}/#today`, { waitUntil: 'networkidle' });
-      const themeToggle = page.getByRole('button', { name: /Açık temaya geç|Karanlık temaya geç/i }).first();
-      await themeToggle.click();
+      await page.goto(`${BASE_URL}/#settings`, { waitUntil: 'networkidle' });
+      await page.locator('#theme-select').selectOption('light');
       const liveRegions = await page.locator('[aria-live], [role="status"], [role="alert"]').count();
       if (liveRegions === 0) throw new Error('Expected at least one aria-live/status/alert region');
       const h1 = page.locator('h1').first();
@@ -487,7 +487,7 @@ async function runSuite() {
     await test('Tier 1 (Feature Coverage)', 'T1-F8-1: Primary navigation links switch views and update location.hash', async () => {
       const { context, page, state } = await newPage();
       await page.goto(`${BASE_URL}/#today`, { waitUntil: 'networkidle' });
-      const nav = page.getByRole('navigation', { name: 'Ana gezinme' }).first();
+      const nav = page.locator('aside.sidebar');
       const routes = [
         { label: 'Alışkanlıklar', hash: '#habits' },
         { label: 'İlerleme', hash: '#progress' },
@@ -619,7 +619,10 @@ async function runSuite() {
       const { context, page, state } = await newPage(undefined, { user: { id: "user-1", email: "tester@pace.app", name: "Pace Tester" } });
       await createHabitViaUI(page, 'Eski Ad', state);
       await page.goto(`${BASE_URL}/#habits`, { waitUntil: 'networkidle' });
+      await page.getByRole('button', { name: 'Eski Ad detaylarını aç' }).first().click();
+      await page.locator('#view-habit-detail').waitFor({ state: 'visible', timeout: 5000 });
       await page.getByRole('button', { name: 'Eski Ad alışkanlığını düzenle' }).first().click();
+      await page.locator('#view-habit-form').waitFor({ state: 'visible', timeout: 5000 });
       const input = page.locator('#habit-name');
       await input.fill('Güncel Ad');
       await page.locator('form button[type="submit"]').evaluate((el) => el.click());
@@ -631,14 +634,23 @@ async function runSuite() {
       const { context, page, state } = await newPage(undefined, { user: { id: "user-1", email: "tester@pace.app", name: "Pace Tester" } });
       await createHabitViaUI(page, 'Duraklat Testi', state);
       await page.goto(`${BASE_URL}/#habits`, { waitUntil: 'networkidle' });
-      await page.getByRole('button', { name: 'Duraklat Testi alışkanlığını duraklat' }).first().click();
-      await page.getByRole('button', { name: 'Duraklat Testi alışkanlığını devam ettir' }).first().waitFor({ state: 'visible', timeout: 5000 });
+      await page.getByRole('button', { name: 'Duraklat Testi detaylarını aç' }).first().click();
+      await page.locator('#view-habit-detail').waitFor({ state: 'visible', timeout: 5000 });
+      await page.getByRole('button', { name: 'Duraklat Testi alışkanlığını düzenle' }).first().click();
+      await page.locator('#view-habit-form').waitFor({ state: 'visible', timeout: 5000 });
+      await page.getByRole('button', { name: 'Duraklat', exact: true }).click();
+      await page.locator('#view-habits').waitFor({ state: 'visible', timeout: 5000 });
       await page.goto(`${BASE_URL}/#today`, { waitUntil: 'networkidle' });
       if ((await page.getByText('Duraklat Testi').count()) !== 0) {
         throw new Error('Paused habit should not be visible on #today');
       }
       await page.goto(`${BASE_URL}/#habits`, { waitUntil: 'networkidle' });
-      await page.getByRole('button', { name: 'Duraklat Testi alışkanlığını devam ettir' }).first().click();
+      await page.getByRole('button', { name: 'Duraklat Testi detaylarını aç' }).first().click();
+      await page.locator('#view-habit-detail').waitFor({ state: 'visible', timeout: 5000 });
+      await page.getByRole('button', { name: 'Duraklat Testi alışkanlığını düzenle' }).first().click();
+      await page.locator('#view-habit-form').waitFor({ state: 'visible', timeout: 5000 });
+      await page.getByRole('button', { name: 'Devam et', exact: true }).click();
+      await page.locator('#view-habits').waitFor({ state: 'visible', timeout: 5000 });
       await page.goto(`${BASE_URL}/#today`, { waitUntil: 'networkidle' });
       await page.getByText('Duraklat Testi').first().waitFor({ state: 'visible', timeout: 5000 });
       await context.close();
@@ -833,7 +845,7 @@ async function runSuite() {
       await page.goto(`${BASE_URL}/#today`, { waitUntil: 'networkidle' });
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
       if (overflow) throw new Error('Horizontal overflow detected at 1280px');
-      await page.getByRole('navigation', { name: 'Ana gezinme' }).first().waitFor({ state: 'visible' });
+      await page.locator('aside.sidebar').waitFor({ state: 'visible' });
       await context.close();
     });
 
@@ -901,14 +913,23 @@ async function runSuite() {
     });
 
     await test('Tier 2 (Boundary & Corner Cases)', 'T2-4: Invalid form submission (empty habit title) shows validation without crashing', async () => {
-      const { context, page, state } = await newPage();
+      const { context, page, state } = await newPage(undefined, { user: { id: 'user-1', email: 'tester@pace.app', name: 'Pace Tester' } });
       await page.goto(`${BASE_URL}/#habits`, { waitUntil: 'networkidle' });
       await page.getByRole("button", { name: "Yeni alışkanlık ekle" }).first().click();
-      const dlg = page.getByRole("dialog");
-      await dlg.waitFor({ state: "visible", timeout: 5000 });
-      await dlg.getByRole("button").last().click();
-      // Dialog should remain open
-      await page.getByRole('dialog').waitFor({ state: 'visible', timeout: 3000 });
+      const emailInput = page.getByPlaceholder('ornek@email.com');
+      if (await emailInput.waitFor({ state: 'visible', timeout: 1500 }).then(() => true).catch(() => false)) {
+        await emailInput.fill('tester@pace.app');
+        await page.locator('input[type="password"]').fill('Secret123!');
+        await page.getByRole('dialog').getByRole('button', { name: /Giriş Yap/i }).last().click();
+      }
+      const formView = page.locator("#view-habit-form");
+      await formView.waitFor({ state: "visible", timeout: 5000 });
+      await page.getByRole("button", { name: "Alışkanlığı Kaydet", exact: true }).click();
+      // Form should remain open with validation error
+      await formView.waitFor({ state: 'visible', timeout: 3000 });
+      if ((await page.locator('#habit-name').getAttribute('aria-invalid')) !== 'true') {
+        throw new Error('Expected #habit-name aria-invalid="true" on empty submit');
+      }
       await context.close();
     });
 
@@ -1058,8 +1079,18 @@ async function runSuite() {
       await page.goto(`${BASE_URL}/#today`, { waitUntil: 'networkidle' });
       await page.getByRole('button', { name: /Yaşam Döngüsü tamamlandı olarak işaretle/i }).first().click();
       await page.goto(`${BASE_URL}/#habits`, { waitUntil: 'networkidle' });
-      await page.getByRole('button', { name: 'Yaşam Döngüsü alışkanlığını duraklat' }).first().click();
-      await page.getByRole('button', { name: 'Yaşam Döngüsü alışkanlığını devam ettir' }).first().click();
+      await page.getByRole('button', { name: 'Yaşam Döngüsü detaylarını aç' }).first().click();
+      await page.locator('#view-habit-detail').waitFor({ state: 'visible', timeout: 5000 });
+      await page.getByRole('button', { name: 'Yaşam Döngüsü alışkanlığını düzenle' }).first().click();
+      await page.locator('#view-habit-form').waitFor({ state: 'visible', timeout: 5000 });
+      await page.getByRole('button', { name: 'Duraklat', exact: true }).click();
+      await page.locator('#view-habits').waitFor({ state: 'visible', timeout: 5000 });
+      await page.getByRole('button', { name: 'Yaşam Döngüsü detaylarını aç' }).first().click();
+      await page.locator('#view-habit-detail').waitFor({ state: 'visible', timeout: 5000 });
+      await page.getByRole('button', { name: 'Yaşam Döngüsü alışkanlığını düzenle' }).first().click();
+      await page.locator('#view-habit-form').waitFor({ state: 'visible', timeout: 5000 });
+      await page.getByRole('button', { name: 'Devam et', exact: true }).click();
+      await page.locator('#view-habits').waitFor({ state: 'visible', timeout: 5000 });
       await context.close();
     });
 
@@ -1094,7 +1125,11 @@ async function runSuite() {
       page.on("pageerror", (e) => errors.push(e.message));
       await createHabitViaUI(page, 'Mobil Çevrimdışı', state);
       await page.goto(`${BASE_URL}/#today`, { waitUntil: 'networkidle' });
-      await page.getByRole('button', { name: /Açık temaya geç/i }).first().click();
+      await page.locator('#account-button').click();
+      await page.locator('#view-settings').waitFor({ state: 'visible', timeout: 5000 });
+      await page.locator('#theme-select').selectOption('light');
+      await page.locator('.mobile-nav [data-view="today"]').click();
+      await page.locator('#view-today').waitFor({ state: 'visible', timeout: 5000 });
       await context.setOffline(true);
       await page.getByRole('button', { name: /Mobil Çevrimdışı tamamlandı olarak işaretle/i }).first().click();
       await context.setOffline(false);

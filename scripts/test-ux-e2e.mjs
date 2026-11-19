@@ -19,15 +19,17 @@ try{
   await route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
  });
  await page.goto(base+'/?noworker=1#today');await page.locator('#view-today h1').waitFor();
- for(const view of ['groups','progress','settings']){await page.locator(`.mobile-nav [data-view="${view}"]`).click();await page.locator(`#view-${view} h1`).waitFor();}
+ for(const view of ['groups','progress']){await page.locator(`.mobile-nav [data-view="${view}"]`).click();await page.locator(`#view-${view} h1`).waitFor();}
+ await page.locator('#account-button').click();await page.locator('#view-settings h1').waitFor();
  await page.goBack();await page.locator('#view-progress').waitFor();await page.reload();await page.locator('#view-progress').waitFor();
  assert.equal(new URL(page.url()).hash,'#progress');
- await page.locator('.mobile-nav [data-view="settings"]').click();await page.locator('#view-settings').waitFor();
+ await page.locator('#account-button').click();await page.locator('#view-settings').waitFor();
  await page.evaluate(()=>{Storage.prototype.removeItem=function(){throw new DOMException('Storage unavailable','SecurityError')}});
  await page.getByRole('button',{name:'Çıkış yap',exact:true}).click();
  await page.getByRole('alert').filter({hasText:'Alışkanlıkların için giriş yap'}).waitFor();
  assert.equal(authorized,false);assert.equal(await page.getByText(user.email,{exact:true}).count(),0);
- authorized=true;await page.reload();await page.locator('.mobile-nav [data-view="settings"]').click();await page.locator('#view-settings').waitFor();
+ authorized=true;await page.reload();await page.getByRole('button',{name:`Hesap ayarları (${user.email})`,exact:true}).click();await page.locator('#view-settings').waitFor();
+ await page.getByText('Gelişmiş ve Tehlikeli İşlemler',{exact:true}).click();
  await page.getByRole('button',{name:'Hesabı Sil',exact:true}).click();await page.locator('#delete-phrase').fill('SİL');
  await page.getByRole('button',{name:'Evet, Kalıcı Olarak Sil',exact:true}).click();
  await page.getByRole('alert').filter({hasText:'Alışkanlıkların için giriş yap'}).waitFor();assert.equal(deleted,true);

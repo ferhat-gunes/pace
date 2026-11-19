@@ -200,7 +200,7 @@ export default function App() {
           {api.demoMode && (
             <InlineFeedback
               tone="neutral"
-              action={<Button variant="tertiary" size="sm" onClick={api.exitDemo}>Kendi hesabıma geç</Button>}
+              action={<Button variant="tertiary" size="md" onClick={api.exitDemo}>Kendi hesabıma geç</Button>}
             >
               <strong>Örnek görünüm</strong> — Kayıtlar yalnızca bu tarayıcıda saklanır.
             </InlineFeedback>
