@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-const VIEWS = new Set(['today','habits','discover','progress','groups','settings']);
+const VIEWS = new Set(['today','habits','discover','progress','groups','settings','habit-form','habit-detail']);
 const current = () => VIEWS.has(location.hash.slice(1)) ? location.hash.slice(1) : 'today';
 export function useNavigation(){
   const [view, setCurrent] = useState(current);
@@ -18,7 +18,7 @@ export function useNavigation(){
       finished=true;heading.tabIndex=-1;heading.focus({preventScroll:true});window.scrollTo({top:0,behavior:'instant'});observer.disconnect();
     };
     const observer=new MutationObserver(focus);observer.observe(document.getElementById('main-content'),{childList:true,subtree:true});const frame=requestAnimationFrame(focus);
-    document.title=({today:'Bugün',habits:'Alışkanlıklar',discover:'Keşfet',progress:'İlerleme',groups:'Gruplar',settings:'Ayarlar'}[view])+' · PACE';
+    document.title=({today:'Bugün',habits:'Alışkanlıklar',discover:'Keşfet',progress:'İlerleme',groups:'Gruplar',settings:'Ayarlar','habit-form':'Alışkanlık','habit-detail':'Alışkanlık Detayı'}[view])+' · PACE';
     return()=>{observer.disconnect();cancelAnimationFrame(frame)};
   },[view]);
   return [view,navigate];

@@ -32,6 +32,7 @@ export default function TodayView({
   entryStates = {},
   retryEntry,
   undoEntry,
+  onOpenHabitDetail,
 }) {
   const todayIso = useLocalDate();
   const previousToday = useRef(todayIso);
@@ -284,9 +285,26 @@ export default function TodayView({
                 <div className="habit-main" style={{ flex: '1 1 220px', minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                     <StatusMarker status={rowComplete ? 'done' : 'missed'} size={12} />
-                    <strong className="habit-name" style={{ display: 'block', overflowWrap: 'anywhere' }}>
-                      {h.name}
-                    </strong>
+                    <button
+                      type="button"
+                      onClick={() => onOpenHabitDetail?.(habit)}
+                      aria-label={`${h.name} detaylarını görüntüle`}
+                      style={{
+                        background: 'transparent',
+                        border: 0,
+                        padding: 0,
+                        margin: 0,
+                        color: 'inherit',
+                        font: 'inherit',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        minWidth: 0,
+                      }}
+                    >
+                      <strong className="habit-name" style={{ display: 'block', overflowWrap: 'anywhere', textDecoration: 'underline', textUnderlineOffset: '3px', textDecorationColor: 'var(--border)' }}>
+                        {h.name}
+                      </strong>
+                    </button>
                   </div>
                   <span className="habit-meta mono" style={{ display: 'block', marginTop: 'var(--space-1)', fontSize: '12px' }}>
                     {formatTarget(h)}

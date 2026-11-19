@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Loader2, X } from 'lucide-react';
 import { Icon } from './Icon.jsx';
 import { Button, IconButton } from './Button.jsx';
@@ -53,6 +53,18 @@ export function InlineFeedback({ message, children, action, tone = 'neutral', ro
 }
 
 export function Modal({ open, title, onClose, closeDisabled = false, closeLabel = 'Kapat', children, footer }) {
+  useEffect(() => {
+    if (!open || !onClose || closeDisabled) return;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open, onClose, closeDisabled]);
+
   if (!open) return null;
   return (
     <div

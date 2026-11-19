@@ -12,7 +12,8 @@ import TopBar from './components/Navigation/TopBar.jsx';
 import MobileNav from './components/Navigation/MobileNav.jsx';
 import TodayView from './components/TodayView.jsx';
 import HabitsView from './components/HabitsView.jsx';
-import HabitModal from './components/HabitModal.jsx';
+import HabitFormView from './components/HabitFormView.jsx';
+import HabitDetailView from './components/HabitDetailView.jsx';
 import { ErrorBoundary } from './components/Common/ErrorBoundary.jsx';
 import { useDialogAccessibility } from './state/useDialogAccessibility.js';
 import UpdateBanner from './components/Navigation/UpdateBanner.jsx';
@@ -28,8 +29,9 @@ const AuthModal = lazy(() => import('./components/AuthModal.jsx'));
 
 export default function App() {
   useDialogAccessibility();
-  const [currentView, setView] = useNavigation(); // 'today' | 'habits' | 'progress' | 'groups' | 'settings'
-  const [isHabitModalOpen, setHabitModalOpen] = useState(false);
+  const [currentView, setView] = useNavigation(); // 'today' | 'habits' | 'progress' | 'groups' | 'settings' | 'habit-form' | 'habit-detail'
+  const [detailHabitId, setDetailHabitId] = useState(null);
+  const [formReturnView, setFormReturnView] = useState('today');
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
   const [inviteToken, setInviteToken] = useState(null);
   const [editingHabit, setEditingHabit] = useState(null);
@@ -132,7 +134,23 @@ export default function App() {
   const openAuth = (mode='login') => { if(api.demoMode){api.exitDemo();return;}setAuthMode(typeof mode==='string'?mode:'login');setAuthModalOpen(true); };
   const openCreateHabit = () => {
     if(!api.demoMode&&!user&&!guestMode){setPendingAction('createHabit');openAuth();return;}
-    setEditingHabit(null);setHabitModalOpen(true);
+    setEditingHabit(null);
+    setFormReturnView(currentView === 'habit-form' || currentView === 'habit-detail' ? 'today' : currentView);
+    setView('habit-form');
+  };
+  const openHabitDetail = (habit) => {
+    if (!habit?.id) return;
+    setDetailHabitId(habit.id);
+    if (currentView !== 'habit-detail' && currentView !== 'habit-form') {
+      setFormReturnView(currentView);
+    }
+    setView('habit-detail');
+  };
+  const openEditHabit = (habit, fromView = 'habit-detail') => {
+    if (!habit?.id) return;
+    setEditingHabit(habit);
+    setFormReturnView(fromView);
+    setView('habit-form');
   };
   const addStarterHabits = async (presets=[],{authorized=false}={}) => {
     if(!authorized&&!api.demoMode&&!user&&!guestMode){setPendingAction({type:'presets',presets});openAuth();return;}
@@ -169,13 +187,16 @@ export default function App() {
           user={user}
           onOpenAuth={openAuth}
           syncState={syncState}
+          socialInbox={socialInbox}
+          onDismissInbox={dismissInbox}
+          inviteToken={inviteToken}
           streak={gamification.streak} streakFreezes={gamification.streakFreezes} isStreakFrozenToday={gamification.isStreakFrozenToday} buyStreakFreeze={gamification.buyStreakFreeze} gems={gamification.gems} level={gamification.level} xp={gamification.xp}
         />
 
         <main id="main-content" className="content-wrap" tabIndex={-1}>
           <ErrorBoundary key={currentView}>
           <PwaInstallBanner />
-          <UpdateBanner blocked={isHabitModalOpen || isAuthModalOpen || Boolean(pendingEntries?.length)} />
+          <UpdateBanner blocked={currentView === 'habit-form' || isAuthModalOpen || Boolean(pendingEntries?.length)} />
           {api.demoMode && (
             <InlineFeedback
               tone="neutral"
@@ -260,6 +281,7 @@ export default function App() {
                   filterMode={filterMode}
                   setFilterMode={setFilterMode}
                   onOpenAddModal={openCreateHabit}
+                  onOpenHabitDetail={openHabitDetail}
                   weekStart={weekStart}
                 />
               )}
@@ -269,12 +291,33 @@ export default function App() {
                   habits={habits}
                   onOpenAddModal={openCreateHabit}
                   onOpenDiscover={isFeatureEnabled('discover_rhythm_trials') ? () => setView('discover') : undefined}
-                  onEditHabit={h=>{setEditingHabit(h);setHabitModalOpen(true);}}
-                  onTogglePause={togglePause}
-                  archiveHabit={archiveHabit}
+                  onOpenHabitDetail={openHabitDetail}
                   restoreHabit={restoreHabit}
                   lastArchivedHabit={lastArchivedHabit}
                   setLastArchivedHabit={setLastArchivedHabit}
+                />
+              )}
+
+              {currentView === 'habit-detail' && (
+                <HabitDetailView
+                  habit={habits.find((h) => h.id === detailHabitId) || null}
+                  checkins={checkins}
+                  weekStart={weekStart}
+                  onBack={() => setView(formReturnView === 'habit-detail' || formReturnView === 'habit-form' ? 'today' : formReturnView)}
+                  onEdit={(h) => openEditHabit(h, 'habit-detail')}
+                />
+              )}
+
+              {currentView === 'habit-form' && (
+                <HabitFormView
+                  habit={editingHabit ? (habits.find((h) => h.id === editingHabit.id) || editingHabit) : null}
+                  initialDate={selectedDate}
+                  onBack={(target) => setView(typeof target === 'string' ? target : (formReturnView || 'today'))}
+                  onUpdateHabit={updateHabit}
+                  onAddHabit={addHabit}
+                  onTogglePause={togglePause}
+                  onArchiveHabit={archiveHabit}
+                  onRestoreHabit={restoreHabit}
                 />
               )}
 
@@ -310,14 +353,6 @@ export default function App() {
 
       <MobileNav currentView={currentView} setView={setView} />
 
-      <HabitModal
-        isOpen={isHabitModalOpen}
-        onClose={() => setHabitModalOpen(false)}
-        habit={editingHabit} initialDate={selectedDate}
-        onUpdateHabit={updateHabit}
-        onAddHabit={addHabit}
-      />
-
       <Suspense fallback={null}>
         {isAuthModalOpen && (
           <AuthModal
@@ -328,7 +363,7 @@ export default function App() {
               setUser(u);setAuthRequired?.(false);await loadData();
               const migration=await migrateGuestToCloud?.();if(migration?.requiresConfirmation)setMigrationRequest(migration);
               const url=new URL(location.href);url.searchParams.delete('auth');history.replaceState({},'',url.pathname+url.search+url.hash);
-              if(pendingAction==='createHabit'){setPendingAction(null);setEditingHabit(null);setHabitModalOpen(true);}
+              if(pendingAction==='createHabit'){setPendingAction(null);setEditingHabit(null);setFormReturnView('today');setView('habit-form');}
               else if(pendingAction?.type==='presets'){const presets=pendingAction.presets;setPendingAction(null);await addStarterHabits(presets,{authorized:true});}
               void refreshInbox();
             }}

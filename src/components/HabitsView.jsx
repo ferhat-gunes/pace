@@ -1,6 +1,6 @@
 import { settingsAt, dateKey } from '../lib/rules.js';
 import React, { useMemo, useRef, useState } from 'react';
-import { Archive, RotateCcw, Pause, Play, Pencil, Plus, Compass } from 'lucide-react';
+import { Archive, RotateCcw, Pause, Play, Plus, Compass, ChevronRight } from 'lucide-react';
 import { describeHabitRules } from '../lib/habit-form.js';
 import { Button, SearchInput, EmptyState, InlineFeedback } from './ui/index.js';
 import './HabitForm.css';
@@ -22,14 +22,11 @@ export default function HabitsView({
   habits = [],
   onOpenAddModal,
   onOpenDiscover,
-  onEditHabit,
-  onTogglePause,
-  archiveHabit,
+  onOpenHabitDetail,
   restoreHabit,
   lastArchivedHabit,
   setLastArchivedHabit,
 }) {
-  const [confirmArchiveId, setConfirmArchiveId] = useState(null);
   const [pendingId, setPendingId] = useState(null);
   const actionLock = useRef(false);
   const [error, setError] = useState('');
@@ -60,7 +57,6 @@ export default function HabitsView({
       if (typeof action !== 'function') throw new Error('Bu işlem şu anda kullanılamıyor. Lütfen yeniden dene.');
       const result = await action();
       if (result === false || result?.success === false) throw new Error(result?.error || 'İşlem tamamlanamadı.');
-      setConfirmArchiveId(null);
       setMessage(success);
     } catch (err) {
       setError(err.message || 'İşlem tamamlanamadı. Lütfen yeniden dene.');
@@ -75,110 +71,53 @@ export default function HabitsView({
       key={habit.id}
       className="habit-row habit-management-row"
       aria-busy={pendingId === habit.id}
+      style={{ padding: 0 }}
     >
-      <div className="habit-main">
-        <strong className="habit-name">{habit.name}</strong>
-        <span className="habit-rule-description">{rulesDescription(habit)}</span>
-        <span className="habit-status-label mono" style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: '12px' }}>
-          {isArchived ? (
-            <>
-              <Archive size={14} strokeWidth={1.5} aria-hidden="true" />
-              Arşivlendi
-            </>
-          ) : habit.paused ? (
-            <>
-              <Pause size={14} strokeWidth={1.5} aria-hidden="true" />
-              Duraklatıldı — yeniden başlatana kadar planlanmaz
-            </>
-          ) : (
-            <>
-              <Play size={14} strokeWidth={1.5} aria-hidden="true" />
-              Aktif
-            </>
-          )}
-        </span>
-      </div>
-
-      <div className="habit-actions habit-management-actions">
-        {isArchived ? (
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={Boolean(pendingId)}
-            aria-label={`${habit.name} alışkanlığını arşivden çıkar`}
-            onClick={() => act(habit.id, () => restoreHabit?.(habit.id), `${habit.name} arşivden çıkarıldı.`)}
-          >
-            <RotateCcw size={14} strokeWidth={1.5} aria-hidden="true" />
-            <span>{pendingId === habit.id ? 'İşleniyor…' : 'Arşivden çıkar'}</span>
-          </Button>
-        ) : confirmArchiveId === habit.id ? (
-          <InlineFeedback
-            tone="neutral"
-            action={
-              <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-                <Button variant="tertiary" size="sm" disabled={Boolean(pendingId)} onClick={() => setConfirmArchiveId(null)}>
-                  Vazgeç
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  disabled={Boolean(pendingId)}
-                  onClick={() => act(habit.id, () => archiveHabit?.(habit.id), `${habit.name} arşive kaldırıldı.`)}
-                >
-                  {pendingId === habit.id ? 'Arşivleniyor…' : 'Evet, Arşivle'}
-                </Button>
-              </div>
-            }
-          >
-            <strong>{habit.name}</strong> arşive kaldırılsın mı? Geçmiş kayıtların korunur; istediğinde arşivden çıkarabilirsin.
-          </InlineFeedback>
-        ) : (
-          <>
-            <Button
-              variant="tertiary"
-              size="sm"
-              disabled={Boolean(pendingId)}
-              aria-label={`${habit.name} alışkanlığını düzenle`}
-              onClick={() => {
-                setError('');
-                onEditHabit?.(habit);
-              }}
-            >
-              <Pencil size={14} strokeWidth={1.5} aria-hidden="true" />
-              <span>Düzenle</span>
-            </Button>
-            <Button
-              variant="tertiary"
-              size="sm"
-              disabled={Boolean(pendingId)}
-              aria-label={`${habit.name} alışkanlığını ${habit.paused ? 'devam ettir' : 'duraklat'}`}
-              onClick={() =>
-                act(
-                  habit.id,
-                  () => onTogglePause?.(habit),
-                  `${habit.name} ${habit.paused ? 'yeniden başlatıldı' : 'duraklatıldı'}.`
-                )
-              }
-            >
-              {habit.paused ? <Play size={14} strokeWidth={1.5} aria-hidden="true" /> : <Pause size={14} strokeWidth={1.5} aria-hidden="true" />}
-              <span>{pendingId === habit.id ? 'İşleniyor…' : habit.paused ? 'Devam et' : 'Duraklat'}</span>
-            </Button>
-            <Button
-              variant="tertiary"
-              size="sm"
-              disabled={Boolean(pendingId)}
-              aria-label={`${habit.name} alışkanlığını arşivle`}
-              onClick={() => {
-                setError('');
-                setConfirmArchiveId(habit.id);
-              }}
-            >
-              <Archive size={14} strokeWidth={1.5} aria-hidden="true" />
-              <span>Arşivle</span>
-            </Button>
-          </>
-        )}
-      </div>
+      <button
+        type="button"
+        onClick={() => {
+          setError('');
+          onOpenHabitDetail?.(habit);
+        }}
+        aria-label={`${habit.name} detaylarını aç`}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 'var(--space-3)',
+          padding: 'var(--space-4)',
+          background: 'transparent',
+          border: 0,
+          color: 'inherit',
+          textAlign: 'left',
+          cursor: 'pointer',
+        }}
+      >
+        <div className="habit-main">
+          <strong className="habit-name">{habit.name}</strong>
+          <span className="habit-rule-description">{rulesDescription(habit)}</span>
+          <span className="habit-status-label mono" style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: '12px' }}>
+            {isArchived ? (
+              <>
+                <Archive size={14} strokeWidth={1.5} aria-hidden="true" />
+                Arşivlendi
+              </>
+            ) : habit.paused ? (
+              <>
+                <Pause size={14} strokeWidth={1.5} aria-hidden="true" />
+                Duraklatıldı — yeniden başlatana kadar planlanmaz
+              </>
+            ) : (
+              <>
+                <Play size={14} strokeWidth={1.5} aria-hidden="true" />
+                Aktif
+              </>
+            )}
+          </span>
+        </div>
+        <ChevronRight size={18} strokeWidth={1.5} aria-hidden="true" style={{ flexShrink: 0, color: 'var(--fg-muted)' }} />
+      </button>
     </article>
   );
 

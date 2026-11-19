@@ -82,16 +82,16 @@
 [data-theme="yellow"] {
   color-scheme: light;
 
-  --bg: #F2DE4B;
+  --bg: #C8FF2E;
   --fg: #0E0E0E;
-  --fg-muted: #3A3516;
-  --surface-1: #E7D23D;
-  --surface-2: #DCC632;
-  --border: #9B8A1D;
+  --fg-muted: #2B3308;
+  --surface-1: #BEFA22;
+  --surface-2: #B0EB1A;
+  --border: #0E0E0E;
   --border-strong: #0E0E0E;
 
   --signal: #0E0E0E;
-  --signal-fg: #F2DE4B;
+  --signal-fg: #C8FF2E;
   --signal-hover: #242424;
   --signal-text: #0E0E0E;
 

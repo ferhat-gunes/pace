@@ -1,5 +1,9 @@
 /* Disciplined Brutalism App Shell & Responsive Layout — PACE */
 
+html {
+  touch-action: manipulation;
+}
+
 .skip-link {
   position: fixed;
   top: var(--space-2);
@@ -51,12 +55,12 @@
   justify-content: center;
   gap: var(--space-2);
   font-family: var(--font-display);
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
   color: var(--fg);
   text-decoration: none;
-  padding: 6px 12px;
+  padding: 8px 16px;
   align-self: flex-start;
 }
 
@@ -64,7 +68,14 @@
 [data-theme="dark"] .mobile-brand {
   border: var(--border-hairline) solid var(--fg);
   color: var(--signal);
-  padding: 6px 12px;
+}
+
+[data-theme="light"] .brand,
+[data-theme="light"] .mobile-brand,
+[data-theme="yellow"] .brand,
+[data-theme="yellow"] .mobile-brand {
+  border: var(--border-hairline) solid var(--fg);
+  color: var(--fg);
 }
 
 .sidebar-caption {
@@ -188,11 +199,11 @@
 .mobile-brand {
   display: none;
   font-family: var(--font-display);
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: 23px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
   color: var(--fg);
-  padding: 4px 10px;
+  padding: 5px 12px;
   line-height: 1.1;
 }
 

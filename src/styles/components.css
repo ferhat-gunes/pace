@@ -222,7 +222,7 @@
   border: var(--border-hairline) solid var(--border);
   color: var(--fg);
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: 16px;
   transition: border-color var(--duration-fast) var(--ease-sharp),
               background-color var(--duration-fast) var(--ease-sharp);
 }

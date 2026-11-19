@@ -209,7 +209,7 @@ export default function SettingsView({
             <div>
               <strong style={{ fontSize: '14px' }}>Görünüm teması</strong>
               <p style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>
-                Açık, koyu, sarı poster veya sistem tercihi.
+                Açık, koyu, sarı veya sistem tercihi.
               </p>
             </div>
             <div style={{ minWidth: '160px' }}>
@@ -222,9 +222,9 @@ export default function SettingsView({
                     inform('Tema tercihi güncellendi.');
                   }}
                   options={[
-                    { value: 'light', label: 'Açık (Kâğıt)' },
-                    { value: 'dark', label: 'Koyu (Gece)' },
-                    { value: 'yellow', label: 'Sarı (Poster)' },
+                    { value: 'light', label: 'Açık' },
+                    { value: 'dark', label: 'Koyu' },
+                    { value: 'yellow', label: 'Sarı' },
                     { value: 'system', label: 'Sistem' },
                   ]}
                 />
