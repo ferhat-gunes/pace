@@ -77,6 +77,7 @@ export default function App() {
     loadData,
   } = useHabits();
 
+  const [targetGroupId, setTargetGroupId] = useState(null);
   const inboxOwner=useRef(null);inboxOwner.current=api.isDemo()?'demo-user':user?.id;
   const confirmed = confirmedCheckins || checkins.filter(c => !c.sync_status || c.sync_status === 'saved');
   const gamification = useGamification(confirmed, habits, serverGamification, Boolean(user && !api.isDemo()), user?.id || (api.isDemo() ? 'demo-user' : 'guest'), weekStart);
@@ -273,6 +274,12 @@ export default function App() {
                   todayHabits={todayHabits}
                   habits={habits}
                   checkins={checkins}
+                  groups={groups}
+                  user={user}
+                  onOpenGroup={(groupId) => {
+                    if (groupId) setTargetGroupId(groupId);
+                    setView('groups');
+                  }}
                   logCheckin={logCheckin}
                   gamification={gamification} socialInbox={socialInbox} onDismissInbox={dismissInbox}
                   onAddStarterHabits={addStarterHabits} guestMode={guestMode&&!api.demoMode} onOpenAuth={openAuth}
@@ -328,7 +335,7 @@ export default function App() {
                 )}
 
                 {currentView === 'groups' && (
-                  <GroupsView gamification={gamification} socialInbox={socialInbox} onSocialRefresh={refreshInbox} onDismissInbox={dismissInbox} guestMode={guestMode} onOpenAuth={openAuth} weekStart={weekStart} onRequireAuth={openAuth} loadGroupsError={groupsError} groups={groups} user={user} loadData={loadData} initialInviteToken={inviteToken} onClearInviteToken={() => {setInviteToken(null);clearInviteQuery();}} />
+                  <GroupsView gamification={gamification} socialInbox={socialInbox} onSocialRefresh={refreshInbox} onDismissInbox={dismissInbox} guestMode={guestMode} onOpenAuth={openAuth} weekStart={weekStart} onRequireAuth={openAuth} loadGroupsError={groupsError} groups={groups} user={user} loadData={loadData} initialInviteToken={inviteToken} onClearInviteToken={() => {setInviteToken(null);clearInviteQuery();}} initialSelectedGroupId={targetGroupId} onClearInitialGroup={() => setTargetGroupId(null)} />
                 )}
 
                 {currentView === 'settings' && (

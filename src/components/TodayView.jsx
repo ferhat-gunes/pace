@@ -5,6 +5,7 @@ import { dailyCompletion } from '../lib/statistics.js';
 import { resolveRolloverSelection, useLocalDate } from '../lib/local-date.js';
 import { parseEntryAmount } from '../lib/numeric-entry.js';
 import DailyEngagement from './DailyEngagement.jsx';
+import TodaySharedHabits from './Groups/TodaySharedHabits.jsx';
 import { Button, IconButton, StatusMarker, ProgressBar, InlineFeedback, EmptyState, LoadingState } from './ui/index.js';
 
 const OnboardingStarter = lazy(() => import('./OnboardingStarter.jsx'));
@@ -19,6 +20,9 @@ export default function TodayView({
   todayHabits = [],
   habits = [],
   checkins = [],
+  groups = [],
+  user = null,
+  onOpenGroup,
   logCheckin,
   completionStats = { completed: 0, total: 0, percentage: 0 },
   filterMode = 'planned',
@@ -545,6 +549,14 @@ export default function TodayView({
           })}
         </div>
       )}
+
+      <TodaySharedHabits
+        groups={groups}
+        user={user}
+        selectedDate={selectedDate}
+        today={todayIso}
+        onOpenGroup={onOpenGroup}
+      />
 
       <div style={{ marginTop: 'var(--space-6)' }}>
         <DailyEngagement

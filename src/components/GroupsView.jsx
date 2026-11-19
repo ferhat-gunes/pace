@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { UserPlus, Copy, Check, ChevronLeft, ChevronRight, Plus, Minus } from 'lucide-react';
+import { UserPlus, Copy, Check, ChevronLeft, ChevronRight, Plus, Minus, Share2 } from 'lucide-react';
 import * as api from '../lib/api';
 import { dateKey, weekDays, addDays } from '../lib/rules.js';
 import GroupSocialPanel from './Groups/GroupSocialPanel.jsx';
+import GroupFormPage from './Groups/GroupFormPage.jsx';
 import {
   dayLabel,
   latestGroupLog,
@@ -21,7 +22,6 @@ import {
   Modal,
   FormField,
   TextInput,
-  Select,
   StatusMarker,
   EmptyState,
   ErrorState,
@@ -34,77 +34,6 @@ import {
 const blankHabit = () => ({ name: '', tracking: 'check', target: 1, unit: '', direction: 'at_least' });
 const token = () => crypto.randomUUID();
 
-function HabitFields({ draft, setDraft, optional = false }) {
-  return (
-    <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
-      <FormField
-        label={optional ? 'Ortak Alışkanlık Adı (İsteğe bağlı)' : 'Alışkanlık Adı'}
-        htmlFor="group-habit-name"
-      >
-        <TextInput
-          id="group-habit-name"
-          value={draft.name}
-          onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-          maxLength={60}
-          placeholder="Örn. 5 km Koşu veya Kitap Okuma"
-          required={!optional}
-        />
-      </FormField>
-      {(!optional || draft.name.trim()) && (
-        <>
-          <FormField label="Takip Türü" htmlFor="group-habit-tracking">
-            <Select
-              id="group-habit-tracking"
-              value={draft.tracking}
-              onChange={(e) => setDraft({ ...draft, tracking: e.target.value })}
-              options={[
-                { value: 'check', label: 'İşaretleme (Yapıldı / Yapılmadı)' },
-                { value: 'quantity', label: 'Miktar veya Süre' },
-              ]}
-            />
-          </FormField>
-          {draft.tracking === 'quantity' && (
-            <>
-              <FormField label="Günlük Hedef" htmlFor="group-habit-target">
-                <TextInput
-                  id="group-habit-target"
-                  type="number"
-                  min="0"
-                  max="1000000"
-                  step="any"
-                  required
-                  value={draft.target}
-                  onChange={(e) => setDraft({ ...draft, target: e.target.value })}
-                />
-              </FormField>
-              <FormField label="Birim" htmlFor="group-habit-unit">
-                <TextInput
-                  id="group-habit-unit"
-                  maxLength={20}
-                  placeholder="Örn. km, dk, sayfa"
-                  value={draft.unit}
-                  onChange={(e) => setDraft({ ...draft, unit: e.target.value })}
-                />
-              </FormField>
-              <FormField label="Hedef Yönü" htmlFor="group-habit-direction">
-                <Select
-                  id="group-habit-direction"
-                  value={draft.direction}
-                  onChange={(e) => setDraft({ ...draft, direction: e.target.value })}
-                  options={[
-                    { value: 'at_least', label: 'En az' },
-                    { value: 'at_most', label: 'En fazla' },
-                  ]}
-                />
-              </FormField>
-            </>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
 export default function GroupsView({
   groups = [],
   loadGroupsError = '',
@@ -113,6 +42,8 @@ export default function GroupsView({
   weekStart = 1,
   initialInviteToken = null,
   onClearInviteToken = null,
+  initialSelectedGroupId = null,
+  onClearInitialGroup = null,
   onRequireAuth = null,
   gamification = null,
   onSocialRefresh = null,
@@ -126,11 +57,15 @@ export default function GroupsView({
     }
   };
 
-  const [selected, setSelected] = useState(() => readContext().selected || groups[0]?.id || null);
+  const [selected, setSelected] = useState(() => initialSelectedGroupId || readContext().selected || groups[0]?.id || null);
   const [detail, setDetail] = useState(null);
   const [detailError, setDetailError] = useState('');
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState(null);
+  const [pageMode, setPageMode] = useState(null); // null | 'create' | 'edit' | 'habit'
+  const [justCreatedGroupId, setJustCreatedGroupId] = useState(null);
+  const [quickInviteLink, setQuickInviteLink] = useState('');
+  const [quickCopied, setQuickCopied] = useState(false);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -154,8 +89,21 @@ export default function GroupsView({
   selectedRef.current = selected;
 
   useEffect(() => {
+    if (initialSelectedGroupId) {
+      setSelected(initialSelectedGroupId);
+      setPageMode(null);
+      onClearInitialGroup?.();
+    }
+  }, [initialSelectedGroupId, onClearInitialGroup]);
+
+  useEffect(() => {
+    setQuickInviteLink('');
+    setQuickCopied(false);
+  }, [selected]);
+
+  useEffect(() => {
     const saved = readContext();
-    setSelected(saved.selected || groups[0]?.id || null);
+    setSelected((prev) => initialSelectedGroupId || saved.selected || prev || groups[0]?.id || null);
     setAnchor(saved.anchor || dateKey());
   }, [contextKey]);
 
@@ -245,13 +193,22 @@ export default function GroupsView({
     onClearInviteToken?.();
   }, [onClearInviteToken]);
 
+  const closePage = useCallback(() => {
+    if (lock.current) return;
+    setPageMode(null);
+    setError('');
+  }, []);
+
   useEffect(() => {
     const esc = (e) => {
-      if (e.key === 'Escape' && modal) close();
+      if (e.key === 'Escape') {
+        if (modal) close();
+        else if (pageMode) closePage();
+      }
     };
     window.addEventListener('keydown', esc);
     return () => window.removeEventListener('keydown', esc);
-  }, [close, modal]);
+  }, [close, closePage, modal, pageMode]);
 
   async function run(kind, task) {
     if (lock.current) return;
@@ -280,6 +237,18 @@ export default function GroupsView({
     setModal(kind);
   }
 
+  function openPage(kind) {
+    if (kind === 'create' && !user?.id) {
+      setNotice('Grup oluşturmak için giriş yap.');
+      onRequireAuth?.();
+      return;
+    }
+    setError('');
+    setNotice('');
+    setModal(null);
+    setPageMode(kind);
+  }
+
   async function createGroup(e) {
     e.preventDefault();
     await run('create', async () => {
@@ -289,11 +258,66 @@ export default function GroupsView({
       if (!res?.group?.id) throw new Error('Grup oluşturulamadı.');
       await loadData?.();
       setSelected(res.group.id);
-      setModal(null);
+      setJustCreatedGroupId(res.group.id);
+      setQuickInviteLink('');
+      setQuickCopied(false);
+      setPageMode(null);
       setName('');
       setDescription('');
       setDraft(blankHabit());
-      setNotice('Grup oluşturuldu.');
+      setNotice('Grup oluşturuldu. Şimdi davet linkini paylaşabilirsin.');
+    });
+  }
+
+  async function shareQuickInvite() {
+    if (!active || lock.current) return;
+    await run('quick-invite', async () => {
+      let url = quickInviteLink;
+      if (!url) {
+        const res = await api.createGroupInvite(active.id, { invite_type: 'link' });
+        const code = res?.invite?.token || res?.invite?.code;
+        if (!code) throw new Error('Davet bağlantısı oluşturulamadı.');
+        url = `${location.origin}/?join=${encodeURIComponent(code)}`;
+        setQuickInviteLink(url);
+      }
+      if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+        try {
+          await navigator.share({
+            title: `${active.name} — PACE`,
+            text: `${active.name} grubuna katıl, ortak alışkanlıklarımızı birlikte takip edelim.`,
+            url,
+          });
+          setNotice('Davet paylaşıldı.');
+          return;
+        } catch (err) {
+          if (err?.name === 'AbortError') return;
+        }
+      }
+      try {
+        await navigator.clipboard.writeText(url);
+        setQuickCopied(true);
+        setNotice('Davet bağlantısı kopyalandı.');
+      } catch {
+        setNotice('Davet bağlantısı hazır; aşağıdan kopyalayabilirsin.');
+      }
+    });
+  }
+
+  async function quickCheckinToday(habit, nextValue, remove = false) {
+    if (!active || !user?.id || lock.current) return;
+    await run(`quick:${habit.id}`, async () => {
+      const log = latestGroupLog(checkins, habit.id, user.id, today);
+      const revision = log?.revision || 0;
+      const body = groupWriteBody(remove ? 0 : nextValue, revision, token());
+      const res = remove
+        ? await api.request(
+            `groups/${encodeURIComponent(active.id)}/habits/${encodeURIComponent(habit.id)}/check-ins/${today}`,
+            { method: 'DELETE', body: JSON.stringify(body) },
+          )
+        : await api.setGroupCheckin(active.id, habit.id, today, body);
+      if (!res?.checkin?.id) throw new Error('Sunucu kaydı doğrulamadı.');
+      await refresh();
+      setNotice(remove ? 'Bugünkü kayıt kaldırıldı.' : 'Bugünkü kayıt güncellendi.');
     });
   }
 
@@ -427,7 +451,7 @@ export default function GroupsView({
       if (!result?.habit?.id) throw new Error('Sunucu alışkanlığı doğrulamadı.');
       await refresh();
       await loadData?.();
-      setModal(null);
+      setPageMode(null);
       setDraft(blankHabit());
       setNotice('Ortak alışkanlık eklendi.');
     });
@@ -439,7 +463,7 @@ export default function GroupsView({
       requireGroupSuccess(await api.updateGroup(active.id, groupSettings({ name, description })));
       await refresh();
       await loadData?.();
-      setModal(null);
+      setPageMode(null);
       setNotice('Grup güncellendi.');
     });
   }
@@ -487,6 +511,25 @@ export default function GroupsView({
   const destructive =
     confirmation?.action === 'delete' || (confirmation?.action === 'leave' && isOwner && members.length <= 1);
 
+  if (pageMode) {
+    return (
+      <GroupFormPage
+        mode={pageMode}
+        groupName={active?.name || ''}
+        name={name}
+        setName={setName}
+        description={description}
+        setDescription={setDescription}
+        draft={draft}
+        setDraft={setDraft}
+        busy={busy}
+        error={error}
+        onSubmit={pageMode === 'create' ? createGroup : pageMode === 'edit' ? editGroup : addHabit}
+        onCancel={closePage}
+      />
+    );
+  }
+
   return (
     <section id="view-groups" aria-labelledby="groups-title" style={{ width: '100%', minWidth: 0, maxWidth: '100%' }}>
       <Header
@@ -500,7 +543,7 @@ export default function GroupsView({
               setName('');
               setDescription('');
               setDraft(blankHabit());
-              open('create');
+              openPage('create');
             }}
           >
             <Icon icon={Plus} size={16} />
@@ -511,6 +554,7 @@ export default function GroupsView({
 
       <div style={{ marginTop: 'var(--space-4)', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--space-4)', width: '100%', minWidth: 0, maxWidth: '100%' }}>
         {notice && <InlineFeedback message={notice} tone="signal" />}
+        {error && !modal && <InlineFeedback message={error} tone="danger" />}
 
         {inviteError && (
           <ErrorState
@@ -562,7 +606,7 @@ export default function GroupsView({
                   setName('');
                   setDescription('');
                   setDraft(blankHabit());
-                  open('create');
+                  openPage('create');
                 }}
               >
                 İlk grubu oluştur
@@ -625,47 +669,230 @@ export default function GroupsView({
 
             {detail && !loading && (
               <>
-                <div
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    alignItems: 'center',
-                    gap: 'var(--space-2)',
-                    marginBottom: 'var(--space-3)',
-                  }}
-                >
-                  <IconButton
-                    icon={ChevronLeft}
-                    label="Önceki hafta"
-                    onClick={() => setAnchor(addDays(anchor, -7))}
-                  />
-                  <span className="mono" style={{ fontSize: '13px', fontWeight: 700 }}>
-                    {dayLabel(days[0])} – {dayLabel(days[6])}
-                  </span>
-                  <IconButton
-                    icon={ChevronRight}
-                    label="Sonraki hafta"
-                    disabled={days[6] >= today}
-                    onClick={() => setAnchor(addDays(anchor, 7))}
-                  />
-                  <Button variant="tertiary" onClick={() => setAnchor(today)}>
-                    Bu hafta
-                  </Button>
-                </div>
-
-                <p className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)', marginBottom: 'var(--space-3)' }}>
-                  Kayıt girmek için bugün veya geçmiş günlerde kendi satırına dokun. Küçük ekranlarda yatay kaydırabilirsin.
-                </p>
-
-                {!habits.length && (
-                  <InlineFeedback
-                    message={
-                      isOwner
-                        ? 'Henüz ortak alışkanlık yok. Aşağıdan ekleyebilirsin.'
-                        : 'Henüz ortak alışkanlık yok. Grup sahibi ortak alışkanlık ekleyebilir.'
-                    }
-                  />
+                {(justCreatedGroupId === active.id || members.length <= 1) && (
+                  <div
+                    style={{
+                      border: '1px solid var(--signal)',
+                      backgroundColor: 'var(--surface-2)',
+                      padding: 'var(--space-3) var(--space-4)',
+                      marginBottom: 'var(--space-4)',
+                      display: 'grid',
+                      gap: 'var(--space-2)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)' }}>
+                      <div>
+                        <div className="mono" style={{ fontSize: '11px', letterSpacing: '0.05em', color: 'var(--signal-text)' }}>
+                          DAVET LİNKİNİ PAYLAŞ
+                        </div>
+                        <p style={{ margin: '2px 0 0', fontSize: '13px', color: 'var(--fg)' }}>
+                          Arkadaşını davet et, aynı alışkanlıkta birlikte ilerleyip rekabet edin.
+                        </p>
+                      </div>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        loading={busy === 'quick-invite'}
+                        disabled={!!busy}
+                        onClick={shareQuickInvite}
+                      >
+                        <Icon icon={quickCopied ? Check : Share2} size={14} />
+                        {quickCopied ? 'Link kopyalandı' : 'Davet linkini paylaş'}
+                      </Button>
+                    </div>
+                    {quickInviteLink && (
+                      <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <TextInput
+                          id="quick-invite-link-input"
+                          value={quickInviteLink}
+                          readOnly
+                          aria-label="Hızlı davet bağlantısı"
+                          onFocus={(e) => e.target.select()}
+                          style={{ flex: '1 1 200px', fontSize: '12px' }}
+                        />
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(quickInviteLink);
+                              setQuickCopied(true);
+                              setNotice('Davet bağlantısı kopyalandı.');
+                            } catch {
+                              setError('Kopyalama başarısız oldu.');
+                            }
+                          }}
+                        >
+                          <Icon icon={quickCopied ? Check : Copy} size={14} />
+                          Kopyala
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 )}
+
+                <section aria-labelledby="group-today-title" style={{ marginBottom: 'var(--space-5)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)', marginBottom: 'var(--space-3)', flexWrap: 'wrap' }}>
+                    <h3 id="group-today-title" style={{ fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em', margin: 0 }}>
+                      Bugün — Ortak Alışkanlıklar
+                    </h3>
+                    {isOwner && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={!!busy}
+                        onClick={() => {
+                          setDraft(blankHabit());
+                          openPage('habit');
+                        }}
+                      >
+                        <Icon icon={Plus} size={14} />
+                        Alışkanlık ekle
+                      </Button>
+                    )}
+                  </div>
+
+                  {!habits.length ? (
+                    <InlineFeedback
+                      message={
+                        isOwner
+                          ? 'Henüz ortak alışkanlık yok. Yukarıdan veya aşağıdan ilk ortak alışkanlığı ekleyebilirsin.'
+                          : 'Henüz ortak alışkanlık yok. Grup sahibi ortak alışkanlık ekleyebilir.'
+                      }
+                    />
+                  ) : (
+                    <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
+                      {habits.map((habit) => {
+                        const log = latestGroupLog(checkins, habit.id, user?.id, today);
+                        const state = groupDayState(habit, log, today, today);
+                        const done = state === 'Tamamlandı';
+                        const currentVal = log && !log.deleted ? Number(log.value || 0) : 0;
+                        const doneMembers = members.filter(
+                          (m) => groupDayState(habit, latestGroupLog(checkins, habit.id, m.user_id, today), today, today) === 'Tamamlandı',
+                        ).length;
+                        const isQuickBusy = busy === `quick:${habit.id}`;
+                        return (
+                          <div
+                            key={habit.id}
+                            style={{
+                              border: `1px solid ${done ? 'var(--signal)' : 'var(--border)'}`,
+                              backgroundColor: done ? 'var(--surface-2)' : 'var(--surface-1)',
+                              padding: 'var(--space-3)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              flexWrap: 'wrap',
+                              gap: 'var(--space-3)',
+                            }}
+                          >
+                            <div style={{ flex: '1 1 180px', minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                                <StatusMarker status={done ? 'done' : 'missed'} size={10} />
+                                <span style={{ fontWeight: 700, fontSize: '14px' }}>{habit.name}</span>
+                              </div>
+                              <div className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)', marginTop: '4px' }}>
+                                {habit.tracking === 'quantity'
+                                  ? `${currentVal} / ${habit.target} ${habit.unit || ''}`.trim()
+                                  : done
+                                    ? 'Bugün tamamlandı'
+                                    : 'Bugün bekliyor'}
+                                {` · ${doneMembers}/${members.length} üye`}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                              {habit.tracking === 'check' ? (
+                                <Button
+                                  variant={done ? 'secondary' : 'primary'}
+                                  size="sm"
+                                  disabled={!!busy}
+                                  loading={isQuickBusy}
+                                  onClick={() => quickCheckinToday(habit, 1, done)}
+                                  aria-label={`${habit.name} bugün için ${done ? 'geri al' : 'tamamla'}`}
+                                >
+                                  <Icon icon={Check} size={14} />
+                                  {done ? 'Tamamlandı' : 'Tamamla'}
+                                </Button>
+                              ) : (
+                                <>
+                                  <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    disabled={!!busy}
+                                    loading={isQuickBusy}
+                                    onClick={() => quickCheckinToday(habit, Number((currentVal + 1).toFixed(4)), false)}
+                                    aria-label={`${habit.name} bugünkü kaydı 1 artır`}
+                                  >
+                                    <Icon icon={Plus} size={14} />
+                                    1
+                                  </Button>
+                                  <Button
+                                    variant={done ? 'secondary' : 'primary'}
+                                    size="sm"
+                                    disabled={!!busy}
+                                    onClick={() => openRecord(habit, today)}
+                                    aria-label={`${habit.name} bugünkü miktarı düzenle`}
+                                  >
+                                    Düzenle
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
+
+                <GroupSocialPanel
+                  group={active}
+                  members={members}
+                  habits={habits}
+                  checkins={checkins}
+                  reactions={detail?.reactions || []}
+                  user={user}
+                  anchor={anchor}
+                  weekStart={weekStart}
+                  gamification={gamification}
+                  onRefresh={() => refresh(active.id)}
+                  onSocialRefresh={onSocialRefresh}
+                />
+
+                <section aria-labelledby="group-matrix-title" style={{ marginTop: 'var(--space-6)' }}>
+                  <h3 id="group-matrix-title" style={{ fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 'var(--space-3)' }}>
+                    Haftalık Takip Tablosu
+                  </h3>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      alignItems: 'center',
+                      gap: 'var(--space-2)',
+                      marginBottom: 'var(--space-3)',
+                    }}
+                  >
+                    <IconButton
+                      icon={ChevronLeft}
+                      label="Önceki hafta"
+                      onClick={() => setAnchor(addDays(anchor, -7))}
+                    />
+                    <span className="mono" style={{ fontSize: '13px', fontWeight: 700 }}>
+                      {dayLabel(days[0])} – {dayLabel(days[6])}
+                    </span>
+                    <IconButton
+                      icon={ChevronRight}
+                      label="Sonraki hafta"
+                      disabled={days[6] >= today}
+                      onClick={() => setAnchor(addDays(anchor, 7))}
+                    />
+                    <Button variant="tertiary" onClick={() => setAnchor(today)}>
+                      Bu hafta
+                    </Button>
+                  </div>
+
+                  <p className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)', marginBottom: 'var(--space-3)' }}>
+                    Geçmiş günleri düzenlemek için kendi satırına dokun. Küçük ekranlarda yatay kaydırabilirsin.
+                  </p>
 
                 {habits.length > 0 && (
                   <div
@@ -797,20 +1024,7 @@ export default function GroupsView({
                     </table>
                   </div>
                 )}
-
-                <GroupSocialPanel
-                  group={active}
-                  members={members}
-                  habits={habits}
-                  checkins={checkins}
-                  reactions={detail?.reactions || []}
-                  user={user}
-                  anchor={anchor}
-                  weekStart={weekStart}
-                  gamification={gamification}
-                  onRefresh={() => refresh(active.id)}
-                  onSocialRefresh={onSocialRefresh}
-                />
+                </section>
 
                 <section style={{ marginTop: 'var(--space-6)' }} aria-labelledby="group-members-title">
                   <h3 id="group-members-title" style={{ fontSize: '16px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
@@ -862,7 +1076,7 @@ export default function GroupsView({
                         disabled={!!busy}
                         onClick={() => {
                           setDraft(blankHabit());
-                          open('habit');
+                          openPage('habit');
                         }}
                       >
                         Ortak alışkanlık ekle
@@ -873,7 +1087,7 @@ export default function GroupsView({
                         onClick={() => {
                           setName(active.name);
                           setDescription(active.description || '');
-                          open('edit');
+                          openPage('edit');
                         }}
                       >
                         Grubu düzenle
@@ -889,64 +1103,6 @@ export default function GroupsView({
           </div>
         )}
       </div>
-
-      <Modal
-        open={modal === 'create' || modal === 'edit'}
-        title={modal === 'create' ? 'Grup Oluştur' : 'Grubu Düzenle'}
-        onClose={close}
-      >
-        <form onSubmit={modal === 'create' ? createGroup : editGroup} aria-busy={!!busy}>
-          <fieldset disabled={!!busy} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: 'grid', gap: 'var(--space-3)' }}>
-            {error && <InlineFeedback message={error} tone="danger" />}
-            <FormField label="Grup Adı" htmlFor="group-name-input">
-              <TextInput
-                id="group-name-input"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Örn. Sabah Koşucuları"
-                maxLength={60}
-                required
-                autoFocus
-              />
-            </FormField>
-            <FormField label="Açıklama (İsteğe bağlı)" htmlFor="group-desc-input">
-              <TextInput
-                id="group-desc-input"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Kısa grup hedefi"
-                maxLength={280}
-              />
-            </FormField>
-            {modal === 'create' && <HabitFields draft={draft} setDraft={setDraft} optional />}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
-              <Button variant="secondary" disabled={!!busy} onClick={close}>
-                İptal
-              </Button>
-              <Button type="submit" variant="primary" loading={Boolean(busy)} disabled={!!busy}>
-                {modal === 'create' ? 'Grup oluştur' : 'Değişiklikleri kaydet'}
-              </Button>
-            </div>
-          </fieldset>
-        </form>
-      </Modal>
-
-      <Modal open={modal === 'habit'} title="Ortak Alışkanlık Ekle" onClose={close}>
-        <form onSubmit={addHabit} aria-busy={!!busy}>
-          <fieldset disabled={!!busy} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: 'grid', gap: 'var(--space-3)' }}>
-            {error && <InlineFeedback message={error} tone="danger" />}
-            <HabitFields draft={draft} setDraft={setDraft} />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
-              <Button variant="secondary" disabled={!!busy} onClick={close}>
-                İptal
-              </Button>
-              <Button type="submit" variant="primary" loading={Boolean(busy)} disabled={!!busy}>
-                Alışkanlığı kaydet
-              </Button>
-            </div>
-          </fieldset>
-        </form>
-      </Modal>
 
       <Modal open={modal === 'record' && Boolean(record)} title={record ? `${record.habit.name}` : ''} onClose={close}>
         {record && (
