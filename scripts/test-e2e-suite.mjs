@@ -279,7 +279,7 @@ async function runSuite() {
     };
 
     const createHabitViaUI = async (page, name = 'Test Habit', _state = null, opts = {}) => {
-      await page.goto(`${BASE_URL}/#today`, { waitUntil: 'networkidle' });
+      await page.goto(`${BASE_URL}/#habits`, { waitUntil: 'networkidle' });
       const addBtn = page.getByRole('button', { name: /Yeni alışkanlık ekle|Alışkanlık Ekle/i }).first();
       await addBtn.waitFor({ state: 'visible' });
       await addBtn.click();
@@ -302,6 +302,7 @@ async function runSuite() {
       }
       await page.locator('form button[type="submit"]').evaluate((el) => el.click());
       await nameInput.waitFor({ state: 'hidden' });
+      await page.goto(`${BASE_URL}/#today`, { waitUntil: 'networkidle' });
       await page.getByText(name).first().waitFor({ state: 'visible' });
     };
 
@@ -1197,7 +1198,7 @@ async function runSuite() {
       const { context, page } = await newPage();
       const errors = [];
       page.on('pageerror', (e) => errors.push(e.message));
-      await page.goto(`${BASE_URL}/#today`, { waitUntil: 'networkidle' });
+      await page.goto(`${BASE_URL}/#habits`, { waitUntil: 'networkidle' });
       await page.getByRole('button', { name: /Yeni alışkanlık ekle|Alışkanlık Ekle/i }).first().click();
       const emailInput = page.getByPlaceholder('ornek@email.com');
       if (await emailInput.waitFor({ state: 'visible', timeout: 1500 }).then(() => true).catch(() => false)) {

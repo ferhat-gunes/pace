@@ -9,6 +9,8 @@ try {
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   await page.goto((process.env.PACE_BASE_URL || 'http://localhost:5173') + '/?demo=1&noworker=1');
   await page.locator('#view-today').waitFor();
+  await page.locator('.mobile-nav [data-view="habits"]').click();
+  await page.locator('#view-habits').waitFor();
   await page.getByRole('button', { name: 'Yeni alışkanlık ekle', exact: true }).filter({ visible: true }).first().click();
   await page.locator('#habit-name').fill('Ondalık yaşam döngüsü');
   await page.getByRole('button', { name: 'Miktar / Süre', exact: true }).click();
@@ -93,6 +95,8 @@ try {
   });
   await formPage.goto((process.env.PACE_BASE_URL || 'http://localhost:5173') + '/?noworker=1');
   await formPage.locator('#view-today').waitFor();
+  await formPage.locator('.mobile-nav [data-view="habits"]').click();
+  await formPage.locator('#view-habits').waitFor();
   await formPage.getByRole('button', { name: 'Yeni alışkanlık ekle', exact: true }).filter({ visible: true }).first().click();
   await formPage.locator('#view-habit-form').waitFor();
   await formPage.locator('#habit-name').fill('Korunan form');

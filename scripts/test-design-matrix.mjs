@@ -37,7 +37,7 @@ try{
    }
   }
  }
- await page.setViewportSize({width:390,height:844});await page.locator('.mobile-nav [data-view="today"]').click();await page.getByRole('button',{name:'Yeni alışkanlık ekle',exact:true}).filter({visible:true}).first().click();
+ await page.setViewportSize({width:390,height:844});await page.locator('.mobile-nav [data-view="habits"]').click();await page.locator('#view-habits').waitFor();await page.getByRole('button',{name:'Yeni alışkanlık ekle',exact:true}).filter({visible:true}).first().click();
  await page.locator('#view-habit-form h1').waitFor();await page.addScriptTag({path:require.resolve('axe-core/axe.min.js')});
  const modal=await page.evaluate(async()=>{const r=await axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}});return r.violations.map(v=>({id:v.id,impact:v.impact,nodes:v.nodes.map(n=>({target:n.target,summary:n.failureSummary}))}))});
  results.push({theme:'dark',width:390,view:'habit-form',violations:modal});await page.screenshot({path:`${output}/dark-390-habit-form.png`});
