@@ -279,7 +279,7 @@ export default function App() {
               )}
 
               <Suspense fallback={<LoadingState label="Yükleniyor…" />}>
-                {currentView === 'discover' && (isFeatureEnabled('discover_rhythm_trials') ? <DiscoverView habits={habits} onAddPreset={preset=>addStarterHabits([preset])} highlightedPresetId={highlightedPresetId} onClearHighlight={()=>setHighlightedPresetId(null)} onGoToday={()=>setView('today')} /> : <section id="view-discover" className="page-view"><h1>Keşfet</h1><p>Ritim denemeleri şu an kapalı.</p></section>)}
+                {currentView === 'discover' && (isFeatureEnabled('discover_rhythm_trials') ? <DiscoverView habits={habits} onAddPreset={preset=>addStarterHabits([preset])} highlightedPresetId={highlightedPresetId} onClearHighlight={()=>setHighlightedPresetId(null)} onGoToday={()=>setView('today')} /> : <section id="view-discover" className="page-view"><h1>Keşfet</h1><p>Rutin şablonları şu an kapalı.</p></section>)}
                 {currentView === 'progress' && (
                   <ProgressView habits={habits} checkins={checkins} weekStart={weekStart} gamification={gamification} />
                 )}

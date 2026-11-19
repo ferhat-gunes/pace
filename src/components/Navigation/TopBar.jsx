@@ -1,12 +1,14 @@
 import React from 'react';
-import { Settings } from 'lucide-react';
+import { CloudCheck, RefreshCw, AlertTriangle } from 'lucide-react';
 import * as api from '../../lib/api.js';
-import { IconButton } from '../ui/index.js';
 
 export default function TopBar({ setView, user, onOpenAuth, syncState, streak = 0 }) {
   const initial = user?.email ? user.email[0].toLocaleUpperCase('tr-TR') : 'P';
   const isDemo = api.demoMode;
-  const isSynced = syncState === 'Kaydedildi' || syncState === 'Güncel';
+  const isError = /Hata|Çakışma|kurulamadı|Kaydedilmemiş/i.test(syncState || '');
+  const isPending = /Kaydediliyor|Yükleniyor/i.test(syncState || '');
+  const SyncIcon = isError ? AlertTriangle : isPending ? RefreshCw : CloudCheck;
+  const syncLabel = syncState || 'Senkronize';
 
   return (
     <header className="topbar" role="banner">
@@ -31,34 +33,31 @@ export default function TopBar({ setView, user, onOpenAuth, syncState, streak = 
       </span>
 
       <div className="topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-        {syncState && (
-          <span
-            className="mobile-sync-badge mono"
-            role="status"
-            aria-live="polite"
-            aria-atomic="true"
-            title={syncState}
-            style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              padding: 'var(--space-1) var(--space-2)',
-              border: '1px solid var(--border)',
-              background: 'var(--surface-1)',
-              color: isSynced ? 'var(--signal-text)' : 'var(--fg-muted)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-            }}
-          >
-            {syncState}
-          </span>
-        )}
-
-        <IconButton
-          icon={Settings}
-          label="Ayarlar"
-          data-view="settings"
-          onClick={() => setView?.('settings')}
-        />
+        <span
+          className="mobile-sync-badge"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          aria-label={syncLabel}
+          title={syncLabel}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '32px',
+            height: '32px',
+            border: '1px solid var(--border)',
+            background: 'var(--surface-1)',
+            color: isError ? 'var(--danger)' : isPending ? 'var(--fg-muted)' : 'var(--signal-text)',
+          }}
+        >
+          <SyncIcon
+            size={16}
+            strokeWidth={1.75}
+            aria-hidden="true"
+            className={isPending ? 'db-spin' : undefined}
+          />
+        </span>
 
         <button
           type="button"

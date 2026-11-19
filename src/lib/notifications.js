@@ -355,7 +355,7 @@ export async function checkAndTriggerDailyReminder(todayHabits = [], checkins = 
     const body =
       count === 1
         ? `"${remainingHabits[0].name}" bugün seni bekliyor. Küçük bir adım yeterli.`
-        : `Bugün ${count} rutinin seni bekliyor. Kendi ritminde devam et!`;
+        : `Bugün ${count} rutinin seni bekliyor. Bugünkü düzenini koru.`;
 
     const sent = await sendLocalNotification(title, {
       body,
@@ -378,7 +378,7 @@ export async function checkAndTriggerDailyReminder(todayHabits = [], checkins = 
 
 export const NUDGE_PRESETS = [
   { emoji: '☕', text: 'Bugün küçük bir adım atmak ister misin?', label: 'Nazik Yokla' },
-  { emoji: '⚡', text: 'Ritim bozulmasın, yanındayız!', label: 'Seri Koru' },
+  { emoji: '⚡', text: 'Serin bozulmasın, yanındayız.', label: 'Seri Koru' },
   { emoji: '👉', text: 'Hedefini tamamlamayı unutma!', label: 'Hatırlat' },
   { emoji: '🔥', text: 'Grup olarak bugün de güzel bir gün çıkaralım!', label: 'Grup Ruhu' },
   { emoji: '🎯', text: 'Küçük bir adım bile fark yaratır, haydi!', label: 'Motivasyon' },

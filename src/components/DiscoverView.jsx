@@ -63,7 +63,7 @@ export default function DiscoverView({
   const handleShare = async (preset) => {
     playPop();
     const url = buildDiscoverShareUrl(preset.id);
-    const shareText = `PACE'te "${preset.name}" ritim denemesine birlikte başlayalım mı?`;
+    const shareText = `PACE'te "${preset.name}" rutin şablonuna birlikte başlayalım mı?`;
     let shared = false;
 
     try {
@@ -102,7 +102,7 @@ export default function DiscoverView({
   return (
     <section id="view-discover" aria-labelledby="discover-title" style={{ display: 'flex', flexDirection: 'column' }}>
       <Header
-        title="Ritim Denemeleri"
+        title="Rutin Şablonları"
         subtitle="Yarış veya sıralama baskısı olmadan, tek dokunuşla kendi hızında yeni rutinler dene."
         actions={
           <Button variant="secondary" onClick={() => onGoToday?.()}>
@@ -221,14 +221,14 @@ export default function DiscoverView({
                     ) : (
                       <>
                         <Plus size={16} aria-hidden="true" />
-                        <span>{isAdding ? 'Ekleniyor…' : 'Ritimime Ekle'}</span>
+                        <span>{isAdding ? 'Ekleniyor…' : 'Rutinlerime Ekle'}</span>
                       </>
                     )}
                   </Button>
 
                   <Button
                     variant="secondary"
-                    aria-label={`${preset.name} ritimini arkadaşına öner`}
+                    aria-label={`${preset.name} şablonunu arkadaşına öner`}
                     title="Arkadaşına Öner"
                     onClick={() => handleShare(preset)}
                   >

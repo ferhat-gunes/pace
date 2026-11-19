@@ -78,3 +78,24 @@
   --danger-fg: #F2F0EA;
   --warning: #B88600;
 }
+
+[data-theme="yellow"] {
+  color-scheme: light;
+
+  --bg: #F2DE4B;
+  --fg: #0E0E0E;
+  --fg-muted: #3A3516;
+  --surface-1: #E7D23D;
+  --surface-2: #DCC632;
+  --border: #9B8A1D;
+  --border-strong: #0E0E0E;
+
+  --signal: #0E0E0E;
+  --signal-fg: #F2DE4B;
+  --signal-hover: #242424;
+  --signal-text: #0E0E0E;
+
+  --danger: #B91C1C;
+  --danger-fg: #F2F0EA;
+  --warning: #78350F;
+}

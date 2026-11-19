@@ -235,7 +235,7 @@ export default function TodayView({
           description={
             hasHabits
               ? 'Planlanmamış günler eksik sayılmaz. İstersen diğer alışkanlıklarını görüntüleyebilirsin.'
-              : 'Küçük bir hedef seç; ilerlemeni kendi ritminde takip et.'
+              : 'Küçük bir hedef seç; ilerlemeni günlük düzeninde takip et.'
           }
           action={
             <Button

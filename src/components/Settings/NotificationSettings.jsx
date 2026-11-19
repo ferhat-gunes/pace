@@ -184,12 +184,13 @@ export default function NotificationSettings({ authorized = false, pushEnabled =
           <div>
             <strong style={{ fontSize: '14px' }}>Hatırlatma saati</strong>
           </div>
-          <div style={{ width: '140px' }}>
+          <div style={{ minWidth: '156px', width: 'auto', maxWidth: '100%' }}>
             <FormField label="Saat" htmlFor="reminder-time-input">
               <DateTimePicker
                 id="reminder-time-input"
                 type="time"
                 aria-label="Hatırlatma saati"
+                style={{ width: '100%', minWidth: '148px' }}
                 value={settings.reminderTime}
                 onChange={(e) => run(() => update({ reminderTime: e.target.value }))}
               />
@@ -204,24 +205,26 @@ export default function NotificationSettings({ authorized = false, pushEnabled =
               Bu aralıkta hatırlatma gösterilmez.
             </p>
           </div>
-          <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-            <div style={{ width: '140px' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', maxWidth: '100%' }}>
+            <div style={{ minWidth: '156px', width: 'auto', maxWidth: '100%' }}>
               <FormField label="Başlangıç" htmlFor="quiet-start-input">
                 <DateTimePicker
                   id="quiet-start-input"
                   type="time"
                   aria-label="Sessiz saat başlangıcı"
+                  style={{ width: '100%', minWidth: '148px' }}
                   value={settings.quietStart}
                   onChange={(e) => run(() => update({ quietStart: e.target.value }))}
                 />
               </FormField>
             </div>
-            <div style={{ width: '140px' }}>
+            <div style={{ minWidth: '156px', width: 'auto', maxWidth: '100%' }}>
               <FormField label="Bitiş" htmlFor="quiet-end-input">
                 <DateTimePicker
                   id="quiet-end-input"
                   type="time"
                   aria-label="Sessiz saat bitişi"
+                  style={{ width: '100%', minWidth: '148px' }}
                   value={settings.quietEnd}
                   onChange={(e) => run(() => update({ quietEnd: e.target.value }))}
                 />
@@ -267,24 +270,26 @@ export default function NotificationSettings({ authorized = false, pushEnabled =
         />
       </div>
 
-      <div style={{ paddingTop: 'var(--space-2)' }}>
-        <Button
-          variant="secondary"
-          disabled={busy || settings.permission !== 'granted'}
-          onClick={() =>
-            run(async () => {
-              const ok = await sendLocalNotification('PACE test bildirimi', {
-                body: 'Bildirim bağlantısını kontrol ediyorsun.',
-                tag: 'pace-test-notification',
-              });
-              if (!ok) throw new Error('Test bildirimi gönderilemedi.');
-              setNotice({ text: 'Test bildirimi gönderildi.' });
-            })
-          }
-        >
-          Test bildirimi gönder
-        </Button>
-      </div>
+      {settings.permission === 'granted' && (
+        <div style={{ paddingTop: 'var(--space-2)' }}>
+          <Button
+            variant="secondary"
+            disabled={busy}
+            onClick={() =>
+              run(async () => {
+                const ok = await sendLocalNotification('PACE test bildirimi', {
+                  body: 'Bildirim bağlantısını kontrol ediyorsun.',
+                  tag: 'pace-test-notification',
+                });
+                if (!ok) throw new Error('Test bildirimi gönderilemedi.');
+                setNotice({ text: 'Test bildirimi gönderildi.' });
+              })
+            }
+          >
+            Test bildirimi gönder
+          </Button>
+        </div>
+      )}
     </section>
   );
 }

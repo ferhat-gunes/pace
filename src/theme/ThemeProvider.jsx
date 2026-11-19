@@ -10,7 +10,7 @@ const ThemeContext = createContext(null);
 const browserPreference = () => {
   try {
     const stored = readThemePreference(window.localStorage);
-    return stored === 'light' || stored === 'dark' ? stored : 'dark';
+    return stored === 'light' || stored === 'dark' || stored === 'yellow' ? stored : 'dark';
   } catch {
     return 'dark';
   }
@@ -24,11 +24,11 @@ export function useTheme() {
 
 export default function ThemeProvider({ children }) {
   const [preference, setPreferenceState] = useState(browserPreference);
-  const mode = preference === 'light' ? 'light' : 'dark';
+  const mode = preference === 'light' || preference === 'yellow' ? preference : 'dark';
 
   const setPreference = useCallback((value) => {
     const next = normalizeThemePreference(value);
-    const resolved = next === 'light' ? 'light' : 'dark';
+    const resolved = next === 'light' || next === 'yellow' ? next : 'dark';
     try {
       localStorage.setItem(THEME_STORAGE_KEY, resolved);
     } catch {
@@ -49,7 +49,7 @@ export default function ThemeProvider({ children }) {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', mode);
-    document.documentElement.style.colorScheme = mode;
+    document.documentElement.style.colorScheme = mode === 'dark' ? 'dark' : 'light';
   }, [mode]);
 
   const value = useMemo(() => ({ preference, mode, setPreference }), [preference, mode, setPreference]);

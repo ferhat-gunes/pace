@@ -491,7 +491,7 @@ export default function GroupsView({
     <section id="view-groups" aria-labelledby="groups-title" style={{ width: '100%', minWidth: 0, maxWidth: '100%' }}>
       <Header
         title="Gruplar"
-        subtitle="Ortak sorumluluk ve haftalık ritim"
+        subtitle="Ortak sorumluluk ve haftalık takip"
         actions={
           <Button
             variant="primary"

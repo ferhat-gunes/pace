@@ -28,7 +28,7 @@ export default function Sidebar({ currentView = 'today', setView, syncState = 'B
         <span>PACE</span>
       </a>
 
-      <p className="sidebar-caption mono">kendi ritminde, her gün</p>
+      <p className="sidebar-caption mono">her gün, net bir düzenle</p>
       <nav className="nav-list">
         {items.map((item) => {
           const NavIcon = item.icon;

@@ -181,26 +181,19 @@ export default function SettingsView({
 
   return (
     <section id="view-settings" aria-labelledby="settings-title" style={{ display: 'flex', flexDirection: 'column' }}>
-      <Header title="Ayarlar" subtitle="Hesap, tercihler ve veri güvenliği" />
+      <Header title="Ayarlar" subtitle="Görünüm, bildirimler, hesap ve veri yönetimi" />
 
       <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
         {notice && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 'var(--space-3)',
-              border: `1px solid ${notice.error ? 'var(--danger)' : 'var(--signal)'}`,
-              backgroundColor: 'var(--surface-2)',
-              padding: 'var(--space-2) var(--space-3)',
-            }}
-          >
-            <InlineFeedback message={notice.message} tone={notice.error ? 'danger' : 'signal'} />
-            <Button variant="ghost" aria-label="Bildirimi kapat" onClick={() => setNotice(null)}>
-              Kapat
-            </Button>
-          </div>
+          <InlineFeedback
+            message={notice.message}
+            tone={notice.error ? 'danger' : 'signal'}
+            action={
+              <Button variant="ghost" size="sm" aria-label="Bildirimi kapat" onClick={() => setNotice(null)}>
+                Kapat
+              </Button>
+            }
+          />
         )}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 'var(--space-2)' }}>
@@ -209,24 +202,94 @@ export default function SettingsView({
           <StatBlock label="Bekleyen" value={pendingCount} highlight={pendingCount > 0} />
         </div>
 
+        {/* 1. Görünüm & Takvim */}
         <section style={sectionStyle}>
-          <h2 style={{ fontSize: '16px', fontWeight: 700 }}>Hesap bilgileri</h2>
+          <h2 style={{ fontSize: '16px', fontWeight: 700 }}>Görünüm ve takvim</h2>
+          <div style={rowStyle}>
+            <div>
+              <strong style={{ fontSize: '14px' }}>Görünüm teması</strong>
+              <p style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>
+                Açık, koyu, sarı poster veya sistem tercihi.
+              </p>
+            </div>
+            <div style={{ minWidth: '160px' }}>
+              <FormField label="Tema" htmlFor="theme-select">
+                <Select
+                  id="theme-select"
+                  value={preference}
+                  onChange={(e) => {
+                    setPreference(e.target.value);
+                    inform('Tema tercihi güncellendi.');
+                  }}
+                  options={[
+                    { value: 'light', label: 'Açık (Kâğıt)' },
+                    { value: 'dark', label: 'Koyu (Gece)' },
+                    { value: 'yellow', label: 'Sarı (Poster)' },
+                    { value: 'system', label: 'Sistem' },
+                  ]}
+                />
+              </FormField>
+            </div>
+          </div>
+
+          <div style={rowStyle}>
+            <div>
+              <strong style={{ fontSize: '14px' }}>Haftanın ilk günü</strong>
+              <p style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>
+                Takvim ve haftalık hedeflerin başlangıç günü.
+              </p>
+            </div>
+            <div style={{ minWidth: '160px' }}>
+              <FormField label="Gün" htmlFor="week-start-select">
+                <Select
+                  id="week-start-select"
+                  value={weekStart}
+                  disabled={Boolean(busy) || !personalAvailable}
+                  onChange={(e) => saveWeekStart(e.target.value)}
+                  options={[
+                    { value: '1', label: 'Pazartesi' },
+                    { value: '0', label: 'Pazar' },
+                  ]}
+                />
+              </FormField>
+            </div>
+          </div>
+
+          <div style={rowStyle}>
+            <div>
+              <strong style={{ fontSize: '14px' }}>Saat dilimi</strong>
+              <p style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>
+                Kayıtlar cihazının yerel takvimini kullanır.
+              </p>
+            </div>
+            <span id="device-timezone" className="mono" style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>
+              {Intl.DateTimeFormat().resolvedOptions().timeZone}
+            </span>
+          </div>
+        </section>
+
+        {/* 2. Bildirimler & Ses */}
+        <NotificationSettings authorized={authorized} pushEnabled={pushEnabled} />
+
+        {/* 3. Hesap & Güvenlik */}
+        <section style={sectionStyle}>
+          <h2 style={{ fontSize: '16px', fontWeight: 700 }}>Hesap ve oturum</h2>
           <div style={rowStyle}>
             <div>
               <strong id="account-email" style={{ fontSize: '14px' }}>
                 {isDemo
-                  ? 'Örnek hesap'
+                  ? 'Örnek hesap (Demo)'
                   : guestMode
-                    ? 'Bu cihazdaki kişisel alanın'
+                    ? 'Misafir oturumu (yalnızca bu cihaz)'
                     : user?.email || 'Giriş yapılmadı'}
               </strong>
               <p style={{ fontSize: '12px', color: 'var(--fg-muted)', marginTop: 'var(--space-1)' }}>
                 {isDemo
-                  ? 'Demo kayıtları yalnızca bu tarayıcıda saklanır; gerçek hesabına aktarılmaz.'
+                  ? 'Demo verileri yalnızca bu tarayıcıda tutulur.'
                   : guestMode
-                    ? 'Misafir kayıtların yalnızca bu tarayıcıda saklanır. Hesabına geçerken aktarımı seçebilirsin.'
+                    ? 'Rutinlerini cihazlar arasında eşitlemek için hesap oluşturabilir veya giriş yapabilirsin.'
                     : authorized
-                      ? 'Kayıtların hesabında, çevrimdışı kopyan ve bekleyen taslakların bu cihazda saklanır.'
+                      ? 'Verilerin hesabında güvenle eşitlenir.'
                       : 'Kayıtlarını eşitlemek için giriş yap.'}
               </p>
             </div>
@@ -248,43 +311,8 @@ export default function SettingsView({
             )}
           </div>
 
-          {authorized && onClearLocalData && (
-            <div style={rowStyle}>
-              <div>
-                <strong style={{ fontSize: '14px' }}>Cihazdaki yerel kopya</strong>
-                <p style={{ fontSize: '12px', color: 'var(--fg-muted)', marginTop: 'var(--space-1)' }}>
-                  Hesabını silmeden bu cihazdaki önbelleği temizleyebilirsin. Bekleyen taslaklar varsa önce eşitle veya geri al.
-                </p>
-              </div>
-              <Button
-                variant="secondary"
-                disabled={Boolean(busy) || pendingCount > 0}
-                onClick={() => setConfirmClear(true)}
-              >
-                Yerel kopyayı temizle
-              </Button>
-            </div>
-          )}
-        </section>
-
-        <Confirmation
-          open={confirmClear}
-          title="Yerel kopyayı temizle"
-          message="Sunucudaki kayıtlar korunur. Bu cihazdaki kopyayı temizlemek istiyor musun?"
-          confirmLabel="Evet, yerel kopyayı temizle"
-          cancelLabel="Vazgeç"
-          destructive
-          onConfirm={clearLocal}
-          onCancel={() => setConfirmClear(false)}
-        />
-
-        {guestMode && onOpenAuth && (
-          <section style={sectionStyle}>
-            <h2 style={{ fontSize: '16px', fontWeight: 700 }}>Hesabınla eşitle</h2>
-            <p style={{ fontSize: '13px', color: 'var(--fg-muted)' }}>
-              Bu cihazdaki rutinlerini kaybetmeden hesabına geçebilirsin. Aktarım girişten sonra açıkça sunulur.
-            </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+          {guestMode && onOpenAuth && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', paddingTop: 'var(--space-1)' }}>
               <Button variant="primary" onClick={() => onOpenAuth('register')}>
                 Hesap oluştur
               </Button>
@@ -292,90 +320,20 @@ export default function SettingsView({
                 Giriş yap
               </Button>
             </div>
-          </section>
-        )}
-
-        {authorized && <AccountSecuritySettings user={user} setUser={setUser} />}
-        <NotificationSettings authorized={authorized} pushEnabled={pushEnabled} />
-
-        <section style={sectionStyle}>
-          <h2 style={{ fontSize: '16px', fontWeight: 700 }}>Tercihler</h2>
-          <div style={rowStyle}>
-            <div>
-              <strong style={{ fontSize: '14px' }}>Haftanın ilk günü</strong>
-              <p style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>
-                Takvimin ve haftalık hedeflerin başladığı gün.
-              </p>
-            </div>
-            <div style={{ minWidth: '160px' }}>
-              <FormField label="Gün" htmlFor="week-start-select">
-                <Select
-                  id="week-start-select"
-                  value={weekStart}
-                  disabled={Boolean(busy) || !personalAvailable}
-                  onChange={(e) => saveWeekStart(e.target.value)}
-                  options={[
-                    { value: '1', label: 'Pazartesi' },
-                    { value: '0', label: 'Pazar' },
-                  ]}
-                />
-              </FormField>
-            </div>
-          </div>
-
-          <div style={rowStyle}>
-            <div>
-              <strong style={{ fontSize: '14px' }}>Görünüm teması</strong>
-              <p style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>
-                Açık, koyu veya cihazının tema tercihi.
-              </p>
-            </div>
-            <div style={{ minWidth: '160px' }}>
-              <FormField label="Tema" htmlFor="theme-select">
-                <Select
-                  id="theme-select"
-                  value={preference}
-                  onChange={(e) => {
-                    setPreference(e.target.value);
-                    inform('Tema tercihi güncellendi.');
-                  }}
-                  options={[
-                    { value: 'light', label: 'Açık (Brutalist)' },
-                    { value: 'dark', label: 'Koyu (Gece)' },
-                    { value: 'system', label: 'Sistem' },
-                  ]}
-                />
-              </FormField>
-            </div>
-          </div>
-
-          <div style={rowStyle}>
-            <div>
-              <strong style={{ fontSize: '14px' }}>Saat dilimi</strong>
-              <p style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>
-                Kayıt günleri cihazının yerel takvimini kullanır.
-              </p>
-            </div>
-            <span id="device-timezone" className="mono" style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>
-              {Intl.DateTimeFormat().resolvedOptions().timeZone}
-            </span>
-          </div>
+          )}
         </section>
 
+        {authorized && <AccountSecuritySettings user={user} setUser={setUser} />}
+
+        {/* 4. Veri, Yedekleme & Gelişmiş */}
         <section style={sectionStyle}>
-          <h2 style={{ fontSize: '16px', fontWeight: 700 }}>Verilerin ve yedekleme</h2>
+          <h2 style={{ fontSize: '16px', fontWeight: 700 }}>Veri ve yedekleme</h2>
           <div style={rowStyle}>
             <div style={{ flex: 1, minWidth: '220px' }}>
-              <strong style={{ fontSize: '14px' }}>Kişisel yedek</strong>
+              <strong style={{ fontSize: '14px' }}>Kişisel yedek (JSON)</strong>
               <p style={{ fontSize: '12px', color: 'var(--fg-muted)', marginTop: 'var(--space-1)' }}>
-                E-posta adresini, kişisel alışkanlıklarını, tarihsel kurallarını ve günlük kayıtlarını içerir. Grup verileri, parolalar ve kurtarma kodları dahil değildir.
-              </p>
-              <p style={{ fontSize: '12px', color: 'var(--fg-muted)', marginTop: 'var(--space-1)' }}>
-                {guestMode ? 'Bu tarayıcıdaki kişisel kayıtlar' : 'Sunucuda doğrulanmış kayıtlar'} dışa aktarılır.{' '}
-                {pendingCount
-                  ? `${pendingCount} eşitlenmemiş taslak bu yedeğe dahil edilmez.`
-                  : 'Eşitlenmemiş değişiklikler yedeğe dahil edilmez.'}{' '}
-                Dosyanı özel bir yerde sakla.
+                Alışkanlıklarını ve günlük kayıtlarını dışa aktar veya mevcut bir yedeği geri yükle.
+                {pendingCount > 0 ? ` (${pendingCount} bekleyen taslak dahil edilmez.)` : ''}
               </p>
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
@@ -408,7 +366,7 @@ export default function SettingsView({
           </div>
 
           <p className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)' }}>
-            En fazla 2 MiB, 500 alışkanlık ve 10.000 günlük kayıt. Dosya seçimi hesabını değiştirmez; önce önizleme gösterilir.
+            En fazla 2 MiB, 500 alışkanlık. İçe aktarma öncesi önizleme gösterilir.
           </p>
 
           {busy === 'read' && <InlineFeedback message="Dosya okunuyor ve doğrulanıyor…" tone="neutral" />}
@@ -432,14 +390,11 @@ export default function SettingsView({
                 {preview.filename}: {preview.habits} alışkanlık, {preview.records} günlük kayıt ve {preview.versions} geçmiş kural.
               </p>
               <p style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>
-                {preview.matchingHabits} alışkanlığın mevcut kimliği eşleşiyor: bunların ayarları ve geçmiş kuralları yedektekiyle değiştirilecek. Aynı alışkanlık/gündeki kayıtlar yedekteki değerle güncellenir. Yedekte olmayan alışkanlık ve kayıtlar silinmez; grup verileri değişmez.
-              </p>
-              <p style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>
-                Dosyadaki hafta başlangıcı tercihi de uygulanır. Başka hesaba ait kimlik çakışmaları yeni kimliklerle aktarılır.
+                {preview.matchingHabits} eşleşen alışkanlık güncellenir; yedekte olmayan kayıtlar silinmez.
               </p>
               {pendingCount > 0 && (
                 <InlineFeedback
-                  message={`Önce ${pendingCount} bekleyen taslağı eşitle veya yerel kopyayı temizle. İçe aktarma bekleyen değerlerin üzerine yazmamalı.`}
+                  message={`Önce ${pendingCount} bekleyen taslağı eşitle veya yerel kopyayı temizle.`}
                   tone="danger"
                 />
               )}
@@ -458,74 +413,106 @@ export default function SettingsView({
               </div>
             </section>
           )}
+
+          {authorized && (
+            <details style={{ marginTop: 'var(--space-2)', border: '1px solid var(--border)', backgroundColor: 'var(--bg)' }}>
+              <summary className="mono" style={{ padding: 'var(--space-3)', fontSize: '12px', fontWeight: 700, cursor: 'pointer', textTransform: 'uppercase' }}>
+                Gelişmiş ve Tehlikeli İşlemler
+              </summary>
+              <div style={{ padding: '0 var(--space-3) var(--space-3)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                {onClearLocalData && (
+                  <div style={rowStyle}>
+                    <div>
+                      <strong style={{ fontSize: '14px' }}>Cihazdaki yerel kopya</strong>
+                      <p style={{ fontSize: '12px', color: 'var(--fg-muted)', marginTop: 'var(--space-1)' }}>
+                        Sunucudaki veriler korunur, yalnızca bu cihazdaki önbellek temizlenir.
+                      </p>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      disabled={Boolean(busy) || pendingCount > 0}
+                      onClick={() => setConfirmClear(true)}
+                    >
+                      Yerel kopyayı temizle
+                    </Button>
+                  </div>
+                )}
+
+                <div style={{ ...rowStyle, borderTopColor: 'var(--danger)' }}>
+                  <div style={{ flex: 1, minWidth: '220px' }}>
+                    <strong style={{ fontSize: '14px', color: 'var(--danger)' }}>Hesabı kalıcı olarak sil</strong>
+                    <p style={{ fontSize: '12px', color: 'var(--fg-muted)', marginTop: 'var(--space-1)' }}>
+                      Tüm kişisel alışkanlıkların, kayıtların ve lideri olduğun gruplar geri döndürülemez şekilde silinir.
+                    </p>
+                  </div>
+                  {!confirmDelete && (
+                    <Button
+                      variant="destructive"
+                      disabled={Boolean(busy)}
+                      onClick={() => setConfirmDelete(true)}
+                    >
+                      Hesabı Sil
+                    </Button>
+                  )}
+                </div>
+
+                {confirmDelete && (
+                  <div
+                    style={{
+                      border: '1px solid var(--danger)',
+                      backgroundColor: 'var(--surface-2)',
+                      padding: 'var(--space-3)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 'var(--space-3)',
+                    }}
+                  >
+                    <FormField label="Kalıcı silmeyi onaylamak için SİL yaz" htmlFor="delete-phrase">
+                      <TextInput
+                        id="delete-phrase"
+                        value={deletePhrase}
+                        onChange={(e) => setDeletePhrase(e.target.value)}
+                        disabled={Boolean(busy)}
+                        autoComplete="off"
+                      />
+                    </FormField>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+                      <Button
+                        variant="secondary"
+                        disabled={Boolean(busy)}
+                        onClick={() => {
+                          setConfirmDelete(false);
+                          setDeletePhrase('');
+                        }}
+                      >
+                        Vazgeç
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        disabled={Boolean(busy) || deletePhrase !== 'SİL'}
+                        loading={busy === 'delete'}
+                        onClick={handleDeleteAccount}
+                      >
+                        {busy === 'delete' ? 'Siliniyor…' : 'Evet, Kalıcı Olarak Sil'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </details>
+          )}
         </section>
 
-        <section style={{ ...sectionStyle, borderColor: 'var(--danger)' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--danger)' }}>Hesabı silme</h2>
-          <p style={{ fontSize: '13px', color: 'var(--fg-muted)' }}>
-            Tüm kişisel alışkanlıkların, günlük kayıtların ve oturumların kalıcı olarak silinir. Lideri olduğun tüm gruplar ve bu grupların tüm üyelerine ait ortak kayıtlar da silinir. Diğer gruplardaki üyeliğin ve kendi ortak kayıtların kaldırılır.
-          </p>
-          <p style={{ fontSize: '13px', color: 'var(--fg-muted)' }}>
-            Bu işlem geri alınamaz. Devam etmeden önce kişisel yedeğini dışa aktarabilirsin; bu yedek grup verilerini kapsamaz.
-          </p>
-          {!authorized && (
-            <p className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)' }}>
-              Hesap silme yalnızca giriş yapılmış gerçek hesaplarda kullanılabilir.
-            </p>
-          )}
-          {confirmDelete ? (
-            <div
-              style={{
-                border: '1px solid var(--danger)',
-                backgroundColor: 'var(--surface-2)',
-                padding: 'var(--space-3)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 'var(--space-3)',
-              }}
-            >
-              <FormField label="Kalıcı silmeyi onaylamak için SİL yaz" htmlFor="delete-phrase">
-                <TextInput
-                  id="delete-phrase"
-                  value={deletePhrase}
-                  onChange={(e) => setDeletePhrase(e.target.value)}
-                  disabled={Boolean(busy)}
-                  autoComplete="off"
-                />
-              </FormField>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-                <Button
-                  variant="secondary"
-                  disabled={Boolean(busy)}
-                  onClick={() => {
-                    setConfirmDelete(false);
-                    setDeletePhrase('');
-                  }}
-                >
-                  Vazgeç
-                </Button>
-                <Button
-                  variant="destructive"
-                  disabled={Boolean(busy) || deletePhrase !== 'SİL'}
-                  loading={busy === 'delete'}
-                  onClick={handleDeleteAccount}
-                >
-                  {busy === 'delete' ? 'Siliniyor…' : 'Evet, Kalıcı Olarak Sil'}
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div>
-              <Button
-                variant="destructive"
-                disabled={!authorized || Boolean(busy)}
-                onClick={() => setConfirmDelete(true)}
-              >
-                Hesabı Sil
-              </Button>
-            </div>
-          )}
-        </section>
+        <Confirmation
+          open={confirmClear}
+          title="Yerel kopyayı temizle"
+          message="Sunucudaki kayıtlar korunur. Bu cihazdaki kopyayı temizlemek istiyor musun?"
+          confirmLabel="Evet, yerel kopyayı temizle"
+          cancelLabel="Vazgeç"
+          destructive
+          onConfirm={clearLocal}
+          onCancel={() => setConfirmClear(false)}
+        />
       </div>
     </section>
   );

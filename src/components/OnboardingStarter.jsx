@@ -95,7 +95,7 @@ export default function OnboardingStarter({ onAddStarterHabits, onOpenCustomModa
     >
       <div style={{ marginBottom: 'var(--space-4)' }}>
         <h2 style={{ fontSize: '18px', color: 'var(--fg)', margin: '0 0 var(--space-1)', fontWeight: 700 }}>
-          Kendi ritmini 30 saniyede kur
+          Günlük düzenini 30 saniyede kur
         </h2>
         <p style={{ color: 'var(--fg-muted)', fontSize: '13px', margin: 0, lineHeight: 1.4 }}>
           En fazla 3 rutin seç; bugün ilk adımını hemen işaretle.

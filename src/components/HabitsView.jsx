@@ -203,7 +203,7 @@ export default function HabitsView({
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
           {onOpenDiscover && (
-            <Button variant="secondary" size="md" aria-label="Ritim şablonlarını keşfet" onClick={onOpenDiscover}>
+            <Button variant="secondary" size="md" aria-label="Rutin şablonlarını keşfet" onClick={onOpenDiscover}>
               <Compass size={16} strokeWidth={1.5} aria-hidden="true" />
               <span>Keşfet</span>
             </Button>
@@ -284,7 +284,7 @@ export default function HabitsView({
           description={
             archived.length
               ? 'Aşağıdaki arşivden bir rutini yeniden başlatabilir veya yeni bir alışkanlık ekleyebilirsin.'
-              : 'Kendine uygun bir hedef belirle; zaman içinde düzenleyip kendi ritmini bulabilirsin.'
+              : 'Kendine uygun bir hedef belirle; zaman içinde düzenleyip kendi düzenini kurabilirsin.'
           }
           action={
             <Button variant="primary" onClick={onOpenAddModal}>

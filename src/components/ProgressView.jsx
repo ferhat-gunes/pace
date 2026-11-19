@@ -68,7 +68,7 @@ export default function ProgressView({ habits = [], checkins = [], weekStart = 1
       >
         <div>
           <h1 id="progress-title" style={{ margin: 0 }}>
-            İlerleme & Ritim
+            İlerleme & Seri
           </h1>
           <p className="section-subtitle" style={{ margin: 'var(--space-1) 0 0' }}>
             Kayıtlarını, birimli toplamlarını ve devamlılığını incele.

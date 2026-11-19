@@ -48,14 +48,23 @@
 .brand {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-2);
   font-family: var(--font-display);
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--fg);
   text-decoration: none;
-  padding: var(--space-1) 0;
+  padding: 6px 12px;
+  align-self: flex-start;
+}
+
+[data-theme="dark"] .brand,
+[data-theme="dark"] .mobile-brand {
+  border: var(--border-hairline) solid var(--fg);
+  color: var(--signal);
+  padding: 6px 12px;
 }
 
 .sidebar-caption {
@@ -179,11 +188,12 @@
 .mobile-brand {
   display: none;
   font-family: var(--font-display);
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--fg);
-  padding: var(--space-1) 0;
+  padding: 4px 10px;
+  line-height: 1.1;
 }
 
 .topbar-note {

@@ -127,7 +127,7 @@ export default function DailyEngagement({ gamification, checkins = [], socialInb
           }}
         >
           <strong className="mono" style={{ fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Ritme geri dön
+            Kaldığın yerden devam et
           </strong>
           <p style={{ fontSize: '13px', color: 'var(--fg-muted)', marginTop: 'var(--space-1)', marginBottom: 'var(--space-3)' }}>
             Bir ara kaydedildi. İstikrarı yeniden kurmak için bugün tek bir adım işaretle.

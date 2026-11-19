@@ -1,5 +1,5 @@
 /**
- * Non-judgmental "Ritim Denemeleri" (Discover) catalog.
+ * Non-judgmental "Rutin Şablonları" (Discover) catalog.
  * Framed around calm experimentation and friend sharing rather than streaks or leaderboards.
  */
 
@@ -22,7 +22,7 @@ export const DISCOVER_PRESETS = [
     id: 'morning-walk-15',
     category: 'Hareket',
     name: 'Açık Hava Yürüyüşü',
-    description: 'Zorlamadan haftada 3 gün 15 dakika yürüyüşle hareket ritmi yakala.',
+    description: 'Zorlamadan haftada 3 gün 15 dakika yürüyüşle düzenli hareket alışkanlığı kur.',
     durationLabel: 'Haftada 3 gün • 15 dk',
     tracking: 'quantity',
     direction: 'at_least',
@@ -57,7 +57,7 @@ export const DISCOVER_PRESETS = [
   {
     id: 'hydration-2l',
     category: 'Hareket',
-    name: 'Günlük Su Ritmi',
+    name: 'Günlük Su Takibi',
     description: 'Gün içine yayarak 8 bardak su içmeyi tek dokunuşla takip et.',
     durationLabel: 'Her gün • 8 bardak',
     tracking: 'quantity',
@@ -70,7 +70,7 @@ export const DISCOVER_PRESETS = [
     id: 'breath-reset-5',
     category: 'Dinginlik',
     name: '5 Dakika Nefes Molası',
-    description: 'Gün ortasında kısa bir nefes ve esneme molasıyla ritmini tazele.',
+    description: 'Gün ortasında kısa bir nefes ve esneme molasıyla enerjini tazele.',
     durationLabel: 'Hafta içi • 1 kez',
     tracking: 'check',
     direction: 'at_least',
