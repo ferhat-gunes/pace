@@ -96,3 +96,77 @@ for (const wrapped of [false, true]) {
     assert.doesNotMatch(payload.error, /no such table|SELECT|D1_ERROR/);
   });
 }
+
+test('API automatically bootstraps missing group, social, gamification, and push tables on first request', async () => {
+  const { onRequest } = await import('../functions/api/[[path]].js');
+  const db = new DatabaseSync(':memory:');
+  try {
+    for (const file of ['0001_initial.sql', '0002_password_accounts.sql', '0003_checkin_tombstones.sql']) {
+      db.exec(readFileSync(new URL('../migrations/' + file, import.meta.url), 'utf8'));
+    }
+    const statement = (sql, args = []) => ({
+      bind(...a) { return statement(sql, a); },
+      async first() { return db.prepare(sql).get(...args) || null; },
+      async all() { return { results: db.prepare(sql).all(...args) }; },
+      async run() { return { meta: { changes: Number(db.prepare(sql).run(...args).changes) } }; },
+    });
+    const env = {
+      AUTH_SECRET: 'local-test-secret-not-production',
+      DB: {
+        prepare: sql => statement(sql),
+        async batch(stmts) {
+          db.exec('BEGIN');
+          try {
+            const results = [];
+            for (const s of stmts) results.push(await s.run());
+            db.exec('COMMIT');
+            return results;
+          } catch (err) {
+            db.exec('ROLLBACK');
+            throw err;
+          }
+        },
+      },
+    };
+    const call = async (path, { method = 'GET', body, token } = {}) => {
+      const response = await onRequest({
+        env,
+        params: { path },
+        request: new Request('https://pace.test/api/' + path, {
+          method,
+          headers: {
+            Origin: 'https://pace.test',
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: 'Bearer ' + token } : {}),
+          },
+          ...(body ? { body: JSON.stringify(body) } : {}),
+        }),
+      });
+      return { status: response.status, data: await response.json() };
+    };
+
+    const reg = await call('auth/register', { method: 'POST', body: { email: 'bootstrap@example.test', password: 'Bootstrap-Password-123' } });
+    assert.equal(reg.status, 200);
+    const { token } = reg.data;
+
+    // Without 0004 applied, GET /api/groups used to fail with 503.
+    const listBefore = await call('groups', { token });
+    assert.equal(listBefore.status, 200);
+    assert.deepEqual(listBefore.data.groups, []);
+
+    const created = await call('groups', { method: 'POST', token, body: { name: 'Sabah Ritim', habit_name: 'Su iç' } });
+    assert.equal(created.status, 201);
+    assert.equal(created.data.group.name, 'Sabah Ritim');
+
+    const gamif = await call('gamification', { method: 'PUT', token, body: { xp: 40, gems: 12, streakFreezes: 1 } });
+    assert.equal(gamif.status, 200);
+    assert.equal(gamif.data.ok, true);
+
+    const inbox = await call('social/inbox', { token });
+    assert.equal(inbox.status, 200);
+    assert.deepEqual(inbox.data.items, []);
+  } finally {
+    db.close();
+  }
+});
+
