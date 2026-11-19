@@ -26,23 +26,43 @@ export function Toast({ message, tone = 'neutral', onClose }) {
   );
 }
 
-export function InlineFeedback({ message, tone = 'neutral' }) {
-  if (!message) return null;
-  const color = tone === 'danger' ? 'var(--danger)' : tone === 'signal' ? 'var(--signal-text)' : 'var(--fg-muted)';
+export function InlineFeedback({ message, children, action, tone = 'neutral', role = 'status', ...rest }) {
+  const content = children ?? message;
+  if (!content && !action) return null;
+  const isDanger = tone === 'danger' || tone === 'error';
+  const color = isDanger ? 'var(--danger)' : tone === 'signal' ? 'var(--signal-text)' : 'var(--fg-muted)';
   return (
-    <p className="mono" role="status" style={{ fontSize: '12px', color, padding: 'var(--space-2) 0' }}>
-      {message}
-    </p>
+    <div
+      role={role}
+      {...rest}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--space-2)',
+        padding: 'var(--space-2) var(--space-3)',
+        border: `1px solid ${isDanger ? 'var(--danger)' : 'var(--border)'}`,
+        backgroundColor: 'var(--surface-1)',
+        color,
+        fontSize: '12px',
+      }}
+    >
+      {content ? <div className="mono">{content}</div> : null}
+      {action ? <div>{action}</div> : null}
+    </div>
   );
 }
 
-export function Modal({ open, title, onClose, children, footer }) {
+export function Modal({ open, title, onClose, closeDisabled = false, closeLabel = 'Kapat', children, footer }) {
   if (!open) return null;
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-label={title}
+      className="modal-overlay"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !closeDisabled) onClose?.();
+      }}
       style={{
         position: 'fixed',
         inset: 0,
@@ -58,17 +78,20 @@ export function Modal({ open, title, onClose, children, footer }) {
         style={{
           width: '100%',
           maxWidth: '480px',
+          maxHeight: 'calc(100dvh - 32px)',
+          display: 'flex',
+          flexDirection: 'column',
           backgroundColor: 'var(--bg)',
           border: '2px solid var(--border-strong)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-3) var(--space-4)', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-3) var(--space-4)', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
           <h2 style={{ fontSize: '16px' }}>{title}</h2>
-          {onClose ? <IconButton icon={X} label="Close modal" onClick={onClose} /> : null}
+          {onClose ? <IconButton icon={X} label={closeLabel} disabled={closeDisabled} onClick={onClose} /> : null}
         </div>
-        <div style={{ padding: 'var(--space-4)' }}>{children}</div>
+        <div style={{ padding: 'var(--space-4)', overflowY: 'auto', flex: '1 1 auto', minHeight: 0 }}>{children}</div>
         {footer ? (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)', padding: 'var(--space-3) var(--space-4)', borderTop: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)', padding: 'var(--space-3) var(--space-4)', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
             {footer}
           </div>
         ) : null}

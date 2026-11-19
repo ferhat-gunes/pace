@@ -130,6 +130,7 @@ export default function HabitModal({
     <Modal
       open={isOpen}
       onClose={requestClose}
+      closeDisabled={saving}
       title={editing ? 'Alışkanlığı Düzenle' : 'Yeni Alışkanlık Ekle'}
       size="md"
     >
