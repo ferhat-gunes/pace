@@ -120,7 +120,7 @@ export default function DiscoverView({
         }}
       />
 
-      <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+      <div style={{ marginTop: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
         {highlightedPreset && (
           <div
             style={{

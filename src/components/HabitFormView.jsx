@@ -152,12 +152,13 @@ export default function HabitFormView({
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: 'var(--space-3)',
-          marginBottom: 'var(--space-5)',
+          minHeight: '44px',
+          marginBottom: 'var(--space-4)',
           flexWrap: 'wrap',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-          <Button type="button" variant="tertiary" size="sm" disabled={saving || actionBusy} onClick={requestBack}>
+          <Button type="button" variant="tertiary" disabled={saving || actionBusy} onClick={requestBack}>
             <ArrowLeft size={16} strokeWidth={1.5} aria-hidden="true" />
             <span>Geri</span>
           </Button>
@@ -283,6 +284,7 @@ export default function HabitFormView({
                     label={values.scheduleType === 'weekly_quota' ? 'Her kayıt günündeki hedef' : 'Günlük Hedef'}
                     type="text"
                     inputMode="decimal"
+                    pattern="[0-9.,]*"
                     value={values.target}
                     onChange={(e) => change('target', e.target.value, 'habit-target')}
                     aria-describedby={error?.field === 'habit-target' ? 'habit-validation habit-decimal-help' : 'habit-decimal-help'}
@@ -399,6 +401,7 @@ export default function HabitFormView({
                           {...fieldProps('progressive-step')}
                           label={values.scheduleType === 'weekly_quota' ? 'Her hafta artış' : 'Her planlı günde artış'}
                           inputMode="decimal"
+                          pattern="[0-9.,]*"
                           value={values.step}
                           onChange={(e) => change('step', e.target.value, 'progressive-step')}
                         />
@@ -406,6 +409,7 @@ export default function HabitFormView({
                           {...fieldProps('progressive-cap')}
                           label="Üst hedef (isteğe bağlı)"
                           inputMode="decimal"
+                          pattern="[0-9.,]*"
                           value={values.cap}
                           onChange={(e) => change('cap', e.target.value, 'progressive-cap')}
                         />
@@ -435,6 +439,7 @@ export default function HabitFormView({
                             : 'Taşınacak miktar sınırı (isteğe bağlı)'
                         }
                         inputMode="decimal"
+                        pattern="[0-9.,]*"
                         value={values.debtCap}
                         onChange={(e) => change('debt-cap', e.target.value, 'debt-cap')}
                         help="Boş bırakırsan ayrıca bir sınır uygulanmaz. 0 girersen eksik taşıma etkisiz olur."

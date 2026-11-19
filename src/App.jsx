@@ -202,7 +202,7 @@ export default function App() {
               tone="neutral"
               action={<Button variant="tertiary" size="sm" onClick={api.exitDemo}>Kendi hesabıma geç</Button>}
             >
-              <strong>Örnek görünüm</strong> — Değişiklikler yalnızca bu tarayıcıda saklanır; hesabına aktarılmaz.
+              <strong>Örnek görünüm</strong> — Kayıtlar yalnızca bu tarayıcıda saklanır.
             </InlineFeedback>
           )}
           {/kaydedilemedi|Arşivlenemedi|Geri yüklenemedi|Kayıt değişti|Cihazda bekliyor/.test(syncState) && (

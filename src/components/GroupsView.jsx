@@ -509,12 +509,12 @@ export default function GroupsView({
         }
       />
 
-      <div style={{ padding: 'var(--space-4)', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--space-4)', width: '100%', minWidth: 0, maxWidth: '100%' }}>
+      <div style={{ marginTop: 'var(--space-4)', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--space-4)', width: '100%', minWidth: 0, maxWidth: '100%' }}>
         {notice && <InlineFeedback message={notice} tone="signal" />}
 
         {inviteError && (
           <ErrorState
-            title="DAVET HATASI"
+            title="Davet hatası"
             message={inviteError}
             onRetry={initialInviteToken ? () => setPreviewAttempt((n) => n + 1) : undefined}
           />
@@ -540,7 +540,7 @@ export default function GroupsView({
         )}
 
         {loadGroupsError && (
-          <ErrorState title="YÜKLEME HATASI" message={`Gruplar yüklenemedi: ${loadGroupsError}`} onRetry={loadData} />
+          <ErrorState title="Yükleme hatası" message={`Gruplar yüklenemedi: ${loadGroupsError}`} onRetry={loadData} />
         )}
 
         {groups.length > 0 && (
@@ -553,7 +553,7 @@ export default function GroupsView({
 
         {!groups.length && !loadGroupsError && (
           <EmptyState
-            title="GRUP YOK"
+            title="Grup yok"
             description="Başkalarıyla ortak alışkanlık takip etmek için bir grup oluştur."
             action={
               <Button
@@ -606,7 +606,7 @@ export default function GroupsView({
                   </p>
                 )}
                 <p className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)', marginTop: 'var(--space-2)' }}>
-                  {loading ? 'YÜKLENİYOR…' : `${members.length} ÜYE / ${habits.length} ORTAK ALIŞKANLIK`}
+                  {loading ? 'Yükleniyor…' : `${members.length} ÜYE / ${habits.length} ORTAK ALIŞKANLIK`}
                 </p>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
@@ -620,8 +620,8 @@ export default function GroupsView({
               </div>
             </div>
 
-            {loading && <LoadingState label="GRUP YÜKLENİYOR…" />}
-            {detailError && <ErrorState title="GRUP HATASI" message={detailError} onRetry={() => refresh()} />}
+            {loading && <LoadingState label="Grup yükleniyor…" />}
+            {detailError && <ErrorState title="Grup hatası" message={detailError} onRetry={() => refresh()} />}
 
             {detail && !loading && (
               <>
@@ -675,7 +675,7 @@ export default function GroupsView({
                     aria-label="Haftalık grup takip tablosu"
                     style={{ width: '100%', overflowX: 'auto', minWidth: 0, maxWidth: '100%', border: '1px solid var(--border)' }}
                   >
-                    <table style={{ width: '100%', minWidth: 680, borderCollapse: 'collapse' }}>
+                    <table className="groups-table">
                       <thead>
                         <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--surface-2)' }}>
                           <th scope="col" className="mono" style={{ padding: 'var(--space-2) var(--space-3)', textAlign: 'left', fontSize: '11px' }}>
@@ -719,7 +719,7 @@ export default function GroupsView({
                                   {member.display_name || 'Üye'}
                                   {member.role === 'owner' ? ' (Sahip)' : ''}
                                 </th>
-                                <td style={{ padding: 'var(--space-2) var(--space-3)', fontSize: '13px' }}>
+                                <td className="group-habit-cell" style={{ padding: 'var(--space-2) var(--space-3)', fontSize: '13px' }}>
                                   <div>{habit.name}</div>
                                   <div className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)' }}>
                                     {habit.tracking === 'quantity'
@@ -732,7 +732,7 @@ export default function GroupsView({
                                   const state = groupDayState(habit, log, day, today);
                                   const done = state === 'Tamamlandı';
                                   return (
-                                    <td key={day} style={{ padding: 'var(--space-1)', textAlign: 'center' }}>
+                                    <td key={day} className="group-day-cell" data-day={dayLabel(day)} style={{ padding: 'var(--space-1)', textAlign: 'center' }}>
                                       {isCurrent && day <= today ? (
                                         <button
                                           type="button"
@@ -786,7 +786,7 @@ export default function GroupsView({
                                     </td>
                                   );
                                 })}
-                                <td className="mono" style={{ padding: 'var(--space-2) var(--space-3)', textAlign: 'right', fontSize: '12px' }}>
+                                <td className="mono group-rate-cell" style={{ padding: 'var(--space-2) var(--space-3)', textAlign: 'right', fontSize: '12px' }}>
                                   {summary.elapsed ? `${summary.completed}/${summary.elapsed} (%${summary.percentage})` : '—'}
                                 </td>
                               </tr>
@@ -985,6 +985,7 @@ export default function GroupsView({
                     id="group-record-amount"
                     type="text"
                     inputMode="decimal"
+                    pattern="[0-9.,]*"
                     required
                     value={record.value}
                     onChange={(e) => setRecord({ ...record, value: e.target.value, key: token() })}

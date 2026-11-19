@@ -1,4 +1,5 @@
 import React from 'react';
+import { Check } from 'lucide-react';
 
 export function Icon({ icon: IconComponent, size = 18, className = '', ...props }) {
   if (!IconComponent) return null;
@@ -12,7 +13,9 @@ export function StatusMarker({ status = 'missed', label, className = '' }) {
       className={`db-status-marker db-status-marker--${normalized} ${className}`.trim()}
       role="img"
       aria-label={label || `Status: ${normalized}`}
-    />
+    >
+      {normalized === 'done' ? <Check size={11} strokeWidth={3} aria-hidden="true" /> : null}
+    </span>
   );
 }
 

@@ -186,7 +186,7 @@ export default function AccountSecuritySettings({ user, setUser }) {
             )}
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', alignItems: 'center' }}>
-              <Button variant="ghost" aria-pressed={reveal} onClick={() => setReveal((v) => !v)}>
+              <Button variant="tertiary" aria-pressed={reveal} onClick={() => setReveal((v) => !v)}>
                 {reveal ? 'Parolaları gizle' : 'Parolaları göster'}
               </Button>
               <Button type="submit" variant="primary" loading={busy}>

@@ -160,19 +160,19 @@ export default function ProgressView({ habits = [], checkins = [], weekStart = 1
                       </span>
                     )}
                   </th>
-                  <td className="mono" style={{ textAlign: 'center' }}>
+                  <td className="mono" data-label="Tamamlanan" style={{ textAlign: 'center' }}>
                     {item.completedDays}
                   </td>
-                  <td className="mono" style={{ textAlign: 'center' }}>
+                  <td className="mono" data-label="Kayıtlı gün" style={{ textAlign: 'center' }}>
                     {item.recordedDays}
                   </td>
-                  <td className="mono" style={{ textAlign: 'center' }}>
+                  <td className="mono" data-label="Tamamlama" style={{ textAlign: 'center' }}>
                     {item.completionRate === null ? '—' : `%${item.completionRate}`}
                   </td>
-                  <td className="mono" style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                  <td className="mono" data-label="Güncel seri" style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                     {item.isArchived ? 'Arşivlendi' : <StreakBadge count={item.streak.count} unit={item.streak.unit} />}
                   </td>
-                  <td className="mono" style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                  <td className="mono" data-label="Son kayıt" style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                     {displayDate(item.lastDate)}
                   </td>
                 </tr>

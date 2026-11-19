@@ -71,9 +71,7 @@ html {
 }
 
 [data-theme="light"] .brand,
-[data-theme="light"] .mobile-brand,
-[data-theme="yellow"] .brand,
-[data-theme="yellow"] .mobile-brand {
+[data-theme="light"] .mobile-brand {
   border: var(--border-hairline) solid var(--fg);
   color: var(--fg);
 }
@@ -203,7 +201,8 @@ html {
   font-weight: 900;
   letter-spacing: 0.06em;
   color: var(--fg);
-  padding: 5px 12px;
+  min-height: 44px;
+  padding: 6px 12px;
   line-height: 1.1;
 }
 
@@ -230,9 +229,10 @@ html {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border: var(--border-hairline) solid var(--border-strong);
   background-color: var(--surface-1);
   color: var(--fg);
@@ -274,9 +274,27 @@ html {
   background-color: var(--surface-1);
 }
 
+.table-container th[scope="row"] {
+  position: sticky;
+  left: 0;
+  background-color: var(--surface-1);
+  z-index: 1;
+}
+
 .table-standard {
   width: 100%;
   border-collapse: collapse;
+}
+
+.groups-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+@media (min-width: 641px) {
+  .groups-table {
+    min-width: 680px;
+  }
 }
 
 .table-standard th,
@@ -325,7 +343,7 @@ html {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 36px;
+  min-height: 44px;
   padding: var(--space-2) var(--space-3);
   border-right: var(--border-hairline) solid var(--border);
   background-color: transparent;
@@ -349,9 +367,48 @@ html {
 }
 
 .segmented-item.is-active,
+.segmented-item.is-selected,
 .segmented-item[aria-pressed="true"] {
   background-color: var(--signal);
   color: var(--signal-fg);
+}
+
+/* Week Strip & Week Day */
+.week-strip {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  width: 100%;
+  margin-bottom: var(--space-5);
+  gap: var(--space-1);
+}
+
+@media (max-width: 379px) {
+  .week-strip {
+    grid-template-columns: repeat(4, minmax(44px, 1fr));
+  }
+}
+
+.week-day {
+  min-height: 48px;
+  padding: var(--space-2) var(--space-1);
+  border: var(--border-hairline) solid var(--border);
+  background-color: var(--surface-1);
+  color: var(--fg);
+  transition: background-color var(--duration-fast) var(--ease-sharp),
+              color var(--duration-fast) var(--ease-sharp),
+              border-color var(--duration-fast) var(--ease-sharp);
+}
+
+.week-day:hover {
+  background-color: var(--surface-2);
+  border-color: var(--fg);
+}
+
+.week-day.is-selected,
+.week-day[aria-pressed="true"] {
+  background-color: var(--signal);
+  color: var(--signal-fg);
+  border-color: var(--signal);
 }
 
 /* Banners & Pending Entries */
@@ -433,8 +490,8 @@ html {
   }
 
   .topbar {
-    padding: var(--space-2) var(--space-4);
-    min-height: 56px;
+    padding: var(--space-1) var(--space-4);
+    min-height: 52px;
   }
 
   .mobile-brand {
@@ -452,8 +509,8 @@ html {
   }
 
   .content-wrap {
-    padding: var(--space-4);
-    gap: var(--space-4);
+    padding: var(--space-3) var(--space-4) var(--space-4);
+    gap: var(--space-3);
   }
 
   .mobile-nav {
@@ -494,5 +551,159 @@ html {
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 100%;
+  }
+
+  .daily-engagement {
+    gap: var(--space-2) !important;
+    margin-bottom: var(--space-3) !important;
+  }
+
+  .daily-engagement-card {
+    padding: var(--space-2) var(--space-3) !important;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+  }
+
+  .daily-engagement-header {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .daily-engagement-title {
+    display: none !important;
+  }
+
+  .daily-engagement-meta {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    border-top: none !important;
+  }
+
+  .daily-engagement-freezes {
+    display: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  #progress-table thead,
+  .groups-table thead {
+    display: none;
+  }
+
+  #progress-table,
+  #progress-table tbody,
+  #progress-table tr,
+  #progress-table th,
+  #progress-table td {
+    display: block;
+    width: 100%;
+  }
+
+  #progress-table tr {
+    border-bottom: var(--border-hairline) solid var(--border);
+    padding: var(--space-3);
+  }
+
+  #progress-table tr:last-child {
+    border-bottom: none;
+  }
+
+  #progress-table th[scope="row"] {
+    position: static;
+    padding: 0 0 var(--space-2);
+    border-bottom: var(--border-hairline) solid var(--border);
+    font-size: 15px;
+    background-color: transparent;
+  }
+
+  #progress-table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-2) 0;
+    border-bottom: var(--border-hairline) solid var(--border);
+    text-align: right !important;
+  }
+
+  #progress-table td:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  #progress-table td[data-label]::before {
+    content: attr(data-label);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--fg-muted);
+    text-align: left;
+  }
+
+  .groups-table,
+  .groups-table tbody {
+    display: block;
+    width: 100%;
+    min-width: 0 !important;
+  }
+
+  .groups-table tr {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(44px, 1fr));
+    gap: var(--space-1);
+    padding: var(--space-3);
+    border-bottom: var(--border-hairline) solid var(--border);
+  }
+
+  .groups-table tr:last-child {
+    border-bottom: none;
+  }
+
+  .groups-table th[scope="row"] {
+    position: static;
+    grid-column: 1 / -1;
+    padding: 0 !important;
+    background-color: transparent;
+  }
+
+  .groups-table td.group-habit-cell {
+    grid-column: 1 / -1;
+    padding: 0 0 var(--space-2) !important;
+  }
+
+  .groups-table td.group-day-cell {
+    padding: 0 !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .groups-table td.group-day-cell::before {
+    content: attr(data-day);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--fg-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  .groups-table td.group-day-cell > button,
+  .groups-table td.group-day-cell > span {
+    min-width: 44px;
+    width: 100%;
+    min-height: 44px !important;
+  }
+
+  .groups-table td.group-rate-cell {
+    grid-column: 1 / -1;
+    text-align: left !important;
+    padding: var(--space-2) 0 0 !important;
   }
 }

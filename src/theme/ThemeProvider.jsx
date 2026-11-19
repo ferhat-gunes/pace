@@ -10,7 +10,7 @@ const ThemeContext = createContext(null);
 const browserPreference = () => {
   try {
     const stored = readThemePreference(window.localStorage);
-    return stored === 'light' || stored === 'dark' || stored === 'yellow' ? stored : 'dark';
+    return stored === 'light' || stored === 'dark' ? stored : 'dark';
   } catch {
     return 'dark';
   }
@@ -24,11 +24,11 @@ export function useTheme() {
 
 export default function ThemeProvider({ children }) {
   const [preference, setPreferenceState] = useState(browserPreference);
-  const mode = preference === 'light' || preference === 'yellow' ? preference : 'dark';
+  const mode = preference === 'light' ? 'light' : 'dark';
 
   const setPreference = useCallback((value) => {
     const next = normalizeThemePreference(value);
-    const resolved = next === 'light' || next === 'yellow' ? next : 'dark';
+    const resolved = next === 'light' ? 'light' : 'dark';
     try {
       localStorage.setItem(THEME_STORAGE_KEY, resolved);
     } catch {

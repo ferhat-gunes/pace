@@ -71,10 +71,11 @@ export default function HabitDetailView({
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: 'var(--space-3)',
-          marginBottom: 'var(--space-5)',
+          minHeight: '44px',
+          marginBottom: 'var(--space-4)',
         }}
       >
-        <Button type="button" variant="tertiary" size="sm" onClick={onBack}>
+        <Button type="button" variant="tertiary" onClick={onBack}>
           <ArrowLeft size={16} strokeWidth={1.5} aria-hidden="true" />
           <span>Geri</span>
         </Button>

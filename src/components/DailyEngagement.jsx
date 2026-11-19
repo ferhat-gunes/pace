@@ -16,7 +16,7 @@ export default function DailyEngagement({ gamification, checkins = [], socialInb
   if (!socialInbox.length && !g && !comeback) return null;
 
   return (
-    <div style={{ display: 'grid', gap: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
+    <div className="daily-engagement" style={{ display: 'grid', gap: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
       {socialInbox.map((item) => (
         <aside
           key={item.id}
@@ -40,6 +40,7 @@ export default function DailyEngagement({ gamification, checkins = [], socialInb
       {g && (
         <section
           aria-labelledby="daily-review-title"
+          className="daily-engagement-card"
           style={{
             padding: 'var(--space-4)',
             border: '1px solid var(--border)',
@@ -47,6 +48,7 @@ export default function DailyEngagement({ gamification, checkins = [], socialInb
           }}
         >
           <div
+            className="daily-engagement-header"
             style={{
               display: 'flex',
               flexWrap: 'wrap',
@@ -58,7 +60,7 @@ export default function DailyEngagement({ gamification, checkins = [], socialInb
             <div>
               <h2
                 id="daily-review-title"
-                className="mono"
+                className="mono daily-engagement-title"
                 style={{
                   margin: '0 0 var(--space-1)',
                   fontSize: '14px',
@@ -79,6 +81,7 @@ export default function DailyEngagement({ gamification, checkins = [], socialInb
             </div>
             <Button
               variant="primary"
+              size="sm"
               disabled={!g.isQuestCompleted || g.isQuestClaimed}
               onClick={g.claimDailyChest}
             >
@@ -91,7 +94,7 @@ export default function DailyEngagement({ gamification, checkins = [], socialInb
           </div>
 
           <div
-            className="mono"
+            className="mono daily-engagement-meta"
             style={{
               display: 'flex',
               flexWrap: 'wrap',
@@ -106,7 +109,7 @@ export default function DailyEngagement({ gamification, checkins = [], socialInb
               <Icon icon={Flame} size={14} />
               {g.streak} gün seri
             </span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', color: 'var(--fg-muted)' }}>
+            <span className="daily-engagement-freezes" style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', color: 'var(--fg-muted)' }}>
               <Icon icon={Shield} size={14} />
               {g.streakFreezes} seri koruması
             </span>

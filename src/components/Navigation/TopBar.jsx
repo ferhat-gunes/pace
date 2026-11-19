@@ -82,8 +82,6 @@ export default function TopBar({
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            minWidth: '40px',
-            minHeight: '40px',
             border: '1px solid var(--border)',
             background: 'var(--surface-1)',
             color: 'var(--fg)',

@@ -11,14 +11,15 @@ export function Header({ title, subtitle, actions, className = '' }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
+        flexWrap: 'wrap',
         gap: 'var(--space-4)',
-        padding: 'var(--space-4)',
+        padding: '0 0 var(--space-4)',
         borderBottom: 'var(--border-hairline) solid var(--border)',
         backgroundColor: 'var(--bg)',
       }}
     >
       <div>
-        <h1 style={{ fontSize: '20px', lineHeight: 1.2 }}>{title}</h1>
+        <h1>{title}</h1>
         {subtitle ? (
           <p className="mono" style={{ fontSize: '12px', color: 'var(--fg-muted)', marginTop: 'var(--space-1)' }}>
             {subtitle}
@@ -61,9 +62,11 @@ export function TabNav({ tabs = [], activeId, onChange, className = '' }) {
       className={`db-tab-nav ${className}`.trim()}
       style={{
         display: 'flex',
+        flexWrap: 'wrap',
+        maxWidth: '100%',
+        minWidth: 0,
         borderBottom: 'var(--border-hairline) solid var(--border)',
         backgroundColor: 'var(--bg)',
-        overflowX: 'auto',
       }}
     >
       {tabs.map((tab) => {
@@ -78,7 +81,10 @@ export function TabNav({ tabs = [], activeId, onChange, className = '' }) {
             onClick={() => onChange?.(tab.id)}
             className="mono db-tab"
             style={{
-              padding: 'var(--space-3) var(--space-4)',
+              minHeight: '44px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: 'var(--space-2) var(--space-3)',
               fontSize: '12px',
               fontWeight: 600,
               textTransform: 'uppercase',

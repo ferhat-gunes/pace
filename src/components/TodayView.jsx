@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
-import { Plus, Minus, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
+import { Plus, Minus, ChevronLeft, ChevronRight, RotateCcw, Check } from 'lucide-react';
 import { addDays, formatNumber, formatTarget, latestCheckins, recordFor, settingsAt, goalFor, stateFor, weekDays as calendarWeek } from '../lib/rules';
 import { dailyCompletion } from '../lib/statistics.js';
 import { resolveRolloverSelection, useLocalDate } from '../lib/local-date.js';
@@ -117,14 +117,7 @@ export default function TodayView({
         {announcement}
       </div>
 
-      <DailyEngagement
-        gamification={gamification}
-        checkins={normalized}
-        socialInbox={socialInbox}
-        onDismissInbox={onDismissInbox}
-      />
-
-      <div className="today-heading-wrap" style={{ marginBottom: 'var(--space-5)' }}>
+      <div className="today-heading-wrap" style={{ marginBottom: 'var(--space-4)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
           <div>
             <h1 id="page-title" style={{ margin: 0 }}>
@@ -158,6 +151,13 @@ export default function TodayView({
         </div>
       </div>
 
+      <DailyEngagement
+        gamification={gamification}
+        checkins={normalized}
+        socialInbox={socialInbox}
+        onDismissInbox={onDismissInbox}
+      />
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <IconButton label="Önceki hafta" onClick={() => setSelectedDate?.(addDays(selectedDate, -7))}>
@@ -183,7 +183,6 @@ export default function TodayView({
         id="week-strip"
         role="group"
         aria-label="Kayıt gününü seç"
-        style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', width: '100%', marginBottom: 'var(--space-5)' }}
       >
         {days.map((day, index) => {
           const hasCheckin = normalized.some((c) => !c.deleted && c.habit_date === day);
@@ -279,7 +278,9 @@ export default function TodayView({
                   justifyContent: 'space-between',
                   flexWrap: 'wrap',
                   gap: 'var(--space-4)',
-                  borderLeft: rowComplete ? '2px solid var(--signal)' : undefined,
+                  backgroundColor: rowComplete ? 'var(--surface-2)' : undefined,
+                  borderColor: rowComplete ? 'var(--signal)' : undefined,
+                  borderLeft: rowComplete ? '3px solid var(--signal)' : undefined,
                 }}
               >
                 <div className="habit-main" style={{ flex: '1 1 220px', minWidth: 0 }}>
@@ -298,7 +299,10 @@ export default function TodayView({
                         font: 'inherit',
                         textAlign: 'left',
                         cursor: 'pointer',
-                        minWidth: 0,
+                        minWidth: '44px',
+                        minHeight: '44px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
                       }}
                     >
                       <strong className="habit-name" style={{ display: 'block', overflowWrap: 'anywhere', textDecoration: 'underline', textUnderlineOffset: '3px', textDecorationColor: 'var(--border)' }}>
@@ -362,8 +366,26 @@ export default function TodayView({
                         setAnnouncement(`${h.name}: seçili günün kaydı güncellendi.`);
                       }}
                     >
-                      <StatusMarker status={isDone ? 'done' : 'missed'} size={12} />
-                      <span>{isDone ? (weekly ? 'Bu gün yapıldı' : 'Tamam') : weekly ? 'Bu günü tamamla' : 'Tamamla'}</span>
+                      {isDone ? (
+                        <span
+                          aria-hidden="true"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 16,
+                            height: 16,
+                            backgroundColor: 'var(--signal-fg)',
+                            color: 'var(--signal)',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <Check size={12} strokeWidth={3} />
+                        </span>
+                      ) : (
+                        <StatusMarker status="missed" size={12} />
+                      )}
+                      <span>{isDone ? 'Tamamlandı' : 'Tamamla'}</span>
                     </Button>
                   ) : editingHabitId === h.id ? (
                     <form
@@ -381,6 +403,7 @@ export default function TodayView({
                         id={`${formId}-amount`}
                         type="text"
                         inputMode="decimal"
+                        pattern="[0-9.,]*"
                         autoFocus
                         value={editValue}
                         onChange={(e) => {

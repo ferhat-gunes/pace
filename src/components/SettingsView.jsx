@@ -183,13 +183,13 @@ export default function SettingsView({
     <section id="view-settings" aria-labelledby="settings-title" style={{ display: 'flex', flexDirection: 'column' }}>
       <Header title="Ayarlar" subtitle="Görünüm, bildirimler, hesap ve veri yönetimi" />
 
-      <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+      <div style={{ marginTop: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
         {notice && (
           <InlineFeedback
             message={notice.message}
             tone={notice.error ? 'danger' : 'signal'}
             action={
-              <Button variant="ghost" size="sm" aria-label="Bildirimi kapat" onClick={() => setNotice(null)}>
+              <Button variant="tertiary" size="sm" aria-label="Bildirimi kapat" onClick={() => setNotice(null)}>
                 Kapat
               </Button>
             }
@@ -209,7 +209,7 @@ export default function SettingsView({
             <div>
               <strong style={{ fontSize: '14px' }}>Görünüm teması</strong>
               <p style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>
-                Açık, koyu, sarı veya sistem tercihi.
+                Açık, koyu veya sistem tercihi.
               </p>
             </div>
             <div style={{ minWidth: '160px' }}>
@@ -224,7 +224,6 @@ export default function SettingsView({
                   options={[
                     { value: 'light', label: 'Açık' },
                     { value: 'dark', label: 'Koyu' },
-                    { value: 'yellow', label: 'Sarı' },
                     { value: 'system', label: 'Sistem' },
                   ]}
                 />
