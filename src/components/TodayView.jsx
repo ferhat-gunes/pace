@@ -129,10 +129,6 @@ export default function TodayView({
                 : 'Bu tarih için planlanan alışkanlık yok'}
             </span>
           </div>
-          <Button variant="primary" size="md" aria-label="Yeni alışkanlık ekle" onClick={onOpenAddModal}>
-            <Plus size={16} strokeWidth={1.5} aria-hidden="true" />
-            <span>Alışkanlık Ekle</span>
-          </Button>
         </div>
 
         <div className="segmented-control" role="group" aria-label="Alışkanlık filtreleme" style={{ marginTop: 'var(--space-4)' }}>
