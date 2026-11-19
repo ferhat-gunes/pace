@@ -70,6 +70,13 @@ button {
   outline-offset: 2px;
 }
 
+h1[tabindex="-1"]:focus,
+h1[tabindex="-1"]:focus-visible,
+main[tabindex="-1"]:focus,
+main[tabindex="-1"]:focus-visible {
+  outline: none;
+}
+
 .mono {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
