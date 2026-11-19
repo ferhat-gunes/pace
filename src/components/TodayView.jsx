@@ -68,6 +68,18 @@ export default function TodayView({
   const days = calendarWeek(selectedDate, weekStart);
   const isAllDone = completionStats.total > 0 && completionStats.completed === completionStats.total;
   const hasHabits = habits.some((h) => !settingsAt(h, selectedDate).archived_at);
+  const orderedHabits = useMemo(() => {
+    const pending = [];
+    const completed = [];
+    for (const habit of todayHabits) {
+      if (dailyCompletion(habit, selectedDate, normalized, weekStart)) {
+        completed.push(habit);
+      } else {
+        pending.push(habit);
+      }
+    }
+    return [...pending, ...completed];
+  }, [todayHabits, selectedDate, normalized, weekStart]);
 
   const beginEdit = (id, value) => {
     setEditingHabitId(id);
@@ -130,29 +142,7 @@ export default function TodayView({
             </span>
           </div>
         </div>
-
-        <div className="segmented-control" role="group" aria-label="Alışkanlık filtreleme" style={{ marginTop: 'var(--space-4)' }}>
-          {['planned', 'all'].map((filter, index) => (
-            <button
-              key={filter}
-              type="button"
-              className={`segmented-item ${filterMode === filter ? 'is-selected' : ''}`}
-              aria-pressed={filterMode === filter}
-              onClick={() => setFilterMode?.(filter)}
-              onKeyDown={(e) => selectKey(e, ['planned', 'all'], index, setFilterMode)}
-            >
-              {filter === 'planned' ? 'Planlı' : 'Tümü'}
-            </button>
-          ))}
-        </div>
       </div>
-
-      <DailyEngagement
-        gamification={gamification}
-        checkins={normalized}
-        socialInbox={socialInbox}
-        onDismissInbox={onDismissInbox}
-      />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
@@ -209,6 +199,21 @@ export default function TodayView({
         })}
       </div>
 
+      <div className="segmented-control" role="group" aria-label="Alışkanlık filtreleme" style={{ marginBottom: 'var(--space-3)' }}>
+        {['planned', 'all'].map((filter, index) => (
+          <button
+            key={filter}
+            type="button"
+            className={`segmented-item ${filterMode === filter ? 'is-selected' : ''}`}
+            aria-pressed={filterMode === filter}
+            onClick={() => setFilterMode?.(filter)}
+            onKeyDown={(e) => selectKey(e, ['planned', 'all'], index, setFilterMode)}
+          >
+            {filter === 'planned' ? 'Planlı' : 'Tümü'}
+          </button>
+        ))}
+      </div>
+
       {future && (
         <InlineFeedback tone="neutral" role="status">
           Gelecek günün planını görüntülüyorsun. Kayıt girişi o gün açılır.
@@ -225,7 +230,7 @@ export default function TodayView({
         <Suspense fallback={<LoadingState label="Başlangıç rutinleri yükleniyor…" />}>
           <OnboardingStarter onAddStarterHabits={onAddStarterHabits} onOpenCustomModal={onOpenAddModal} />
         </Suspense>
-      ) : todayHabits.length === 0 ? (
+      ) : orderedHabits.length === 0 ? (
         <EmptyState
           title={hasHabits && filterMode === 'planned' ? 'Bu tarih için plan yok' : 'İlk alışkanlığınla başla'}
           description={
@@ -244,7 +249,7 @@ export default function TodayView({
         />
       ) : (
         <div id="today-list" className="habit-list" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          {todayHabits.map((habit) => {
+          {orderedHabits.map((habit) => {
             const h = { ...settingsAt(habit, selectedDate), target: goalFor(habit, selectedDate, normalized, weekStart) };
             const record = recordFor(habit, selectedDate, normalized);
             const value = Number(record?.value || 0);
@@ -540,6 +545,15 @@ export default function TodayView({
           })}
         </div>
       )}
+
+      <div style={{ marginTop: 'var(--space-6)' }}>
+        <DailyEngagement
+          gamification={gamification}
+          checkins={normalized}
+          socialInbox={socialInbox}
+          onDismissInbox={onDismissInbox}
+        />
+      </div>
     </section>
   );
 }
