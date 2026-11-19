@@ -519,7 +519,7 @@ html {
     z-index: var(--z-nav);
     display: grid;
     background-color: var(--surface-1);
-    border-top: var(--border-hairline) solid var(--border);
+    border-top: var(--border-hairline) solid var(--border-strong);
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
@@ -527,23 +527,41 @@ html {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-    min-height: 56px;
+    gap: 4px;
+    min-height: 58px;
     padding: var(--space-2) var(--space-1);
     border: none;
-    border-top: 2px solid transparent;
+    border-right: var(--border-hairline) solid var(--border);
+    background-color: var(--surface-1);
+    color: var(--fg-muted);
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: 11px;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.02em;
     text-align: center;
   }
 
+  .mobile-nav .nav-item:last-child {
+    border-right: none;
+  }
+
+  .mobile-nav .nav-item:hover:not(.is-active) {
+    background-color: var(--surface-2);
+    color: var(--fg);
+  }
+
   .mobile-nav .nav-item.is-active {
-    background-color: var(--bg);
-    color: var(--signal-text);
+    background-color: var(--signal);
+    color: var(--signal-fg);
+    font-weight: 700;
     border-left: none;
-    border-top-color: var(--signal);
+    border-top: none;
+  }
+
+  .mobile-nav .nav-item.is-active:focus-visible {
+    outline: 2px solid var(--signal-fg);
+    outline-offset: -3px;
   }
 
   .mobile-nav .nav-label {

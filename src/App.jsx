@@ -351,7 +351,7 @@ export default function App() {
         </main>
       </div>
 
-      <MobileNav currentView={currentView} setView={setView} />
+      <MobileNav currentView={currentView} activeParentView={formReturnView} setView={setView} />
 
       <Suspense fallback={null}>
         {isAuthModalOpen && (

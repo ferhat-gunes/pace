@@ -1,13 +1,17 @@
 import React from 'react';
 import { CalendarDays, ListChecks, ChartNoAxesColumnIncreasing, Users } from 'lucide-react';
 
-export default function MobileNav({ currentView = 'today', setView }) {
+export default function MobileNav({ currentView = 'today', activeParentView = 'today', setView }) {
   const items = [
     { id: 'today', label: 'Bugün', icon: CalendarDays },
     { id: 'habits', label: 'Alışkanlıklar', icon: ListChecks },
     { id: 'progress', label: 'İlerleme', icon: ChartNoAxesColumnIncreasing },
     { id: 'groups', label: 'Gruplar', icon: Users },
   ];
+
+  const resolvedParent = ['today', 'habits', 'progress', 'groups'].includes(activeParentView)
+    ? activeParentView
+    : 'habits';
 
   return (
     <nav
@@ -16,7 +20,11 @@ export default function MobileNav({ currentView = 'today', setView }) {
       style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
     >
       {items.map(({ id, label, icon: NavIcon }) => {
-        const isActive = currentView === id || (id === 'habits' && currentView === 'discover');
+        const isSubView = currentView === 'habit-detail' || currentView === 'habit-form';
+        const isActive =
+          currentView === id ||
+          (id === 'habits' && currentView === 'discover') ||
+          (isSubView && resolvedParent === id);
         return (
           <button
             key={id}
@@ -27,7 +35,7 @@ export default function MobileNav({ currentView = 'today', setView }) {
             onClick={() => setView?.(id)}
           >
             <span className="nav-icon">
-              <NavIcon size={18} strokeWidth={1.5} aria-hidden="true" />
+              <NavIcon size={20} strokeWidth={isActive ? 2.25 : 1.5} aria-hidden="true" />
             </span>
             <span className="nav-label">{label}</span>
           </button>
