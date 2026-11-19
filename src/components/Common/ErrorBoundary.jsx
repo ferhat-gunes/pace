@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button } from '../ui/index.js';
 
 export class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -16,7 +17,6 @@ export class ErrorBoundary extends React.Component {
 
   handleReload = () => {
     this.setState({ hasError: false, error: null });
-
   };
 
   render() {
@@ -26,31 +26,26 @@ export class ErrorBoundary extends React.Component {
           className="app-error"
           role="alert"
           style={{
-            padding: '48px 24px',
+            padding: 'var(--space-8) var(--space-6)',
             textAlign: 'center',
             maxWidth: '480px',
-            margin: '60px auto',
-            background: 'var(--surface)',
-            borderRadius: '16px',
-            border: '1px solid var(--border)',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
+            margin: 'var(--space-12) auto',
+            backgroundColor: 'var(--surface-1)',
+            border: '1px solid var(--danger)',
           }}
         >
-          <div style={{ fontSize: '36px', marginBottom: '16px' }}>🌱</div>
-          <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '20px', color: 'var(--forest)', marginBottom: '8px' }}>
+          <div className="mono" style={{ fontSize: '12px', fontWeight: 700, color: 'var(--danger)', letterSpacing: '0.06em', marginBottom: 'var(--space-3)' }}>
+            HATA
+          </div>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '20px', color: 'var(--fg)', marginBottom: 'var(--space-2)' }}>
             Beklenmeyen bir durum oluştu
           </h2>
-          <p style={{ color: 'var(--muted)', fontSize: '14px', lineHeight: 1.5, marginBottom: '24px' }}>
+          <p style={{ color: 'var(--fg-muted)', fontSize: '14px', lineHeight: 1.5, marginBottom: 'var(--space-6)' }}>
             Bu bölümü yeniden deneyebilir veya gezinmeden başka bir bölüme geçebilirsin. Henüz gönderilmemiş form bilgilerini kontrol et.
           </p>
-          <button
-            type="button"
-            className="button button-primary"
-            onClick={this.handleReload}
-            style={{ minHeight: '44px', padding: '0 24px', fontSize: '15px' }}
-          >
+          <Button variant="primary" onClick={this.handleReload}>
             Bu bölümü yeniden dene
-          </button>
+          </Button>
         </div>
       );
     }

@@ -155,7 +155,7 @@ export default function ProgressView({ habits = [], checkins = [], weekStart = 1
                   <th scope="row" style={{ textAlign: 'left' }}>
                     {item.name}
                     {item.isArchived && (
-                      <span className="mono" style={{ display: 'block', fontWeight: 400, fontSize: '12px', color: 'var(--muted)' }}>
+                      <span className="mono" style={{ display: 'block', fontWeight: 400, fontSize: '12px', color: 'var(--fg-muted)' }}>
                         Arşivlendi · geçmiş korunuyor
                       </span>
                     )}
@@ -189,7 +189,7 @@ export default function ProgressView({ habits = [], checkins = [], weekStart = 1
             aria-labelledby={`summary-${item.id}`}
             style={{
               border: '1px solid var(--border)',
-              background: 'var(--surface)',
+              background: 'var(--surface-1)',
               padding: 'var(--space-4)',
             }}
           >
@@ -216,7 +216,7 @@ export default function ProgressView({ habits = [], checkins = [], weekStart = 1
                     }}
                   >
                     <div>
-                      <dt className="mono" style={{ fontSize: '11px', color: 'var(--muted)', textTransform: 'uppercase' }}>
+                      <dt className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)', textTransform: 'uppercase' }}>
                         Toplam ({group.unit})
                       </dt>
                       <dd className="mono" style={{ margin: 'var(--space-1) 0 0', fontWeight: 700, fontSize: '18px' }}>
@@ -224,7 +224,7 @@ export default function ProgressView({ habits = [], checkins = [], weekStart = 1
                       </dd>
                     </div>
                     <div>
-                      <dt className="mono" style={{ fontSize: '11px', color: 'var(--muted)', textTransform: 'uppercase' }}>
+                      <dt className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)', textTransform: 'uppercase' }}>
                         Günlük ortalama ({group.unit})
                       </dt>
                       <dd className="mono" style={{ margin: 'var(--space-1) 0 0', fontWeight: 700, fontSize: '18px' }}>
@@ -232,7 +232,7 @@ export default function ProgressView({ habits = [], checkins = [], weekStart = 1
                       </dd>
                     </div>
                     <div>
-                      <dt className="mono" style={{ fontSize: '11px', color: 'var(--muted)', textTransform: 'uppercase' }}>
+                      <dt className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)', textTransform: 'uppercase' }}>
                         En yüksek ({group.unit})
                       </dt>
                       <dd className="mono" style={{ margin: 'var(--space-1) 0 0', fontWeight: 700, fontSize: '18px' }}>
@@ -240,7 +240,7 @@ export default function ProgressView({ habits = [], checkins = [], weekStart = 1
                       </dd>
                     </div>
                     <div>
-                      <dt className="mono" style={{ fontSize: '11px', color: 'var(--muted)', textTransform: 'uppercase' }}>
+                      <dt className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)', textTransform: 'uppercase' }}>
                         Kayıtlı gün
                       </dt>
                       <dd className="mono" style={{ margin: 'var(--space-1) 0 0', fontWeight: 700, fontSize: '18px' }}>

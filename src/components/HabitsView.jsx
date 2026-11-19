@@ -1,6 +1,6 @@
 import { settingsAt, dateKey } from '../lib/rules.js';
 import React, { useMemo, useRef, useState } from 'react';
-import { Archive, RotateCcw, Pause, Play, Pencil, Plus } from 'lucide-react';
+import { Archive, RotateCcw, Pause, Play, Pencil, Plus, Compass } from 'lucide-react';
 import { describeHabitRules } from '../lib/habit-form.js';
 import { Button, SearchInput, EmptyState, InlineFeedback } from './ui/index.js';
 import './HabitForm.css';
@@ -21,6 +21,7 @@ function rulesDescription(habit) {
 export default function HabitsView({
   habits = [],
   onOpenAddModal,
+  onOpenDiscover,
   onEditHabit,
   onTogglePause,
   archiveHabit,
@@ -200,10 +201,18 @@ export default function HabitsView({
             {activeCount} aktif rutin{pausedCount > 0 ? ` · ${pausedCount} duraklatılmış` : ''}
           </p>
         </div>
-        <Button variant="primary" size="md" aria-label="Yeni alışkanlık ekle" onClick={onOpenAddModal}>
-          <Plus size={16} strokeWidth={1.5} aria-hidden="true" />
-          <span>Alışkanlık Ekle</span>
-        </Button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+          {onOpenDiscover && (
+            <Button variant="secondary" size="md" aria-label="Ritim şablonlarını keşfet" onClick={onOpenDiscover}>
+              <Compass size={16} strokeWidth={1.5} aria-hidden="true" />
+              <span>Keşfet</span>
+            </Button>
+          )}
+          <Button variant="primary" size="md" aria-label="Yeni alışkanlık ekle" onClick={onOpenAddModal}>
+            <Plus size={16} strokeWidth={1.5} aria-hidden="true" />
+            <span>Alışkanlık Ekle</span>
+          </Button>
+        </div>
       </div>
 
       {error && (

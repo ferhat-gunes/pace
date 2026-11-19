@@ -20,18 +20,18 @@ export default function DailyEngagement({ gamification, checkins = [], socialInb
       {socialInbox.map((item) => (
         <aside
           key={item.id}
-          aria-label="Member message"
+          aria-label="Üye mesajı"
           style={{
             border: '1px solid var(--border)',
             backgroundColor: 'var(--surface-1)',
           }}
         >
           <ActivityItem
-            actor={item.sender_display || item.senderDisplayName || 'Member'}
+            actor={item.sender_display || item.senderDisplayName || 'Üye'}
             summary={item.message}
           >
             <Button variant="secondary" onClick={() => onDismissInbox?.(item.id)}>
-              Acknowledge
+              Onayla
             </Button>
           </ActivityItem>
         </aside>
@@ -71,10 +71,10 @@ export default function DailyEngagement({ gamification, checkins = [], socialInb
                 }}
               >
                 <Icon icon={CheckSquare} size={16} />
-                Daily Review
+                Günlük Özet
               </h2>
               <p className="mono" style={{ margin: 0, fontSize: '12px', color: 'var(--fg-muted)' }}>
-                {g.todayCompletedCount} / {g.questTarget} targets completed
+                {g.todayCompletedCount} / {g.questTarget} hedef tamamlandı
               </p>
             </div>
             <Button
@@ -83,10 +83,10 @@ export default function DailyEngagement({ gamification, checkins = [], socialInb
               onClick={g.claimDailyChest}
             >
               {g.isQuestClaimed
-                ? 'Daily review logged'
+                ? 'Günlük özet kaydedildi'
                 : g.isQuestCompleted
-                  ? 'Log daily review'
-                  : 'Complete targets'}
+                  ? 'Günlük özeti kaydet'
+                  : 'Hedefleri tamamla'}
             </Button>
           </div>
 
@@ -104,16 +104,16 @@ export default function DailyEngagement({ gamification, checkins = [], socialInb
           >
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', color: g.streak > 0 ? 'var(--signal-text)' : 'var(--fg-muted)' }}>
               <Icon icon={Flame} size={14} />
-              {g.streak}d streak
+              {g.streak} gün seri
             </span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', color: 'var(--fg-muted)' }}>
               <Icon icon={Shield} size={14} />
-              {g.streakFreezes} streak protection
+              {g.streakFreezes} seri koruması
             </span>
           </div>
 
           {g.isStreakFrozenToday && (
-            <InlineFeedback message="Streak protection applied for missed day." tone="neutral" />
+            <InlineFeedback message="Kaçırılan gün için seri koruması uygulandı." tone="neutral" />
           )}
         </section>
       )}
@@ -127,10 +127,10 @@ export default function DailyEngagement({ gamification, checkins = [], socialInb
           }}
         >
           <strong className="mono" style={{ fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Resume cadence
+            Ritme geri dön
           </strong>
           <p style={{ fontSize: '13px', color: 'var(--fg-muted)', marginTop: 'var(--space-1)', marginBottom: 'var(--space-3)' }}>
-            A gap is recorded. Log one action today to re-establish consistency.
+            Bir ara kaydedildi. İstikrarı yeniden kurmak için bugün tek bir adım işaretle.
           </p>
           <FrictionMicroSurvey todayIso={today} />
         </aside>

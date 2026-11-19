@@ -1,13 +1,10 @@
 import React from 'react';
-import { Sun, Moon } from 'lucide-react';
-import { useTheme } from '../../theme/ThemeProvider.jsx';
+import { Settings } from 'lucide-react';
 import * as api from '../../lib/api.js';
 import { IconButton } from '../ui/index.js';
 
 export default function TopBar({ setView, user, onOpenAuth, syncState, streak = 0 }) {
   const initial = user?.email ? user.email[0].toLocaleUpperCase('tr-TR') : 'P';
-  const { mode, setPreference } = useTheme();
-  const isDark = mode === 'dark';
   const isDemo = api.demoMode;
   const isSynced = syncState === 'Kaydedildi' || syncState === 'Güncel';
 
@@ -46,8 +43,8 @@ export default function TopBar({ setView, user, onOpenAuth, syncState, streak = 
               fontWeight: 600,
               padding: 'var(--space-1) var(--space-2)',
               border: '1px solid var(--border)',
-              background: 'var(--surface)',
-              color: isSynced ? 'var(--signal-text)' : 'var(--muted)',
+              background: 'var(--surface-1)',
+              color: isSynced ? 'var(--signal-text)' : 'var(--fg-muted)',
               textTransform: 'uppercase',
               letterSpacing: '0.04em',
             }}
@@ -57,11 +54,11 @@ export default function TopBar({ setView, user, onOpenAuth, syncState, streak = 
         )}
 
         <IconButton
-          label={isDark ? 'Açık temaya geç' : 'Karanlık temaya geç'}
-          onClick={() => setPreference(isDark ? 'light' : 'dark')}
-        >
-          {isDark ? <Sun size={18} strokeWidth={1.5} aria-hidden="true" /> : <Moon size={18} strokeWidth={1.5} aria-hidden="true" />}
-        </IconButton>
+          icon={Settings}
+          label="Ayarlar"
+          data-view="settings"
+          onClick={() => setView?.('settings')}
+        />
 
         <button
           type="button"

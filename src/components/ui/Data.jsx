@@ -3,7 +3,7 @@ import { StatusMarker } from './Icon.jsx';
 
 export { StatusMarker };
 
-export function StreakBadge({ count = 0, label = 'STREAK' }) {
+export function StreakBadge({ count = 0, label = 'SERİ' }) {
   return (
     <span
       className="mono"
@@ -180,7 +180,7 @@ export function Table({ columns = [], rows = [] }) {
     <div style={{ overflowX: 'auto', border: '1px solid var(--border)' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
         <thead>
-          <tr style={{ borderBottom: '2px solid var(--border)', backgroundColor: 'var(--surface-2)' }}>
+          <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--surface-2)' }}>
             {columns.map((col) => (
               <th key={col.key} className="mono" style={{ padding: 'var(--space-2) var(--space-3)', fontSize: '11px', textTransform: 'uppercase', color: 'var(--fg-muted)' }}>
                 {col.label}

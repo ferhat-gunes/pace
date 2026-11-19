@@ -16,12 +16,12 @@ export function Toast({ message, tone = 'neutral', onClose }) {
         gap: 'var(--space-3)',
         padding: 'var(--space-3) var(--space-4)',
         backgroundColor: 'var(--surface-2)',
-        border: `2px solid ${borderColor}`,
+        border: `1px solid ${borderColor}`,
         color: 'var(--fg)',
       }}
     >
       <span className="mono" style={{ fontSize: '13px' }}>{message}</span>
-      {onClose ? <IconButton icon={X} label="Close" onClick={onClose} /> : null}
+      {onClose ? <IconButton icon={X} label="Kapat" onClick={onClose} /> : null}
     </div>
   );
 }
@@ -82,7 +82,7 @@ export function Modal({ open, title, onClose, closeDisabled = false, closeLabel 
           display: 'flex',
           flexDirection: 'column',
           backgroundColor: 'var(--bg)',
-          border: '2px solid var(--border-strong)',
+          border: '1px solid var(--border-strong)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-3) var(--space-4)', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
@@ -100,7 +100,7 @@ export function Modal({ open, title, onClose, closeDisabled = false, closeLabel 
   );
 }
 
-export function Confirmation({ open, title, message, confirmLabel = 'Confirm', cancelLabel = 'Cancel', onConfirm, onCancel, destructive = false }) {
+export function Confirmation({ open, title, message, confirmLabel = 'Onayla', cancelLabel = 'İptal', onConfirm, onCancel, destructive = false }) {
   return (
     <Modal
       open={open}
@@ -118,10 +118,10 @@ export function Confirmation({ open, title, message, confirmLabel = 'Confirm', c
   );
 }
 
-export function LoadingState({ label = 'LOADING...' }) {
+export function LoadingState({ label = 'YÜKLENİYOR...' }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-2)', padding: 'var(--space-8)', color: 'var(--fg-muted)' }}>
-      <Icon icon={Loader2} size={18} />
+      <Icon icon={Loader2} size={18} className="db-spin" />
       <span className="mono" style={{ fontSize: '12px' }}>{label}</span>
     </div>
   );
@@ -137,12 +137,17 @@ export function EmptyState({ title, description, action }) {
   );
 }
 
-export function ErrorState({ title = 'ERROR', message, onRetry }) {
+export function ErrorState({ title = 'HATA', message, onRetry, retryLabel = 'Yeniden dene', action = null }) {
   return (
-    <div role="alert" style={{ padding: 'var(--space-6) var(--space-4)', border: '2px solid var(--danger)', backgroundColor: 'var(--surface-1)' }}>
+    <div role="alert" style={{ padding: 'var(--space-6) var(--space-4)', border: '1px solid var(--danger)', backgroundColor: 'var(--surface-1)' }}>
       <h3 className="mono" style={{ fontSize: '14px', color: 'var(--danger)' }}>{title}</h3>
       {message ? <p style={{ fontSize: '13px', color: 'var(--fg-muted)', marginTop: 'var(--space-2)' }}>{message}</p> : null}
-      {onRetry ? <div style={{ marginTop: 'var(--space-4)' }}><Button variant="secondary" onClick={onRetry}>Retry</Button></div> : null}
+      {(onRetry || action) ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap', marginTop: 'var(--space-4)' }}>
+          {onRetry ? <Button variant="secondary" onClick={onRetry}>{retryLabel}</Button> : null}
+          {action}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -288,3 +288,22 @@
   border-style: dashed;
   border-color: var(--fg-muted);
 }
+
+.db-btn--sm {
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  font-size: 12px;
+}
+
+@keyframes db-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.db-spin {
+  animation: db-spin 1s linear infinite;
+}

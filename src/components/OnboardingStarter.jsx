@@ -89,7 +89,7 @@ export default function OnboardingStarter({ onAddStarterHabits, onOpenCustomModa
       style={{
         padding: 'var(--space-6)',
         border: '1px solid var(--border)',
-        background: 'var(--surface)',
+        background: 'var(--surface-1)',
         textAlign: 'left',
       }}
     >
@@ -97,7 +97,7 @@ export default function OnboardingStarter({ onAddStarterHabits, onOpenCustomModa
         <h2 style={{ fontSize: '18px', color: 'var(--fg)', margin: '0 0 var(--space-1)', fontWeight: 700 }}>
           Kendi ritmini 30 saniyede kur
         </h2>
-        <p style={{ color: 'var(--muted)', fontSize: '13px', margin: 0, lineHeight: 1.4 }}>
+        <p style={{ color: 'var(--fg-muted)', fontSize: '13px', margin: 0, lineHeight: 1.4 }}>
           En fazla 3 rutin seç; bugün ilk adımını hemen işaretle.
         </p>
       </div>
@@ -138,7 +138,7 @@ export default function OnboardingStarter({ onAddStarterHabits, onOpenCustomModa
                 <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {preset.name}
                 </div>
-                <div className="mono" style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px' }}>
+                <div className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)', marginTop: '2px' }}>
                   {preset.subtitle}
                 </div>
               </div>

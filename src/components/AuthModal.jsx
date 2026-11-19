@@ -254,10 +254,10 @@ export default function AuthModal({
             <h3 id="recovery-code-title" ref={recoveryHeadingRef} tabIndex={-1} style={{ margin: 0, fontSize: '15px' }}>
               Kurtarma kodun hazır
             </h3>
-            <p style={{ margin: 0, fontSize: '13px', color: 'var(--muted)' }}>
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--fg-muted)' }}>
               Parolanı unutursan hesabını bu kodla kurtarabilirsin. Kodu parola yöneticine veya yalnızca senin erişebileğin güvenli bir yere kaydet.
             </p>
-            <label htmlFor="generated-recovery-code" className="mono" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)' }}>
+            <label htmlFor="generated-recovery-code" className="mono" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--fg-muted)' }}>
               Yeni kurtarma kodun
             </label>
             <textarea

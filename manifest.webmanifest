@@ -7,8 +7,8 @@
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#fff4d6",
-  "theme_color": "#fff4d6",
+  "background_color": "#0E0E0E",
+  "theme_color": "#0E0E0E",
   "icons": [
     {
       "src": "/assets/icons/pace-192.png",

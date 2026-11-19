@@ -268,6 +268,7 @@ export default function App() {
                 <HabitsView
                   habits={habits}
                   onOpenAddModal={openCreateHabit}
+                  onOpenDiscover={isFeatureEnabled('discover_rhythm_trials') ? () => setView('discover') : undefined}
                   onEditHabit={h=>{setEditingHabit(h);setHabitModalOpen(true);}}
                   onTogglePause={togglePause}
                   archiveHabit={archiveHabit}

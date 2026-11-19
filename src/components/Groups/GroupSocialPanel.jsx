@@ -13,9 +13,9 @@ import {
 } from '../ui/index.js';
 
 const CHEER_PRESETS = [
-  { emoji: '', label: 'ACK', text: 'Consistent cadence. Keep executing.' },
-  { emoji: '', label: 'DONE', text: 'Target completed. Solid discipline.' },
-  { emoji: '', label: 'PACE', text: 'Strong week. Maintain the standard.' },
+  { emoji: '', label: 'TEBRİK', text: 'İstikrarlı tempo. Aynen devam.' },
+  { emoji: '', label: 'TAMAM', text: 'Hedef tamamlandı. Sağlam disiplin.' },
+  { emoji: '', label: 'RİTİM', text: 'Güçlü hafta. Standardı koru.' },
 ];
 
 export default function GroupSocialPanel({
@@ -87,14 +87,14 @@ export default function GroupSocialPanel({
         message: cleanText,
         habit_date: dateKey(),
       });
-      if (!r?.reaction?.id) throw new Error('Submission could not be verified by server.');
+      if (!r?.reaction?.id) throw new Error('Gönderim sunucu tarafından doğrulanamadı.');
       gamification?.addXp?.(choice.type === 'cheer' ? 10 : 5, 'group-reaction');
-      setNotice({ text: choice.type === 'cheer' ? 'Acknowledge sent.' : 'Nudge sent.' });
+      setNotice({ text: choice.type === 'cheer' ? 'Tebrik gönderildi.' : 'Hatırlatma gönderildi.' });
       setChoice(null);
       await onRefresh?.();
       await onSocialRefresh?.();
     } catch (e) {
-      setNotice({ error: true, text: e.message || 'Reaction could not be sent. Try again.' });
+      setNotice({ error: true, text: e.message || 'Tepki gönderilemedi. Yeniden dene.' });
     } finally {
       setBusy(false);
     }
@@ -106,7 +106,7 @@ export default function GroupSocialPanel({
       canvas.width = 720;
       canvas.height = 220 + Math.min(rows.length, 6) * 54;
       const c = canvas.getContext('2d');
-      if (!c) throw new Error('Canvas context unavailable.');
+      if (!c) throw new Error('Görsel oluşturulamadı.');
 
       c.fillStyle = '#0E0E0E';
       c.fillRect(0, 0, canvas.width, canvas.height);
@@ -119,9 +119,9 @@ export default function GroupSocialPanel({
       c.font = 'bold 28px monospace';
       c.fillText(`PACE / ${group.name}`.slice(0, 45), 32, 54);
 
-      c.fillStyle = '#A09E97';
+      c.fillStyle = '#9A9891';
       c.font = '14px monospace';
-      c.fillText('WEEKLY SHARED HABIT PROGRESS', 32, 86);
+      c.fillText('HAFTALIK ORTAK ALIŞKANLIK İLERLEMESİ', 32, 86);
 
       rows.slice(0, 6).forEach((r, i) => {
         const y = 120 + i * 54;
@@ -134,14 +134,14 @@ export default function GroupSocialPanel({
 
         c.fillStyle = isCurrent ? '#C8FF2E' : '#F2F0EA';
         c.font = '16px monospace';
-        c.fillText(`${r.member.display_name || 'Member'}: ${r.done}/${r.total} (${r.percentage}%)`, 46, y + 26);
+        c.fillText(`${r.member.display_name || 'Üye'}: ${r.done}/${r.total} (%${r.percentage})`, 46, y + 26);
       });
 
       const a = document.createElement('a');
-      a.download = `pace-group-${dateKey()}.png`;
+      a.download = `pace-grup-${dateKey()}.png`;
       a.href = canvas.toDataURL('image/png');
       a.click();
-      setNotice({ text: 'Group summary PNG exported.' });
+      setNotice({ text: 'Grup özeti PNG olarak indirildi.' });
     } catch (e) {
       setNotice({ error: true, text: e.message });
     }
@@ -163,19 +163,19 @@ export default function GroupSocialPanel({
       >
         <div>
           <h3 id="group-social-title" style={{ fontSize: '16px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Shared Progress
+            Ortak İlerleme
           </h3>
           <p className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)', marginTop: 'var(--space-1)' }}>
-            Calculated on elapsed planned days. Max 3 reactions per member daily.
+            Geçen planlı günlere göre hesaplanır. Üye başına günlük en fazla 3 tepki.
           </p>
         </div>
         <Button variant="secondary" onClick={share}>
-          Export PNG summary
+          PNG özet indir
         </Button>
       </div>
 
       {notice && <InlineFeedback message={notice.text} tone={notice.error ? 'danger' : 'neutral'} />}
-      {allDone && <InlineFeedback message="All members completed today's shared targets." tone="signal" />}
+      {allDone && <InlineFeedback message="Tüm üyeler bugünün ortak hedeflerini tamamladı." tone="signal" />}
 
       <div style={{ border: '1px solid var(--border)', marginTop: 'var(--space-3)' }}>
         {rows.map((row) => {
@@ -183,8 +183,8 @@ export default function GroupSocialPanel({
           return (
             <div key={row.member.user_id}>
               <GroupMemberRow
-                name={row.member.display_name || 'Member'}
-                role={`${row.done}/${row.total} (${row.percentage}%)`}
+                name={row.member.display_name || 'Üye'}
+                role={`${row.done}/${row.total} (%${row.percentage})`}
                 status={row.percentage >= 100 ? 'done' : 'missed'}
                 isCurrentUser={isCurrent}
                 streak={row.cheers}
@@ -201,7 +201,7 @@ export default function GroupSocialPanel({
                   }}
                 >
                   <Reaction
-                    label="ACK"
+                    label="TEBRİK"
                     count={row.cheers}
                     onClick={() => {
                       if (!busy && user) {
@@ -213,13 +213,13 @@ export default function GroupSocialPanel({
                   <Button
                     variant="tertiary"
                     disabled={busy || !user}
-                    aria-label={`Send nudge to ${row.member.display_name || 'Member'}`}
+                    aria-label={`${row.member.display_name || 'Üye'} kullanıcısına hatırlatma gönder`}
                     onClick={() => {
                       setChoice({ member: row.member, type: 'nudge' });
                       setNotice(null);
                     }}
                   >
-                    Nudge
+                    Hatırlat
                   </Button>
                 </div>
               )}
@@ -231,14 +231,14 @@ export default function GroupSocialPanel({
       {reactions.length > 0 && (
         <details style={{ marginTop: 'var(--space-4)', border: '1px solid var(--border)', backgroundColor: 'var(--surface-1)' }}>
           <summary className="mono" style={{ padding: 'var(--space-3) var(--space-4)', fontSize: '12px', cursor: 'pointer', textTransform: 'uppercase' }}>
-            Recent group activity ({reactions.slice(0, 10).length})
+            Son grup hareketleri ({reactions.slice(0, 10).length})
           </summary>
           <div>
             {reactions.slice(0, 10).map((r) => (
               <ActivityItem
                 key={r.id}
-                actor={r.reaction_type === 'cheer' ? 'ACK' : 'NUDGE'}
-                summary={String(r.message || 'Group reaction').replace(/!/g, '.')}
+                actor={r.reaction_type === 'cheer' ? 'TEBRİK' : 'HATIRLATMA'}
+                summary={String(r.message || 'Grup tepkisi').replace(/!/g, '.')}
                 timestamp={r.habit_date}
               />
             ))}
@@ -250,19 +250,19 @@ export default function GroupSocialPanel({
         open={Boolean(choice)}
         title={
           choice
-            ? `${choice.type === 'cheer' ? 'Acknowledge' : 'Nudge'}: ${choice.member.display_name || 'Member'}`
+            ? `${choice.type === 'cheer' ? 'Tebrik' : 'Hatırlatma'}: ${choice.member.display_name || 'Üye'}`
             : ''
         }
         onClose={() => !busy && setChoice(null)}
         footer={
           <Button variant="secondary" disabled={busy} onClick={() => setChoice(null)}>
-            Cancel
+            İptal
           </Button>
         }
       >
         {notice?.error && <InlineFeedback message={notice.text} tone="danger" />}
         <p className="mono" style={{ fontSize: '12px', color: 'var(--fg-muted)', marginBottom: 'var(--space-3)' }}>
-          Select a message to send.
+          Göndermek için bir mesaj seç.
         </p>
         <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
           {presets.map((p) => {
@@ -280,7 +280,7 @@ export default function GroupSocialPanel({
             );
           })}
         </div>
-        {busy && <InlineFeedback message="Sending..." tone="neutral" />}
+        {busy && <InlineFeedback message="Gönderiliyor…" tone="neutral" />}
       </Modal>
     </section>
   );

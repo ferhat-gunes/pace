@@ -7,8 +7,8 @@
 .habit-editor .form-choice legend { margin-bottom:8px; }
 .habit-editor .segmented-control { display:flex; width:100%; }
 .habit-editor .segmented-item { flex:1; white-space:normal; }
-.habit-editor .form-help { font-size:13px; line-height:1.5; color:var(--muted); margin:0 0 14px; }
-.habit-editor .form-summary { padding:14px; background:var(--forest-soft); border:2px dashed var(--border); border-radius:10px; font-size:14px; line-height:1.55; margin:16px 0; }
+.habit-editor .form-help { font-size:13px; line-height:1.5; color:var(--fg-muted); margin:0 0 14px; }
+.habit-editor .form-summary { padding:14px; background:var(--surface-1); border:1px solid var(--border); font-size:14px; line-height:1.55; margin:16px 0; }
 .habit-editor .form-summary p { margin:6px 0 0; }
 .habit-editor .form-footer { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:10px; margin-top:22px; }
 .habit-editor .dialog-header { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; padding-bottom:16px; }
@@ -17,18 +17,18 @@
 .habit-editor .form-presets .button { font-size:13px; padding:8px 12px; }
 .habit-editor .weekday-picker { display:flex; flex-wrap:wrap; gap:8px; }
 .habit-editor .weekday-picker label, .habit-editor .checkbox-field { display:flex; gap:9px; align-items:center; font-size:14px; min-height:44px; }
-.habit-editor input[type="checkbox"] { width:20px; height:20px; flex-shrink:0; accent-color:var(--forest); }
-.habit-editor .weekday-picker label { border:2px solid var(--border); border-radius:8px; padding:7px 10px; background:var(--surface); }
-.habit-editor .advanced-rules { border:2px dashed var(--border); border-radius:12px; padding:12px 14px; margin:16px 0; }
+.habit-editor input[type="checkbox"] { width:20px; height:20px; flex-shrink:0; accent-color:var(--signal); }
+.habit-editor .weekday-picker label { border:1px solid var(--border); padding:7px 10px; background:var(--surface-1); }
+.habit-editor .advanced-rules { border:1px solid var(--border); padding:12px 14px; margin:16px 0; }
 .habit-editor .advanced-rules summary { font-weight:700; cursor:pointer; min-height:44px; }
 .habit-editor .advanced-rules[open] summary { margin-bottom:16px; }
 .habit-editor .form-message { font-size:14px; line-height:1.5; }
-.habit-editor [aria-invalid="true"] { border-color:var(--red)!important; }
+.habit-editor [aria-invalid="true"] { border-color:var(--danger)!important; }
 #view-habits .habit-management-actions { display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end; }
-#view-habits .habit-management-notice { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; padding:16px; margin:16px 0; border:2px dashed var(--border); border-radius:12px; background:var(--surface); font-size:14px; line-height:1.5; }
+#view-habits .habit-management-notice { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; padding:16px; margin:16px 0; border:1px solid var(--border); background:var(--surface-1); font-size:14px; line-height:1.5; }
 #view-habits .habit-management-notice p { margin:0; }
-#view-habits .habit-status-label { display:inline-flex; align-items:center; gap:5px; color:var(--muted); font-size:13px; font-weight:600; margin-top:6px; }
-#view-habits .habit-rule-description { display:block; color:var(--muted); font-size:13px; line-height:1.5; margin-top:6px; }
+#view-habits .habit-status-label { display:inline-flex; align-items:center; gap:5px; color:var(--fg-muted); font-size:13px; font-weight:600; margin-top:6px; }
+#view-habits .habit-rule-description { display:block; color:var(--fg-muted); font-size:13px; line-height:1.5; margin-top:6px; }
 #view-habits .habit-management-row { display:flex; align-items:center; justify-content:space-between; gap:18px; }
 #view-habits .habit-management-row .habit-main { min-width:0; flex:1; }
 #view-habits .habit-management-row .habit-actions { flex-shrink:0; }

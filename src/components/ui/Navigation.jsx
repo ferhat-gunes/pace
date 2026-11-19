@@ -13,7 +13,7 @@ export function Header({ title, subtitle, actions, className = '' }) {
         justifyContent: 'space-between',
         gap: 'var(--space-4)',
         padding: 'var(--space-4)',
-        borderBottom: 'var(--border-major) solid var(--border)',
+        borderBottom: 'var(--border-hairline) solid var(--border)',
         backgroundColor: 'var(--bg)',
       }}
     >
@@ -30,7 +30,7 @@ export function Header({ title, subtitle, actions, className = '' }) {
   );
 }
 
-export function BackNav({ label = 'Back', onBack, actions, className = '' }) {
+export function BackNav({ label = 'Geri', onBack, actions, className = '' }) {
   return (
     <div
       className={`db-back-nav ${className}`.trim()}
@@ -106,7 +106,7 @@ export function BottomNav({ items = [], activeId, onChange, className = '' }) {
       style={{
         display: 'grid',
         gridTemplateColumns: `repeat(${Math.max(1, items.length)}, 1fr)`,
-        borderTop: 'var(--border-major) solid var(--border)',
+        borderTop: 'var(--border-hairline) solid var(--border)',
         backgroundColor: 'var(--surface-1)',
       }}
     >

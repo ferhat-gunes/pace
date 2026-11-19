@@ -43,14 +43,11 @@ export function triggerConfetti(originX, originY) {
   const startX = originX ?? width / 2;
   const startY = originY ?? height / 2;
 
-  // PACE brand color palette sparkles
+  // PACE Disciplined Brutalism palette
   const colors = [
-    '#FF9470', // Warm orange
-    '#FFD457', // Deep orange
-    '#72D8C5', // Forest
-    '#A8B59A', // Sage
-    '#F4F0E6', // Cream
-    '#E58B4A', // Soft amber
+    '#C8FF2E', // Signal
+    '#F2F0EA', // Off-white
+    '#9A9891', // Muted
   ];
 
   const particleCount = 28;

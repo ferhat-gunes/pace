@@ -228,7 +228,7 @@ export function useGamification(
         particleCount: 60,
         spread: 80,
         origin: { y: 0.5 },
-        colors: ['#FFC800', '#FF9600', '#58CC02', '#CE82FF'],
+        colors: ['#C8FF2E', '#F2F0EA', '#9A9891'],
       });
     } catch {}
 
@@ -260,7 +260,7 @@ export function useGamification(
         particleCount: 40,
         spread: 60,
         origin: { y: 0.6 },
-        colors: ['#38BDF8', '#818CF8', '#FFFFFF'],
+        colors: ['#C8FF2E', '#F2F0EA', '#9A9891'],
       });
     } catch {}
 
@@ -270,7 +270,7 @@ export function useGamification(
       streakFreezes: (prev.streakFreezes || 0) + 1,
     }));
 
-    return { success: true, message: 'Seri Kurtarma Kalkanı satın alındı! 🛡️' };
+    return { success: true, message: 'Seri Kurtarma Kalkanı satın alındı!' };
   }, [data.gems]);
 
   // Award group synergy milestone bonus (when entire group checks in on the same day)
@@ -282,7 +282,7 @@ export function useGamification(
         particleCount: 55,
         spread: 75,
         origin: { y: 0.5 },
-        colors: ['#FFC800', '#58CC02', '#38BDF8'],
+        colors: ['#C8FF2E', '#F2F0EA', '#9A9891'],
       });
     } catch {}
 

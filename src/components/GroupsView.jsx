@@ -38,7 +38,7 @@ function HabitFields({ draft, setDraft, optional = false }) {
   return (
     <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
       <FormField
-        label={optional ? 'Shared Habit Name (Optional)' : 'Habit Name'}
+        label={optional ? 'Ortak Alışkanlık Adı (İsteğe bağlı)' : 'Alışkanlık Adı'}
         htmlFor="group-habit-name"
       >
         <TextInput
@@ -46,26 +46,26 @@ function HabitFields({ draft, setDraft, optional = false }) {
           value={draft.name}
           onChange={(e) => setDraft({ ...draft, name: e.target.value })}
           maxLength={60}
-          placeholder="e.g. 5 km Run or Reading"
+          placeholder="Örn. 5 km Koşu veya Kitap Okuma"
           required={!optional}
         />
       </FormField>
       {(!optional || draft.name.trim()) && (
         <>
-          <FormField label="Tracking Type" htmlFor="group-habit-tracking">
+          <FormField label="Takip Türü" htmlFor="group-habit-tracking">
             <Select
               id="group-habit-tracking"
               value={draft.tracking}
               onChange={(e) => setDraft({ ...draft, tracking: e.target.value })}
               options={[
-                { value: 'check', label: 'Check (Done / Missed)' },
-                { value: 'quantity', label: 'Quantity or Duration' },
+                { value: 'check', label: 'İşaretleme (Yapıldı / Yapılmadı)' },
+                { value: 'quantity', label: 'Miktar veya Süre' },
               ]}
             />
           </FormField>
           {draft.tracking === 'quantity' && (
             <>
-              <FormField label="Daily Target" htmlFor="group-habit-target">
+              <FormField label="Günlük Hedef" htmlFor="group-habit-target">
                 <TextInput
                   id="group-habit-target"
                   type="number"
@@ -77,23 +77,23 @@ function HabitFields({ draft, setDraft, optional = false }) {
                   onChange={(e) => setDraft({ ...draft, target: e.target.value })}
                 />
               </FormField>
-              <FormField label="Unit" htmlFor="group-habit-unit">
+              <FormField label="Birim" htmlFor="group-habit-unit">
                 <TextInput
                   id="group-habit-unit"
                   maxLength={20}
-                  placeholder="e.g. km, min, pages"
+                  placeholder="Örn. km, dk, sayfa"
                   value={draft.unit}
                   onChange={(e) => setDraft({ ...draft, unit: e.target.value })}
                 />
               </FormField>
-              <FormField label="Target Direction" htmlFor="group-habit-direction">
+              <FormField label="Hedef Yönü" htmlFor="group-habit-direction">
                 <Select
                   id="group-habit-direction"
                   value={draft.direction}
                   onChange={(e) => setDraft({ ...draft, direction: e.target.value })}
                   options={[
-                    { value: 'at_least', label: 'At least' },
-                    { value: 'at_most', label: 'At most' },
+                    { value: 'at_least', label: 'En az' },
+                    { value: 'at_most', label: 'En fazla' },
                   ]}
                 />
               </FormField>
@@ -191,7 +191,7 @@ export default function GroupsView({
       if (request === requestRef.current && selectedRef.current === id) setDetail(result);
       return result;
     } catch (err) {
-      if (request === requestRef.current) setDetailError(err.message || 'Group details could not be loaded.');
+      if (request === requestRef.current) setDetailError(err.message || 'Grup ayrıntıları yüklenemedi.');
       return null;
     } finally {
       if (request === requestRef.current) setLoading(false);
@@ -224,7 +224,7 @@ export default function GroupsView({
         }
       })
       .catch((err) => {
-        if (current) setInviteError(`Invite could not be opened: ${err.message}`);
+        if (current) setInviteError(`Davet açılamadı: ${err.message}`);
       });
     return () => {
       current = false;
@@ -262,7 +262,7 @@ export default function GroupsView({
     try {
       await task();
     } catch (err) {
-      setError(err.message || 'Action could not be completed. Try again.');
+      setError(err.message || 'İşlem tamamlanamadı. Yeniden dene.');
     } finally {
       lock.current = false;
       setBusy('');
@@ -271,7 +271,7 @@ export default function GroupsView({
 
   function open(kind) {
     if (kind === 'create' && !user?.id) {
-      setNotice('Sign in to create a group.');
+      setNotice('Grup oluşturmak için giriş yap.');
       onRequireAuth?.();
       return;
     }
@@ -286,14 +286,14 @@ export default function GroupsView({
       const group = groupSettings({ name, description });
       const settings = draft.name.trim() ? groupHabitSettings(draft) : null;
       const res = await api.createGroup({ ...settings, ...group, habit_name: settings?.name });
-      if (!res?.group?.id) throw new Error('Group could not be created.');
+      if (!res?.group?.id) throw new Error('Grup oluşturulamadı.');
       await loadData?.();
       setSelected(res.group.id);
       setModal(null);
       setName('');
       setDescription('');
       setDraft(blankHabit());
-      setNotice('Group created.');
+      setNotice('Grup oluşturuldu.');
     });
   }
 
@@ -307,7 +307,7 @@ export default function GroupsView({
     await run('invite', async () => {
       const res = await api.createGroupInvite(id, { invite_type: 'link' });
       const code = res?.invite?.token || res?.invite?.code;
-      if (!code) throw new Error('Invite link could not be generated.');
+      if (!code) throw new Error('Davet bağlantısı oluşturulamadı.');
       if (request === inviteRequestRef.current) setLink(`${location.origin}/?join=${encodeURIComponent(code)}`);
     });
   }
@@ -317,7 +317,7 @@ export default function GroupsView({
       await navigator.clipboard.writeText(link);
       setCopied(true);
     } catch {
-      setError('Copy failed. Select the link field and copy manually.');
+      setError('Kopyalama başarısız oldu. Bağlantı alanını seçip manuel olarak kopyala.');
     }
   }
 
@@ -330,7 +330,7 @@ export default function GroupsView({
       setModal(null);
       setInvite(null);
       onClearInviteToken?.();
-      setNotice('Joined group.');
+      setNotice('Gruba katıldın.');
     });
   }
 
@@ -351,7 +351,7 @@ export default function GroupsView({
   async function refreshRecordVersion() {
     await run('record-refresh', async () => {
       const updated = await refresh();
-      if (!updated) throw new Error('Latest record could not be loaded. Check connection and retry.');
+      if (!updated) throw new Error('Güncel kayıt yüklenemedi. Bağlantını kontrol edip yeniden dene.');
       const latest = latestGroupLog(updated.checkins, record.habit.id, user.id, record.day);
       setRecord((current) => ({
         ...current,
@@ -388,19 +388,19 @@ export default function GroupsView({
           !Number.isInteger(res.checkin.revision) ||
           res.checkin.revision <= Number(record.revision)
         ) {
-          throw new Error('Server did not verify the record.');
+          throw new Error('Sunucu kaydı doğrulamadı.');
         }
         await refresh();
         setModal(null);
         setRecord(null);
-        setNotice(remove ? 'Shared habit record removed.' : 'Shared habit record saved.');
+        setNotice(remove ? 'Ortak alışkanlık kaydı kaldırıldı.' : 'Ortak alışkanlık kaydı kaydedildi.');
       } catch (err) {
         if (err.status === 409) {
           const updated = await refresh();
           if (!updated) {
             setRecord((current) => ({ ...current, conflict: true }));
             throw new Error(
-              'Record changed on another device and latest version could not be loaded. Your input is preserved; load latest record first.',
+              'Kayıt başka bir cihazda değişti ve güncel sürüm yüklenemedi. Girdiğin değer korunuyor; önce güncel kaydı yükle.',
             );
           }
           const latest = latestGroupLog(updated.checkins, record.habit.id, user.id, record.day);
@@ -413,7 +413,7 @@ export default function GroupsView({
             conflict: false,
             serverValue: latest && !latest.deleted ? latest.value : null,
           }));
-          throw new Error('Record changed on another device. Your input is preserved; review server value and save again.');
+          throw new Error('Kayıt başka bir cihazda değişti. Girdiğin değer korunuyor; sunucu değerini kontrol edip yeniden kaydet.');
         }
         throw err;
       }
@@ -424,12 +424,12 @@ export default function GroupsView({
     e.preventDefault();
     await run('habit', async () => {
       const result = await api.createGroupHabit(active.id, groupHabitSettings(draft));
-      if (!result?.habit?.id) throw new Error('Server did not verify the habit.');
+      if (!result?.habit?.id) throw new Error('Sunucu alışkanlığı doğrulamadı.');
       await refresh();
       await loadData?.();
       setModal(null);
       setDraft(blankHabit());
-      setNotice('Shared habit added.');
+      setNotice('Ortak alışkanlık eklendi.');
     });
   }
 
@@ -440,7 +440,7 @@ export default function GroupsView({
       await refresh();
       await loadData?.();
       setModal(null);
-      setNotice('Group updated.');
+      setNotice('Grup güncellendi.');
     });
   }
 
@@ -467,31 +467,31 @@ export default function GroupsView({
       }
       setModal(null);
       setConfirmation(null);
-      setNotice('Action completed.');
+      setNotice('İşlem tamamlandı.');
     });
   }
 
   const confirmText =
     confirmation?.action === 'delete'
-      ? `Group "${active?.name}", its shared habits, and all group records will be permanently deleted. Personal habits are unaffected.`
+      ? `"${active?.name}" grubu, ortak alışkanlıkları ve tüm grup kayıtları kalıcı olarak silinecek. Kişisel alışkanlıkların etkilenmez.`
       : confirmation?.action === 'leave'
         ? isOwner
           ? members.length <= 1
-            ? 'You are the only member. Leaving will permanently delete the group and all shared records.'
-            : 'Leadership will transfer to the earliest remaining member. An invite will be required to rejoin.'
-          : 'You will leave this group. An invite will be required to rejoin.'
+            ? 'Gruptaki tek üyesin. Ayrılırsan grup ve tüm ortak kayıtlar kalıcı olarak silinir.'
+            : 'Grup sahipliği en eski üyeye devredilecek. Tekrar katılmak için davet gerekir.'
+          : 'Bu gruptan ayrılacaksın. Tekrar katılmak için davet gerekir.'
         : confirmation?.action === 'transfer'
-          ? `${confirmation.target.display_name || 'This member'} will become the new owner. You will remain a member.`
-          : `${confirmation?.target?.display_name || 'This member'} will be removed from the group and their group records deleted.`;
+          ? `${confirmation.target.display_name || 'Bu üye'} yeni grup sahibi olacak. Sen üye olarak kalmaya devam edeceksin.`
+          : `${confirmation?.target?.display_name || 'Bu üye'} gruptan çıkarılacak ve grup kayıtları silinecek.`;
 
   const destructive =
     confirmation?.action === 'delete' || (confirmation?.action === 'leave' && isOwner && members.length <= 1);
 
   return (
-    <section id="view-groups" aria-labelledby="groups-title">
+    <section id="view-groups" aria-labelledby="groups-title" style={{ width: '100%', minWidth: 0, maxWidth: '100%' }}>
       <Header
-        title="Groups"
-        subtitle="Shared accountability and weekly cadence"
+        title="Gruplar"
+        subtitle="Ortak sorumluluk ve haftalık ritim"
         actions={
           <Button
             variant="primary"
@@ -504,17 +504,17 @@ export default function GroupsView({
             }}
           >
             <Icon icon={Plus} size={16} />
-            Create group
+            Grup oluştur
           </Button>
         }
       />
 
-      <div style={{ padding: 'var(--space-4)', display: 'grid', gap: 'var(--space-4)' }}>
+      <div style={{ padding: 'var(--space-4)', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--space-4)', width: '100%', minWidth: 0, maxWidth: '100%' }}>
         {notice && <InlineFeedback message={notice} tone="signal" />}
 
         {inviteError && (
           <ErrorState
-            title="INVITE ERROR"
+            title="DAVET HATASI"
             message={inviteError}
             onRetry={initialInviteToken ? () => setPreviewAttempt((n) => n + 1) : undefined}
           />
@@ -532,15 +532,15 @@ export default function GroupsView({
               backgroundColor: 'var(--surface-1)',
             }}
           >
-            <span className="mono" style={{ fontSize: '12px' }}>Pending group invite</span>
+            <span className="mono" style={{ fontSize: '12px' }}>Bekleyen grup daveti</span>
             <Button variant="secondary" onClick={() => setModal('accept')}>
-              View invite
+              Daveti gör
             </Button>
           </div>
         )}
 
         {loadGroupsError && (
-          <ErrorState title="LOAD ERROR" message={`Groups failed to load: ${loadGroupsError}`} onRetry={loadData} />
+          <ErrorState title="YÜKLEME HATASI" message={`Gruplar yüklenemedi: ${loadGroupsError}`} onRetry={loadData} />
         )}
 
         {groups.length > 0 && (
@@ -553,8 +553,8 @@ export default function GroupsView({
 
         {!groups.length && !loadGroupsError && (
           <EmptyState
-            title="NO GROUPS"
-            description="Create a group to track shared habits with others."
+            title="GRUP YOK"
+            description="Başkalarıyla ortak alışkanlık takip etmek için bir grup oluştur."
             action={
               <Button
                 variant="primary"
@@ -565,7 +565,7 @@ export default function GroupsView({
                   open('create');
                 }}
               >
-                Create first group
+                İlk grubu oluştur
               </Button>
             }
           />
@@ -580,6 +580,10 @@ export default function GroupsView({
               border: '1px solid var(--border)',
               backgroundColor: 'var(--surface-1)',
               padding: 'var(--space-4)',
+              width: '100%',
+              minWidth: 0,
+              maxWidth: '100%',
+              overflowX: 'hidden',
             }}
           >
             <div
@@ -602,22 +606,22 @@ export default function GroupsView({
                   </p>
                 )}
                 <p className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)', marginTop: 'var(--space-2)' }}>
-                  {loading ? 'LOADING...' : `${members.length} MEMBERS / ${habits.length} SHARED HABITS`}
+                  {loading ? 'YÜKLENİYOR…' : `${members.length} ÜYE / ${habits.length} ORTAK ALIŞKANLIK`}
                 </p>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
                 <Button variant="secondary" disabled={!!busy || loading} onClick={inviteLink}>
                   <Icon icon={UserPlus} size={16} />
-                  Invite
+                  Davet et
                 </Button>
                 <Button variant="tertiary" disabled={!!busy || loading || !detail} onClick={() => confirm('leave')}>
-                  Leave group
+                  Gruptan ayrıl
                 </Button>
               </div>
             </div>
 
-            {loading && <LoadingState label="LOADING GROUP..." />}
-            {detailError && <ErrorState title="GROUP ERROR" message={detailError} onRetry={() => refresh()} />}
+            {loading && <LoadingState label="GRUP YÜKLENİYOR…" />}
+            {detailError && <ErrorState title="GRUP HATASI" message={detailError} onRetry={() => refresh()} />}
 
             {detail && !loading && (
               <>
@@ -632,7 +636,7 @@ export default function GroupsView({
                 >
                   <IconButton
                     icon={ChevronLeft}
-                    label="Previous week"
+                    label="Önceki hafta"
                     onClick={() => setAnchor(addDays(anchor, -7))}
                   />
                   <span className="mono" style={{ fontSize: '13px', fontWeight: 700 }}>
@@ -640,44 +644,45 @@ export default function GroupsView({
                   </span>
                   <IconButton
                     icon={ChevronRight}
-                    label="Next week"
+                    label="Sonraki hafta"
                     disabled={days[6] >= today}
                     onClick={() => setAnchor(addDays(anchor, 7))}
                   />
                   <Button variant="tertiary" onClick={() => setAnchor(today)}>
-                    This week
+                    Bu hafta
                   </Button>
                 </div>
 
                 <p className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)', marginBottom: 'var(--space-3)' }}>
-                  Tap your own row on today or past days to log. Scroll horizontally on small screens.
+                  Kayıt girmek için bugün veya geçmiş günlerde kendi satırına dokun. Küçük ekranlarda yatay kaydırabilirsin.
                 </p>
 
                 {!habits.length && (
                   <InlineFeedback
                     message={
                       isOwner
-                        ? 'No shared habits yet. Add one below.'
-                        : 'No shared habits yet. The group owner can add shared habits.'
+                        ? 'Henüz ortak alışkanlık yok. Aşağıdan ekleyebilirsin.'
+                        : 'Henüz ortak alışkanlık yok. Grup sahibi ortak alışkanlık ekleyebilir.'
                     }
                   />
                 )}
 
                 {habits.length > 0 && (
                   <div
+                    className="table-container"
                     tabIndex={0}
                     role="region"
-                    aria-label="Group weekly tracking matrix"
-                    style={{ overflowX: 'auto', border: '1px solid var(--border)' }}
+                    aria-label="Haftalık grup takip tablosu"
+                    style={{ width: '100%', overflowX: 'auto', minWidth: 0, maxWidth: '100%', border: '1px solid var(--border)' }}
                   >
                     <table style={{ width: '100%', minWidth: 680, borderCollapse: 'collapse' }}>
                       <thead>
-                        <tr style={{ borderBottom: '2px solid var(--border)', backgroundColor: 'var(--surface-2)' }}>
+                        <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--surface-2)' }}>
                           <th scope="col" className="mono" style={{ padding: 'var(--space-2) var(--space-3)', textAlign: 'left', fontSize: '11px' }}>
-                            MEMBER
+                            ÜYE
                           </th>
                           <th scope="col" className="mono" style={{ padding: 'var(--space-2) var(--space-3)', textAlign: 'left', fontSize: '11px' }}>
-                            HABIT
+                            ALIŞKANLIK
                           </th>
                           {days.map((day) => (
                             <th key={day} scope="col" className="mono" style={{ padding: 'var(--space-2)', textAlign: 'center', fontSize: '11px' }}>
@@ -685,7 +690,7 @@ export default function GroupsView({
                             </th>
                           ))}
                           <th scope="col" className="mono" style={{ padding: 'var(--space-2) var(--space-3)', textAlign: 'right', fontSize: '11px' }}>
-                            RATE
+                            ORAN
                           </th>
                         </tr>
                       </thead>
@@ -711,15 +716,15 @@ export default function GroupsView({
                                     color: isCurrent ? 'var(--signal-text)' : 'var(--fg)',
                                   }}
                                 >
-                                  {member.display_name || 'Member'}
-                                  {member.role === 'owner' ? ' (Owner)' : ''}
+                                  {member.display_name || 'Üye'}
+                                  {member.role === 'owner' ? ' (Sahip)' : ''}
                                 </th>
                                 <td style={{ padding: 'var(--space-2) var(--space-3)', fontSize: '13px' }}>
                                   <div>{habit.name}</div>
                                   <div className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)' }}>
                                     {habit.tracking === 'quantity'
-                                      ? `${habit.direction === 'at_most' ? 'Max' : 'Min'} ${habit.target} ${habit.unit || ''}`
-                                      : 'Daily check'}
+                                      ? `${habit.direction === 'at_most' ? 'En fazla' : 'En az'} ${habit.target} ${habit.unit || ''}`
+                                      : 'Günlük takip'}
                                   </div>
                                 </td>
                                 {days.map((day) => {
@@ -733,7 +738,7 @@ export default function GroupsView({
                                           type="button"
                                           disabled={!!busy}
                                           onClick={() => openRecord(habit, day)}
-                                          aria-label={`${habit.name}, ${dayLabel(day)}: ${state}. Edit record`}
+                                          aria-label={`${habit.name}, ${dayLabel(day)}: ${state}. Kaydı düzenle`}
                                           className="mono"
                                           style={{
                                             minWidth: '44px',
@@ -782,7 +787,7 @@ export default function GroupsView({
                                   );
                                 })}
                                 <td className="mono" style={{ padding: 'var(--space-2) var(--space-3)', textAlign: 'right', fontSize: '12px' }}>
-                                  {summary.elapsed ? `${summary.completed}/${summary.elapsed} (${summary.percentage}%)` : '—'}
+                                  {summary.elapsed ? `${summary.completed}/${summary.elapsed} (%${summary.percentage})` : '—'}
                                 </td>
                               </tr>
                             );
@@ -809,12 +814,12 @@ export default function GroupsView({
 
                 <section style={{ marginTop: 'var(--space-6)' }} aria-labelledby="group-members-title">
                   <h3 id="group-members-title" style={{ fontSize: '16px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Members and Management
+                    Üyeler ve Yönetim
                   </h3>
                   <p className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)', marginTop: 'var(--space-1)', marginBottom: 'var(--space-3)' }}>
                     {isOwner
-                      ? 'As owner, you can manage members and shared habits.'
-                      : 'You can edit your own records. Management actions belong to the owner.'}
+                      ? 'Grup sahibi olarak üyeleri ve ortak alışkanlıkları yönetebilirsin.'
+                      : 'Kendi kayıtlarını düzenleyebilirsin. Yönetim işlemleri grup sahibine aittir.'}
                   </p>
                   <div style={{ border: '1px solid var(--border)' }}>
                     {members.map((member) => (
@@ -831,18 +836,18 @@ export default function GroupsView({
                         }}
                       >
                         <span style={{ fontSize: '14px', fontWeight: 600 }}>
-                          {member.display_name || 'Member'}{' '}
+                          {member.display_name || 'Üye'}{' '}
                           <span className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)' }}>
-                            {member.role === 'owner' ? 'OWNER' : 'MEMBER'}
+                            {member.role === 'owner' ? 'SAHİP' : 'ÜYE'}
                           </span>
                         </span>
                         {isOwner && member.user_id !== user?.id && (
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
                             <Button variant="secondary" disabled={!!busy} onClick={() => confirm('transfer', member)}>
-                              Transfer ownership
+                              Sahipliği devret
                             </Button>
                             <Button variant="destructive" disabled={!!busy} onClick={() => confirm('kick', member)}>
-                              Remove
+                              Çıkar
                             </Button>
                           </div>
                         )}
@@ -860,7 +865,7 @@ export default function GroupsView({
                           open('habit');
                         }}
                       >
-                        Add shared habit
+                        Ortak alışkanlık ekle
                       </Button>
                       <Button
                         variant="secondary"
@@ -871,10 +876,10 @@ export default function GroupsView({
                           open('edit');
                         }}
                       >
-                        Edit group
+                        Grubu düzenle
                       </Button>
                       <Button variant="destructive" disabled={!!busy} onClick={() => confirm('delete')}>
-                        Delete group
+                        Grubu sil
                       </Button>
                     </div>
                   )}
@@ -887,56 +892,56 @@ export default function GroupsView({
 
       <Modal
         open={modal === 'create' || modal === 'edit'}
-        title={modal === 'create' ? 'Create Group' : 'Edit Group'}
+        title={modal === 'create' ? 'Grup Oluştur' : 'Grubu Düzenle'}
         onClose={close}
       >
         <form onSubmit={modal === 'create' ? createGroup : editGroup} aria-busy={!!busy}>
           <fieldset disabled={!!busy} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: 'grid', gap: 'var(--space-3)' }}>
             {error && <InlineFeedback message={error} tone="danger" />}
-            <FormField label="Group Name" htmlFor="group-name-input">
+            <FormField label="Grup Adı" htmlFor="group-name-input">
               <TextInput
                 id="group-name-input"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Morning Runners"
+                placeholder="Örn. Sabah Koşucuları"
                 maxLength={60}
                 required
                 autoFocus
               />
             </FormField>
-            <FormField label="Description (Optional)" htmlFor="group-desc-input">
+            <FormField label="Açıklama (İsteğe bağlı)" htmlFor="group-desc-input">
               <TextInput
                 id="group-desc-input"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Short group objective"
+                placeholder="Kısa grup hedefi"
                 maxLength={280}
               />
             </FormField>
             {modal === 'create' && <HabitFields draft={draft} setDraft={setDraft} optional />}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
               <Button variant="secondary" disabled={!!busy} onClick={close}>
-                Cancel
+                İptal
               </Button>
               <Button type="submit" variant="primary" loading={Boolean(busy)} disabled={!!busy}>
-                {modal === 'create' ? 'Create group' : 'Save changes'}
+                {modal === 'create' ? 'Grup oluştur' : 'Değişiklikleri kaydet'}
               </Button>
             </div>
           </fieldset>
         </form>
       </Modal>
 
-      <Modal open={modal === 'habit'} title="Add Shared Habit" onClose={close}>
+      <Modal open={modal === 'habit'} title="Ortak Alışkanlık Ekle" onClose={close}>
         <form onSubmit={addHabit} aria-busy={!!busy}>
           <fieldset disabled={!!busy} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: 'grid', gap: 'var(--space-3)' }}>
             {error && <InlineFeedback message={error} tone="danger" />}
             <HabitFields draft={draft} setDraft={setDraft} />
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
               <Button variant="secondary" disabled={!!busy} onClick={close}>
-                Cancel
+                İptal
               </Button>
               <Button type="submit" variant="primary" loading={Boolean(busy)} disabled={!!busy}>
-                Save habit
+                Alışkanlığı kaydet
               </Button>
             </div>
           </fieldset>
@@ -949,33 +954,33 @@ export default function GroupsView({
             <fieldset disabled={!!busy} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: 'grid', gap: 'var(--space-3)' }}>
               {error && <InlineFeedback message={error} tone="danger" />}
               <p className="mono" style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>
-                {dayLabel(record.day)} / Editing your own record
+                {dayLabel(record.day)} / Kendi kaydını düzenliyorsun
               </p>
               {record.serverValue !== undefined && (
                 <InlineFeedback
-                  message={`Server value: ${record.serverValue === null ? 'None' : record.serverValue}. Your input is preserved.`}
+                  message={`Sunucu değeri: ${record.serverValue === null ? 'Yok' : record.serverValue}. Girdiğin değer korunuyor.`}
                   tone="neutral"
                 />
               )}
               {record.conflict && (
                 <Button variant="secondary" onClick={refreshRecordVersion} disabled={!!busy}>
-                  Load latest record
+                  Güncel kaydı yükle
                 </Button>
               )}
               {record.habit.tracking === 'check' ? (
-                <FormField label="Completion Status" htmlFor="group-record-check">
+                <FormField label="Tamamlama Durumu" htmlFor="group-record-check">
                   <Select
                     id="group-record-check"
                     value={record.value ? 1 : 0}
                     onChange={(e) => setRecord({ ...record, value: Number(e.target.value), key: token() })}
                     options={[
-                      { value: 0, label: 'Not completed' },
-                      { value: 1, label: 'Completed' },
+                      { value: 0, label: 'Tamamlanmadı' },
+                      { value: 1, label: 'Tamamlandı' },
                     ]}
                   />
                 </FormField>
               ) : (
-                <FormField label={`Amount (${record.habit.unit || 'unit'})`} htmlFor="group-record-amount">
+                <FormField label={`Miktar (${record.habit.unit || 'birim'})`} htmlFor="group-record-amount">
                   <TextInput
                     id="group-record-amount"
                     type="text"
@@ -988,12 +993,12 @@ export default function GroupsView({
               )}
               <p className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)' }}>
                 {record.habit.direction === 'at_most'
-                  ? 'Values at or below target (including zero) count as completed.'
-                  : 'Reaching target completes the day.'}
+                  ? 'Hedef ve altındaki değerler (sıfır dahil) tamamlandı sayılır.'
+                  : 'Hedefe ulaşmak günü tamamlar.'}
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
                 <Button variant="secondary" disabled={!!busy} onClick={close}>
-                  Cancel
+                  İptal
                 </Button>
                 {record.hasRecord && (
                   <Button
@@ -1001,11 +1006,11 @@ export default function GroupsView({
                     disabled={!!busy || record.conflict}
                     onClick={() => saveRecord(null, true)}
                   >
-                    Remove
+                    Kaldır
                   </Button>
                 )}
                 <Button type="submit" variant="primary" loading={Boolean(busy)} disabled={!!busy || record.conflict}>
-                  Save record
+                  Kaydı kaydet
                 </Button>
               </div>
             </fieldset>
@@ -1013,21 +1018,21 @@ export default function GroupsView({
         )}
       </Modal>
 
-      <Modal open={modal === 'invite'} title="Invite Members" onClose={close}>
+      <Modal open={modal === 'invite'} title="Üye Davet Et" onClose={close}>
         <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
           <p style={{ fontSize: '13px', color: 'var(--fg-muted)' }}>
-            Anyone with this link can preview and join the group. Valid for 7 days.
+            Bu bağlantıya sahip olan herkes grubu önizleyebilir ve katılabilir. 7 gün geçerlidir.
           </p>
-          {busy && <InlineFeedback message="Generating invite link..." />}
+          {busy && <InlineFeedback message="Davet bağlantısı oluşturuluyor..." />}
           {error && <InlineFeedback message={error} tone="danger" />}
           {error && !link && (
             <Button variant="secondary" onClick={inviteLink} disabled={!!busy}>
-              Retry
+              Yeniden dene
             </Button>
           )}
           <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
             <TextInput
-              aria-label="Invite link"
+              aria-label="Davet bağlantısı"
               readOnly
               value={link}
               onFocus={(e) => e.target.select()}
@@ -1035,18 +1040,18 @@ export default function GroupsView({
             />
             <Button variant="primary" disabled={!link || !!busy} onClick={copyLink}>
               <Icon icon={copied ? Check : Copy} size={16} />
-              {copied ? 'Copied' : 'Copy'}
+              {copied ? 'Kopyalandı' : 'Kopyala'}
             </Button>
           </div>
-          {copied && <InlineFeedback message="Invite link copied." tone="signal" />}
+          {copied && <InlineFeedback message="Davet bağlantısı kopyalandı." tone="signal" />}
         </div>
       </Modal>
 
-      <Modal open={modal === 'accept' && Boolean(invite)} title={invite ? `Join "${invite.group_name}"` : ''} onClose={close}>
+      <Modal open={modal === 'accept' && Boolean(invite)} title={invite ? `"${invite.group_name}" Grubuna Katıl` : ''} onClose={close}>
         {invite && (
           <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
             <p style={{ fontSize: '14px' }}>
-              {invite.inviter_display || invite.inviter_name || 'A member'} invited you to this group.
+              {invite.inviter_display || invite.inviter_name || 'Bir üye'} seni bu gruba davet etti.
             </p>
             {invite.group_description && (
               <p style={{ fontSize: '13px', color: 'var(--fg-muted)' }}>{invite.group_description}</p>
@@ -1054,7 +1059,7 @@ export default function GroupsView({
             {error && <InlineFeedback message={error} tone="danger" />}
             {!user && (
               <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
-                <InlineFeedback message="Sign in to join. Your invite link is preserved." />
+                <InlineFeedback message="Katılmak için giriş yap. Davet bağlantın korunuyor." />
                 <Button
                   variant="primary"
                   disabled={!!busy}
@@ -1063,16 +1068,16 @@ export default function GroupsView({
                     onRequireAuth?.();
                   }}
                 >
-                  Sign in
+                  Giriş yap
                 </Button>
               </div>
             )}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
               <Button variant="secondary" disabled={!!busy} onClick={close}>
-                Cancel
+                İptal
               </Button>
               <Button variant="primary" disabled={!!busy || !user} loading={Boolean(busy)} onClick={acceptInvite}>
-                Join group
+                Gruba katıl
               </Button>
             </div>
           </div>
@@ -1083,12 +1088,12 @@ export default function GroupsView({
         open={modal === 'confirm' && Boolean(confirmation)}
         title={
           confirmation?.action === 'delete'
-            ? 'Delete Group'
+            ? 'Grubu Sil'
             : confirmation?.action === 'leave'
-              ? 'Leave Group'
+              ? 'Gruptan Ayrıl'
               : confirmation?.action === 'transfer'
-                ? 'Transfer Ownership'
-                : 'Remove Member'
+                ? 'Sahipliği Devret'
+                : 'Üyeyi Çıkar'
         }
         onClose={close}
       >
@@ -1097,7 +1102,7 @@ export default function GroupsView({
             <p style={{ fontSize: '14px', color: 'var(--fg-muted)' }}>{confirmText}</p>
             {error && <InlineFeedback message={error} tone="danger" />}
             {destructive && (
-              <FormField label={`Type group name to confirm: ${active?.name}`} htmlFor="confirm-group-name">
+              <FormField label={`Onaylamak için grup adını yaz: ${active?.name}`} htmlFor="confirm-group-name">
                 <TextInput
                   id="confirm-group-name"
                   disabled={!!busy}
@@ -1109,7 +1114,7 @@ export default function GroupsView({
             )}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
               <Button variant="secondary" disabled={!!busy} onClick={close}>
-                Cancel
+                İptal
               </Button>
               <Button
                 variant={destructive || confirmation.action === 'kick' ? 'destructive' : 'primary'}
@@ -1117,7 +1122,7 @@ export default function GroupsView({
                 loading={Boolean(busy)}
                 onClick={confirmAction}
               >
-                Confirm
+                Onayla
               </Button>
             </div>
           </div>

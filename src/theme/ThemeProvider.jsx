@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { THEME_STORAGE_KEY, normalizeThemePreference, readThemePreference } from './theme-state.js';
 import '../styles/tokens.css';
 import '../styles/base.css';
+import '../styles/layout.css';
 import '../styles/components.css';
 
 const ThemeContext = createContext(null);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Download, Share, X } from 'lucide-react';
+import { Button, IconButton } from '../ui/index.js';
 
 export default function PwaInstallBanner() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -99,23 +100,22 @@ export default function PwaInstallBanner() {
       {installError && <p role="status" className="pwa-banner-subtitle">{installError}</p>}
       <div className="pwa-banner-actions">
         {!isIos && deferredPrompt && (
-          <button
-            type="button"
-            className="button button-primary pwa-btn-install"
+          <Button
+            variant="primary"
+            size="sm"
+            className="pwa-btn-install"
             disabled={installing}
             onClick={handleInstallClick}
           >
             Yükle
-          </button>
+          </Button>
         )}
-        <button
-          type="button"
-          className="button button-quiet pwa-btn-dismiss"
-          aria-label="Kapat"
+        <IconButton
+          icon={X}
+          label="Kapat"
+          className="pwa-btn-dismiss"
           onClick={handleDismiss}
-        >
-          <X size={18} />
-        </button>
+        />
       </div>
     </aside>
   );

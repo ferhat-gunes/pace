@@ -387,7 +387,7 @@ export default function TodayView({
                       <Button type="button" variant="tertiary" size="md" onClick={() => closeEdit(h.id)}>
                         Vazgeç
                       </Button>
-                      <span id={`${formId}-hint`} style={{ fontSize: '12px', flexBasis: '100%', color: 'var(--muted)' }}>
+                      <span id={`${formId}-hint`} style={{ fontSize: '12px', flexBasis: '100%', color: 'var(--fg-muted)' }}>
                         0–1.000.000; ondalık için virgül veya nokta kullanabilirsin. Değer yalnız Kaydet ile gönderilir.
                       </span>
                       {editError && (
@@ -451,7 +451,7 @@ export default function TodayView({
                       role={error ? 'alert' : 'status'}
                       aria-atomic="true"
                       className="mono"
-                      style={{ fontSize: '12px', color: error ? 'var(--fg)' : 'var(--muted)' }}
+                      style={{ fontSize: '12px', color: error ? 'var(--fg)' : 'var(--fg-muted)' }}
                     >
                       {entry.status === 'conflict'
                         ? `Başka bir cihazda değişti. Taslağın ${formatNumber(value)} ${h.unit || ''} olarak korunuyor. ${entry.error || ''}`

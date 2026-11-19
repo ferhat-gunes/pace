@@ -4,6 +4,7 @@ import { Icon } from './Icon.jsx';
 
 export function Button({
   variant = 'primary',
+  size = 'md',
   loading = false,
   disabled = false,
   type = 'button',
@@ -12,12 +13,13 @@ export function Button({
   ...props
 }) {
   const isDisabled = disabled || loading;
+  const sizeClass = size === 'sm' ? 'db-btn--sm' : '';
   return (
     <button
       type={type}
       disabled={isDisabled}
       aria-busy={loading || undefined}
-      className={`db-btn db-btn--${variant} ${className}`.trim()}
+      className={`db-btn db-btn--${variant} ${sizeClass} ${className}`.trim()}
       {...props}
     >
       {loading ? <Icon icon={Loader2} size={16} className="db-spin" /> : null}
@@ -33,6 +35,7 @@ export function IconButton({
   disabled = false,
   type = 'button',
   className = '',
+  children,
   ...props
 }) {
   return (
@@ -44,7 +47,7 @@ export function IconButton({
       className={`db-icon-btn ${className}`.trim()}
       {...props}
     >
-      <Icon icon={icon} size={18} />
+      {icon ? <Icon icon={icon} size={18} /> : children}
     </button>
   );
 }

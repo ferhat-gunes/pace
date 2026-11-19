@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Check } from 'lucide-react';
 import { trackEvent, isFeatureEnabled } from '../../lib/telemetry';
+import { Button, IconButton } from '../ui/index.js';
 
 const SURVEY_STORAGE_KEY = 'pace_comeback_survey_answered';
 
@@ -46,9 +47,9 @@ export default function FrictionMicroSurvey({ todayIso }) {
   return (
     <div
       style={{
-        marginTop: '10px',
-        paddingTop: '10px',
-        borderTop: '1px solid rgba(0, 0, 0, 0.08)',
+        marginTop: 'var(--space-3)',
+        paddingTop: 'var(--space-3)',
+        borderTop: '1px solid var(--border)',
         width: '100%',
       }}
     >
@@ -58,81 +59,35 @@ export default function FrictionMicroSurvey({ todayIso }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: '8px',
+            gap: 'var(--space-2)',
             fontSize: '12px',
-            color: 'var(--ink)',
+            color: 'var(--fg)',
           }}
         >
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 700 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', fontWeight: 700 }}>
             <Check size={14} aria-hidden="true" />
             Geri bildirimin kaydedildi, teşekkürler.
           </span>
-          <button
-            type="button"
-            onClick={handleDismiss}
-            aria-label="Kapat"
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--muted)',
-              cursor: 'pointer',
-              padding: '4px',
-              minWidth: '32px',
-              minHeight: '32px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <X size={16} />
-          </button>
+          <IconButton icon={X} label="Kapat" onClick={handleDismiss} />
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)' }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--fg)' }}>
               Ara vermene en çok ne sebep oldu? (İsteğe bağlı)
             </span>
-            <button
-              type="button"
-              onClick={handleDismiss}
-              aria-label="Anketi kapat"
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--muted)',
-                cursor: 'pointer',
-                padding: '4px',
-                minWidth: '32px',
-                minHeight: '32px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <X size={16} />
-            </button>
+            <IconButton icon={X} label="Anketi kapat" onClick={handleDismiss} />
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
             {REASONS.map((r) => (
-              <button
+              <Button
                 key={r.id}
-                type="button"
+                variant="secondary"
+                size="sm"
                 onClick={() => handleSelect(r)}
-                style={{
-                  minHeight: '36px',
-                  padding: '0 12px',
-                  borderRadius: '999px',
-                  border: '1.5px solid var(--border)',
-                  background: 'var(--surface)',
-                  color: 'var(--ink)',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
               >
                 {r.label}
-              </button>
+              </Button>
             ))}
           </div>
         </div>

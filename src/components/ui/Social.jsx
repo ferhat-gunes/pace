@@ -48,11 +48,11 @@ export function InvitationRow({ groupName, inviter, onAccept, onDecline }) {
     >
       <div>
         <div style={{ fontWeight: 600 }}>{groupName}</div>
-        {inviter ? <div className="mono" style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>Invited by {inviter}</div> : null}
+        {inviter ? <div className="mono" style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>Davet eden: {inviter}</div> : null}
       </div>
       <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-        <Button variant="primary" onClick={onAccept}>Accept</Button>
-        <Button variant="secondary" onClick={onDecline}>Decline</Button>
+        <Button variant="primary" onClick={onAccept}>Kabul et</Button>
+        <Button variant="secondary" onClick={onDecline}>Reddet</Button>
       </div>
     </div>
   );
