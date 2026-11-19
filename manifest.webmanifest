@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "PACE — kendi ritminde",
+  "name": "PACE — günlük alışkanlık takibi",
   "short_name": "PACE",
-  "description": "Alışkanlıklarını kendi ritminde takip et.",
+  "description": "Alışkanlıklarını her gün net bir düzenle takip et.",
   "lang": "tr",
   "start_url": "/?source=pwa",
   "scope": "/",
