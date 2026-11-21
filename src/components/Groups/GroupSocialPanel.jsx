@@ -100,53 +100,6 @@ export default function GroupSocialPanel({
     }
   };
 
-  const share = () => {
-    try {
-      const canvas = document.createElement('canvas');
-      canvas.width = 720;
-      canvas.height = 220 + Math.min(rows.length, 6) * 54;
-      const c = canvas.getContext('2d');
-      if (!c) throw new Error('Görsel oluşturulamadı.');
-
-      c.fillStyle = '#0E0E0E';
-      c.fillRect(0, 0, canvas.width, canvas.height);
-
-      c.strokeStyle = '#373737';
-      c.lineWidth = 2;
-      c.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
-
-      c.fillStyle = '#F2F0EA';
-      c.font = 'bold 28px monospace';
-      c.fillText(`PACE / ${group.name}`.slice(0, 45), 32, 54);
-
-      c.fillStyle = '#9A9891';
-      c.font = '14px monospace';
-      c.fillText('HAFTALIK ORTAK ALIŞKANLIK İLERLEMESİ', 32, 86);
-
-      rows.slice(0, 6).forEach((r, i) => {
-        const y = 120 + i * 54;
-        const isCurrent = r.member.user_id === user?.id;
-        c.fillStyle = '#171717';
-        c.fillRect(32, y, 656, 42);
-        c.strokeStyle = isCurrent ? '#C8FF2E' : '#373737';
-        c.lineWidth = isCurrent ? 2 : 1;
-        c.strokeRect(32, y, 656, 42);
-
-        c.fillStyle = isCurrent ? '#C8FF2E' : '#F2F0EA';
-        c.font = '16px monospace';
-        c.fillText(`${r.member.display_name || 'Üye'}: ${r.done}/${r.total} (%${r.percentage})`, 46, y + 26);
-      });
-
-      const a = document.createElement('a');
-      a.download = `pace-grup-${dateKey()}.png`;
-      a.href = canvas.toDataURL('image/png');
-      a.click();
-      setNotice({ text: 'Grup özeti PNG olarak indirildi.' });
-    } catch (e) {
-      setNotice({ error: true, text: e.message });
-    }
-  };
-
   const presets = choice?.type === 'cheer' ? CHEER_PRESETS : NUDGE_PRESETS;
 
   return (
@@ -169,9 +122,6 @@ export default function GroupSocialPanel({
             Geçen planlı günlere göre hesaplanır. Üye başına günlük en fazla 3 tepki.
           </p>
         </div>
-        <Button variant="secondary" onClick={share}>
-          PNG özet indir
-        </Button>
       </div>
 
       {notice && <InlineFeedback message={notice.text} tone={notice.error ? 'danger' : 'neutral'} />}
