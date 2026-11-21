@@ -1,8 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
-import { Button, FormField, TextInput, Select, InlineFeedback } from '../ui/index.js';
+import { Button, FormField, TextInput, Select, InlineFeedback, Modal } from '../ui/index.js';
 
-function SharedHabitFields({ draft, setDraft, optional = false }) {
+function SharedHabitFields({ draft, setDraft, optional = false, lockTracking = false, targetChanged = false }) {
   return (
     <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
       <FormField
@@ -25,12 +25,18 @@ function SharedHabitFields({ draft, setDraft, optional = false }) {
             <Select
               id="group-habit-tracking"
               value={draft.tracking}
+              disabled={lockTracking}
               onChange={(e) => setDraft({ ...draft, tracking: e.target.value })}
               options={[
                 { value: 'check', label: 'İşaretleme (Yapıldı / Yapılmadı)' },
                 { value: 'quantity', label: 'Miktar veya Süre' },
               ]}
             />
+            {lockTracking && (
+              <p className="mono" style={{ margin: '4px 0 0', fontSize: '11px', color: 'var(--fg-muted)' }}>
+                Kayıt bulunan alışkanlığın takip türü değiştirilemez.
+              </p>
+            )}
           </FormField>
           {draft.tracking === 'quantity' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 'var(--space-3)' }}>
@@ -68,6 +74,12 @@ function SharedHabitFields({ draft, setDraft, optional = false }) {
               </FormField>
             </div>
           )}
+          {targetChanged && (
+            <InlineFeedback
+              message="Hedef veya yön değişikliği bu alışkanlığın geçmiş haftalık tamamlanma oranlarını yeni kurala göre yeniden hesaplar."
+              tone="neutral"
+            />
+          )}
         </>
       )}
     </div>
@@ -75,7 +87,7 @@ function SharedHabitFields({ draft, setDraft, optional = false }) {
 }
 
 export default function GroupFormPage({
-  mode, // 'create' | 'edit' | 'habit'
+  mode, // 'create' | 'edit' | 'habit' | 'edit-habit'
   groupName = '',
   name,
   setName,
@@ -83,35 +95,55 @@ export default function GroupFormPage({
   setDescription,
   draft,
   setDraft,
+  hasCheckins = false,
+  targetChanged = false,
+  isDirty = false,
   busy,
   error,
   onSubmit,
   onCancel,
 }) {
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+
   useEffect(() => {
     window.scrollTo?.({ top: 0, behavior: 'instant' });
   }, [mode]);
+
+  const requestCancel = () => {
+    if (busy) return;
+    if (isDirty) {
+      setConfirmDiscard(true);
+      return;
+    }
+    onCancel?.();
+  };
 
   const title =
     mode === 'create'
       ? 'Yeni Grup Oluştur'
       : mode === 'edit'
         ? 'Grubu Düzenle'
-        : 'Ortak Alışkanlık Ekle';
+        : mode === 'edit-habit'
+          ? 'Ortak Alışkanlığı Düzenle'
+          : 'Ortak Alışkanlık Ekle';
 
   const subtitle =
     mode === 'create'
       ? 'Önce grubunu kur, ardından tek dokunuşla arkadaşını davet et.'
       : mode === 'edit'
         ? 'Grup adını ve kısa açıklamasını güncelle.'
-        : groupName
-          ? `${groupName} grubuna yeni ortak alışkanlık ekle.`
-          : 'Gruba yeni ortak alışkanlık ekle.';
+        : mode === 'edit-habit'
+          ? groupName
+            ? `${groupName} grubundaki ortak alışkanlığı güncelle.`
+            : 'Ortak alışkanlık ayarlarını güncelle.'
+          : groupName
+            ? `${groupName} grubuna yeni ortak alışkanlık ekle.`
+            : 'Gruba yeni ortak alışkanlık ekle.';
 
   const submitLabel =
     mode === 'create'
       ? 'Grup oluştur'
-      : mode === 'edit'
+      : mode === 'edit' || mode === 'edit-habit'
         ? 'Değişiklikleri kaydet'
         : 'Alışkanlığı kaydet';
 
@@ -139,7 +171,7 @@ export default function GroupFormPage({
             variant="secondary"
             size="sm"
             disabled={Boolean(busy)}
-            onClick={onCancel}
+            onClick={requestCancel}
             aria-label="Gruplara dön"
           >
             <ArrowLeft size={16} aria-hidden="true" />
@@ -221,7 +253,7 @@ export default function GroupFormPage({
             </div>
           )}
 
-          {mode === 'habit' && (
+          {(mode === 'habit' || mode === 'edit-habit') && (
             <div
               style={{
                 border: '1px solid var(--border)',
@@ -231,7 +263,12 @@ export default function GroupFormPage({
                 gap: 'var(--space-3)',
               }}
             >
-              <SharedHabitFields draft={draft} setDraft={setDraft} />
+              <SharedHabitFields
+                draft={draft}
+                setDraft={setDraft}
+                lockTracking={mode === 'edit-habit' && hasCheckins}
+                targetChanged={mode === 'edit-habit' && targetChanged}
+              />
             </div>
           )}
 
@@ -243,7 +280,7 @@ export default function GroupFormPage({
               paddingTop: 'var(--space-2)',
             }}
           >
-            <Button variant="secondary" disabled={Boolean(busy)} onClick={onCancel}>
+            <Button variant="secondary" disabled={Boolean(busy)} onClick={requestCancel}>
               İptal
             </Button>
             <Button type="submit" variant="primary" loading={Boolean(busy)} disabled={Boolean(busy)}>
@@ -252,6 +289,28 @@ export default function GroupFormPage({
           </div>
         </fieldset>
       </form>
+
+      <Modal open={confirmDiscard} title="Değişiklikleri iptal et" onClose={() => setConfirmDiscard(false)}>
+        <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
+          <p style={{ fontSize: '14px', color: 'var(--fg-muted)', margin: 0 }}>
+            Kaydedilmemiş değişikliklerin var. Çıkarsan yaptığın düzenlemeler kaybolacak.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
+            <Button variant="secondary" onClick={() => setConfirmDiscard(false)}>
+              Düzenlemeye dön
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setConfirmDiscard(false);
+                onCancel?.();
+              }}
+            >
+              Kaydetmeden çık
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </section>
   );
 }

@@ -302,6 +302,55 @@ function demoRequest(path,options={}){
     saveDemo(s);
     return Promise.resolve({habit:newHabit});
   }
+  const groupHabitLifecycleMatch=path.match(/^groups\/([^/]+)\/habits\/([^/]+)\/(archive|restore)$/);
+  if(groupHabitLifecycleMatch&&method==='POST'){
+    const [,gId,hId,action]=groupHabitLifecycleMatch,details=s.group_details[gId];
+    if(!details)throw responseError('Grup bulunamadı.',404);
+    if(!details.archived_habits)details.archived_habits=[];
+    if(action==='archive'){
+      const idx=details.habits.findIndex(h=>h.id===hId);
+      if(idx<0)throw responseError('Grup alışkanlığı bulunamadı.',404);
+      const [item]=details.habits.splice(idx,1);
+      const archived_at=new Date().toISOString();
+      details.archived_habits.unshift({...item,archived_at});
+      saveDemo(s);
+      return Promise.resolve({ok:true,archived_at});
+    }else{
+      const idx=details.archived_habits.findIndex(h=>h.id===hId);
+      if(idx<0)throw responseError('Grup alışkanlığı bulunamadı.',404);
+      const [item]=details.archived_habits.splice(idx,1);
+      details.habits.push({...item,archived_at:null});
+      saveDemo(s);
+      return Promise.resolve({ok:true});
+    }
+  }
+  const groupHabitItemMatch=path.match(/^groups\/([^/]+)\/habits\/([^/]+)$/);
+  if(groupHabitItemMatch&&method==='PATCH'){
+    const [,gId,hId]=groupHabitItemMatch,details=s.group_details[gId];
+    const targetHabit=details?.habits.find(h=>h.id===hId)||details?.archived_habits?.find(h=>h.id===hId);
+    if(!targetHabit)throw responseError('Grup alışkanlığı bulunamadı.',404);
+    const name=String(body.name||'').trim();
+    const tracking=body.tracking==='quantity'?'quantity':'check';
+    const target=tracking==='quantity'?Number(body.target):1;
+    const unit=tracking==='quantity'?String(body.unit||'').trim().slice(0,20):'';
+    const direction=body.direction==='at_most'&&tracking==='quantity'?'at_most':'at_least';
+    if(!name||name.length>60||!Number.isFinite(target)||target<=0||target>1000000)throw responseError('Alışkanlık adı ve hedef geçerli olmalı.',400);
+    if(tracking!==targetHabit.tracking&&details.checkins.some(c=>(c.group_habit_id||c.habit_id)===hId&&!c.deleted))throw responseError('Kayıt bulunan alışkanlığın takip türü değiştirilemez.',400);
+    Object.assign(targetHabit,{name,tracking,direction,unit,target,updated_at:new Date().toISOString()});
+    saveDemo(s);
+    return Promise.resolve({ok:true,habit:targetHabit});
+  }
+  if(groupHabitItemMatch&&method==='DELETE'){
+    const [,gId,hId]=groupHabitItemMatch,details=s.group_details[gId];
+    if(!details)throw responseError('Grup bulunamadı.',404);
+    const beforeCount=details.habits.length+(details.archived_habits?.length||0);
+    details.habits=details.habits.filter(h=>h.id!==hId);
+    if(details.archived_habits)details.archived_habits=details.archived_habits.filter(h=>h.id!==hId);
+    if(details.habits.length+(details.archived_habits?.length||0)===beforeCount)throw responseError('Grup alışkanlığı bulunamadı.',404);
+    details.checkins=details.checkins.filter(c=>(c.group_habit_id||c.habit_id)!==hId);
+    saveDemo(s);
+    return Promise.resolve({ok:true});
+  }
   const inviteMatch=path.match(/^groups\/([^/]+)\/invites$/);
   if(inviteMatch&&method==='POST'){
     const details=s.group_details[inviteMatch[1]];
@@ -399,6 +448,10 @@ export const leaveGroup=(id)=>request(`groups/${id}/leave`,{method:'POST'});
 export const kickGroupMember=(groupId,userId)=>request(`groups/${groupId}/members/${userId}`,{method:'DELETE'});
 export const transferGroup=(groupId,newOwnerId)=>request(`groups/${groupId}/transfer`,{method:'POST',body:JSON.stringify({new_owner_id:newOwnerId})});
 export const createGroupHabit=(groupId,data)=>request(`groups/${groupId}/habits`,{method:'POST',body:JSON.stringify(data)});
+export const updateGroupHabit=(groupId,habitId,data)=>request(`groups/${encodeURIComponent(groupId)}/habits/${encodeURIComponent(habitId)}`,{method:'PATCH',body:JSON.stringify(data)});
+export const archiveGroupHabit=(groupId,habitId)=>request(`groups/${encodeURIComponent(groupId)}/habits/${encodeURIComponent(habitId)}/archive`,{method:'POST',body:'{}'});
+export const restoreGroupHabit=(groupId,habitId)=>request(`groups/${encodeURIComponent(groupId)}/habits/${encodeURIComponent(habitId)}/restore`,{method:'POST',body:'{}'});
+export const deleteGroupHabit=(groupId,habitId)=>request(`groups/${encodeURIComponent(groupId)}/habits/${encodeURIComponent(habitId)}`,{method:'DELETE'});
 export const createGroupInvite=(groupId,data)=>request(`groups/${groupId}/invites`,{method:'POST',body:JSON.stringify(typeof data==='string'?{invite_type:data}:data)});
 export const getInvitePreview=(code)=>request(`invites/${encodeURIComponent(code)}`);
 export const respondInvite=(code,action)=>request(`invites/${encodeURIComponent(code)}/respond`,{method:'POST',body:JSON.stringify({action})});

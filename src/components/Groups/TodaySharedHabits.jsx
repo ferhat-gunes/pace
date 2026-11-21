@@ -30,7 +30,7 @@ export default function TodaySharedHabits({
     const results = await Promise.allSettled(
       groups.map(async (g) => {
         const raw = await api.getGroup(g.id);
-        return requireGroupDetail(raw);
+        return requireGroupDetail(raw, g.id);
       }),
     );
     const valid = results
@@ -46,7 +46,7 @@ export default function TodaySharedHabits({
       return undefined;
     }
     Promise.allSettled(
-      groups.map(async (g) => requireGroupDetail(await api.getGroup(g.id))),
+      groups.map(async (g) => requireGroupDetail(await api.getGroup(g.id), g.id)),
     ).then((results) => {
       if (!active) return;
       const valid = results
