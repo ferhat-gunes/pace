@@ -7,7 +7,6 @@ import {
   Button,
   GroupMemberRow,
   InlineFeedback,
-  Modal,
   Reaction,
   ActivityItem,
 } from '../ui/index.js';
@@ -100,10 +99,14 @@ export default function GroupSocialPanel({
     }
   };
 
-  const presets = choice?.type === 'cheer' ? CHEER_PRESETS : NUDGE_PRESETS;
+  const toggleChoice = (member, type) => {
+    if (busy || !user) return;
+    setNotice(null);
+    setChoice((prev) => (prev?.member.user_id === member.user_id && prev?.type === type ? null : { member, type }));
+  };
 
   return (
-    <section style={{ marginTop: 'var(--space-6)' }} aria-labelledby="group-social-title">
+    <section aria-labelledby="group-social-title">
       <div
         style={{
           display: 'flex',
@@ -115,7 +118,7 @@ export default function GroupSocialPanel({
         }}
       >
         <div>
-          <h3 id="group-social-title" style={{ fontSize: '16px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          <h3 id="group-social-title" style={{ fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em', margin: 0 }}>
             Ortak İlerleme
           </h3>
           <p className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)', marginTop: 'var(--space-1)' }}>
@@ -124,12 +127,14 @@ export default function GroupSocialPanel({
         </div>
       </div>
 
-      {notice && <InlineFeedback message={notice.text} tone={notice.error ? 'danger' : 'neutral'} />}
+      {notice && <InlineFeedback message={notice.text} tone={notice.error ? 'danger' : 'signal'} />}
       {allDone && <InlineFeedback message="Tüm üyeler bugünün ortak hedeflerini tamamladı." tone="signal" />}
 
       <div style={{ border: '1px solid var(--border)', marginTop: 'var(--space-3)' }}>
         {rows.map((row) => {
           const isCurrent = row.member.user_id === user?.id;
+          const isExpanded = choice?.member.user_id === row.member.user_id;
+          const presets = choice?.type === 'cheer' ? CHEER_PRESETS : NUDGE_PRESETS;
           return (
             <div key={row.member.user_id}>
               <GroupMemberRow
@@ -142,35 +147,69 @@ export default function GroupSocialPanel({
               {!isCurrent && (
                 <div
                   style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
+                    display: 'grid',
                     gap: 'var(--space-2)',
                     padding: 'var(--space-2) var(--space-4)',
                     borderBottom: '1px solid var(--border)',
                     backgroundColor: 'var(--surface-1)',
                   }}
                 >
-                  <Reaction
-                    label="TEBRİK"
-                    count={row.cheers}
-                    onClick={() => {
-                      if (!busy && user) {
-                        setChoice({ member: row.member, type: 'cheer' });
-                        setNotice(null);
-                      }
-                    }}
-                  />
-                  <Button
-                    variant="tertiary"
-                    disabled={busy || !user}
-                    aria-label={`${row.member.display_name || 'Üye'} kullanıcısına hatırlatma gönder`}
-                    onClick={() => {
-                      setChoice({ member: row.member, type: 'nudge' });
-                      setNotice(null);
-                    }}
-                  >
-                    Hatırlat
-                  </Button>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+                    <Reaction
+                      label="TEBRİK"
+                      count={row.cheers}
+                      onClick={() => toggleChoice(row.member, 'cheer')}
+                    />
+                    <Button
+                      variant={isExpanded && choice?.type === 'nudge' ? 'secondary' : 'tertiary'}
+                      size="sm"
+                      disabled={busy || !user}
+                      aria-expanded={isExpanded && choice?.type === 'nudge'}
+                      aria-label={`${row.member.display_name || 'Üye'} kullanıcısına hatırlatma gönder`}
+                      onClick={() => toggleChoice(row.member, 'nudge')}
+                    >
+                      Hatırlat
+                    </Button>
+                  </div>
+
+                  {isExpanded && (
+                    <div
+                      style={{
+                        border: '1px solid var(--border-strong)',
+                        backgroundColor: 'var(--surface-2)',
+                        padding: 'var(--space-3)',
+                        display: 'grid',
+                        gap: 'var(--space-2)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)' }}>
+                        <span className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)', textTransform: 'uppercase' }}>
+                          {choice.type === 'cheer' ? 'Tebrik mesajı seç' : 'Hatırlatma mesajı seç'}
+                        </span>
+                        <Button variant="tertiary" size="sm" disabled={busy} onClick={() => setChoice(null)}>
+                          Kapat
+                        </Button>
+                      </div>
+                      <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
+                        {presets.map((p) => {
+                          const cleanText = String(p.text || '').replace(/!/g, '.');
+                          return (
+                            <Button
+                              key={p.text}
+                              variant="secondary"
+                              size="sm"
+                              disabled={busy}
+                              onClick={() => send(p)}
+                              style={{ justifyContent: 'flex-start', textAlign: 'left' }}
+                            >
+                              {cleanText}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                      {busy && <InlineFeedback message="Gönderiliyor…" tone="neutral" />}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -195,43 +234,6 @@ export default function GroupSocialPanel({
           </div>
         </details>
       )}
-
-      <Modal
-        open={Boolean(choice)}
-        title={
-          choice
-            ? `${choice.type === 'cheer' ? 'Tebrik' : 'Hatırlatma'}: ${choice.member.display_name || 'Üye'}`
-            : ''
-        }
-        onClose={() => !busy && setChoice(null)}
-        footer={
-          <Button variant="secondary" disabled={busy} onClick={() => setChoice(null)}>
-            İptal
-          </Button>
-        }
-      >
-        {notice?.error && <InlineFeedback message={notice.text} tone="danger" />}
-        <p className="mono" style={{ fontSize: '12px', color: 'var(--fg-muted)', marginBottom: 'var(--space-3)' }}>
-          Göndermek için bir mesaj seç.
-        </p>
-        <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
-          {presets.map((p) => {
-            const cleanText = String(p.text || '').replace(/!/g, '.');
-            return (
-              <Button
-                key={p.text}
-                variant="secondary"
-                disabled={busy}
-                onClick={() => send(p)}
-                style={{ justifyContent: 'flex-start', textAlign: 'left' }}
-              >
-                {cleanText}
-              </Button>
-            );
-          })}
-        </div>
-        {busy && <InlineFeedback message="Gönderiliyor…" tone="neutral" />}
-      </Modal>
     </section>
   );
 }

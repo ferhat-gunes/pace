@@ -33,7 +33,6 @@ import {
   Header,
   Button,
   IconButton,
-  Modal,
   FormField,
   TextInput,
   Select,
@@ -73,10 +72,11 @@ export default function GroupsView({
   };
 
   const [selected, setSelected] = useState(() => initialSelectedGroupId || readContext().selected || groups[0]?.id || null);
+  const [subTab, setSubTab] = useState('today'); // 'today' | 'progress' | 'members'
   const [detail, setDetail] = useState(null);
   const [detailError, setDetailError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [modal, setModal] = useState(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [pageMode, setPageMode] = useState(null); // null | 'create' | 'edit' | 'habit' | 'edit-habit'
   const [editingHabit, setEditingHabit] = useState(null);
   const [menuHabitId, setMenuHabitId] = useState(null);
@@ -117,6 +117,10 @@ export default function GroupsView({
   useEffect(() => {
     setQuickInviteLink('');
     setQuickCopied(false);
+    setInviteOpen(false);
+    setMenuHabitId(null);
+    setRecord(null);
+    setConfirmation(null);
   }, [selected]);
 
   useEffect(() => {
@@ -200,7 +204,6 @@ export default function GroupsView({
       .then((res) => {
         if (current && res?.invite) {
           setInvite({ ...res.invite, token: initialInviteToken });
-          setModal('accept');
         }
       })
       .catch((err) => {
@@ -211,15 +214,12 @@ export default function GroupsView({
     };
   }, [initialInviteToken, previewAttempt]);
 
-  useEffect(() => {
-    if (user?.id && invite && modal === null) setModal('accept');
-  }, [user?.id]);
-
   const close = useCallback(() => {
     if (lock.current) return;
-    setModal(null);
+    setInviteOpen(false);
     setRecord(null);
     setConfirmation(null);
+    setMenuHabitId(null);
     setError('');
     setInvite(null);
     onClearInviteToken?.();
@@ -234,13 +234,13 @@ export default function GroupsView({
   useEffect(() => {
     const esc = (e) => {
       if (e.key === 'Escape') {
-        if (modal) close();
+        if (record || confirmation || inviteOpen || menuHabitId || invite) close();
         else if (pageMode) closePage();
       }
     };
     window.addEventListener('keydown', esc);
     return () => window.removeEventListener('keydown', esc);
-  }, [close, closePage, modal, pageMode]);
+  }, [close, closePage, record, confirmation, inviteOpen, menuHabitId, invite, pageMode]);
 
   async function run(kind, task) {
     if (lock.current) return;
@@ -258,17 +258,6 @@ export default function GroupsView({
     }
   }
 
-  function open(kind) {
-    if (kind === 'create' && !user?.id) {
-      setNotice('Grup oluşturmak için giriş yap.');
-      onRequireAuth?.();
-      return;
-    }
-    setError('');
-    setNotice('');
-    setModal(kind);
-  }
-
   function openPage(kind) {
     if (kind === 'create' && !user?.id) {
       setNotice('Grup oluşturmak için giriş yap.');
@@ -277,7 +266,9 @@ export default function GroupsView({
     }
     setError('');
     setNotice('');
-    setModal(null);
+    setRecord(null);
+    setConfirmation(null);
+    setInviteOpen(false);
     setPageMode(kind);
   }
 
@@ -355,9 +346,13 @@ export default function GroupsView({
 
   async function inviteLink() {
     if (!active || lock.current) return;
+    if (inviteOpen && link) {
+      setInviteOpen(false);
+      return;
+    }
     const id = active.id;
     const request = ++inviteRequestRef.current;
-    open('invite');
+    setInviteOpen(true);
     setLink('');
     setCopied(false);
     await run('invite', async () => {
@@ -383,25 +378,32 @@ export default function GroupsView({
       const id = res?.group_id || invite.group_id;
       await loadData?.();
       if (id) setSelected(id);
-      setModal(null);
       setInvite(null);
       onClearInviteToken?.();
       setNotice('Gruba katıldın.');
     });
   }
 
-  function openRecord(habit, day) {
+  function openRecord(habit, day, source = 'today') {
+    if (record && record.habit.id === habit.id && record.day === day && record.source === source) {
+      setRecord(null);
+      setError('');
+      return;
+    }
     const log = latestGroupLog(checkins, habit.id, user?.id, day);
+    setMenuHabitId(null);
+    setConfirmation(null);
+    setError('');
     setRecord({
       habit,
       day,
+      source,
       value: log && !log.deleted ? Number(log.value) : 0,
       revision: log?.revision || 0,
       key: token(),
       deleteKey: token(),
       hasRecord: Boolean(log && !log.deleted),
     });
-    open('record');
   }
 
   async function refreshRecordVersion() {
@@ -447,7 +449,6 @@ export default function GroupsView({
           throw new Error('Sunucu kaydı doğrulamadı.');
         }
         await refresh();
-        setModal(null);
         setRecord(null);
         setNotice(remove ? 'Ortak alışkanlık kaydı kaldırıldı.' : 'Ortak alışkanlık kaydı kaydedildi.');
       } catch (err) {
@@ -479,7 +480,6 @@ export default function GroupsView({
   async function declineInvite() {
     await run('decline', async () => {
       requireGroupSuccess(await api.respondInvite(invite.token, 'decline'));
-      setModal(null);
       setInvite(null);
       onClearInviteToken?.();
       setNotice('Grup daveti reddedildi.');
@@ -562,9 +562,14 @@ export default function GroupsView({
 
   function confirm(action, target = null) {
     setMenuHabitId(null);
-    setConfirmation({ action, target });
+    setRecord(null);
+    setError('');
+    setConfirmation((prev) =>
+      prev?.action === action && (prev?.target?.id || prev?.target?.user_id) === (target?.id || target?.user_id)
+        ? null
+        : { action, target },
+    );
     setConfirmName('');
-    open('confirm');
   }
 
   async function confirmAction() {
@@ -583,7 +588,6 @@ export default function GroupsView({
       } else {
         await refresh(id);
       }
-      setModal(null);
       setConfirmation(null);
       setNotice(action === 'delete-habit' ? 'Ortak alışkanlık kalıcı olarak silindi.' : 'İşlem tamamlandı.');
     });
@@ -639,6 +643,233 @@ export default function GroupsView({
               draft.direction !== (editingHabit.direction || 'at_least')
             : false;
 
+  const renderRecordEditor = () => {
+    if (!record) return null;
+    return (
+      <form
+        onSubmit={saveRecord}
+        aria-busy={!!busy}
+        style={{
+          marginTop: 'var(--space-2)',
+          padding: 'var(--space-3)',
+          border: '1px solid var(--border-strong)',
+          backgroundColor: 'var(--surface-2)',
+          display: 'grid',
+          gap: 'var(--space-3)',
+        }}
+      >
+        <fieldset disabled={!!busy} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: 'grid', gap: 'var(--space-3)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)' }}>
+            <span className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)', textTransform: 'uppercase' }}>
+              {record.habit.name} · {dayLabel(record.day)}
+            </span>
+            <Button variant="tertiary" size="sm" disabled={!!busy} onClick={() => setRecord(null)}>
+              Kapat
+            </Button>
+          </div>
+          {error && <InlineFeedback message={error} tone="danger" />}
+          {record.serverValue !== undefined && (
+            <InlineFeedback
+              message={`Sunucu değeri: ${record.serverValue === null ? 'Yok' : record.serverValue}. Girdiğin değer korunuyor.`}
+              tone="neutral"
+            />
+          )}
+          {record.conflict && (
+            <Button variant="secondary" size="sm" onClick={refreshRecordVersion} disabled={!!busy}>
+              Güncel kaydı yükle
+            </Button>
+          )}
+          {record.habit.tracking === 'check' ? (
+            <FormField label="Tamamlama Durumu" htmlFor="group-record-check">
+              <Select
+                id="group-record-check"
+                value={record.value ? 1 : 0}
+                onChange={(e) => setRecord({ ...record, value: Number(e.target.value), key: token() })}
+                options={[
+                  { value: 0, label: 'Tamamlanmadı' },
+                  { value: 1, label: 'Tamamlandı' },
+                ]}
+              />
+            </FormField>
+          ) : (
+            <FormField label={`Miktar (${record.habit.unit || 'birim'})`} htmlFor="group-record-amount">
+              <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={!!busy}
+                  onClick={() =>
+                    setRecord({
+                      ...record,
+                      value: Math.max(0, Number((Number(String(record.value).replace(',', '.')) || 0) - 1)),
+                      key: token(),
+                    })
+                  }
+                  aria-label="1 azalt"
+                >
+                  <Icon icon={Minus} size={14} />
+                </Button>
+                <TextInput
+                  id="group-record-amount"
+                  type="text"
+                  inputMode="decimal"
+                  pattern="[0-9.,]*"
+                  required
+                  value={record.value}
+                  onChange={(e) => setRecord({ ...record, value: e.target.value, key: token() })}
+                  style={{ flex: 1, minWidth: 0 }}
+                />
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={!!busy}
+                  onClick={() =>
+                    setRecord({
+                      ...record,
+                      value: Number(((Number(String(record.value).replace(',', '.')) || 0) + 1).toFixed(4)),
+                      key: token(),
+                    })
+                  }
+                  aria-label="1 artır"
+                >
+                  <Icon icon={Plus} size={14} />
+                </Button>
+              </div>
+            </FormField>
+          )}
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
+            {record.hasRecord && (
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={!!busy || record.conflict}
+                onClick={() => saveRecord(null, true)}
+              >
+                Kaldır
+              </Button>
+            )}
+            <Button type="submit" variant="primary" size="sm" loading={busy === 'record'} disabled={!!busy || record.conflict}>
+              Kaydet
+            </Button>
+          </div>
+        </fieldset>
+      </form>
+    );
+  };
+
+  const renderInlineConfirm = () => {
+    if (!confirmation) return null;
+    return (
+      <div
+        role="region"
+        aria-label="İşlem onayı"
+        style={{
+          marginTop: 'var(--space-2)',
+          padding: 'var(--space-3)',
+          border: `1px solid ${destructive || confirmation.action === 'kick' || confirmation.action === 'delete-habit' ? 'var(--danger)' : 'var(--border-strong)'}`,
+          backgroundColor: 'var(--surface-2)',
+          display: 'grid',
+          gap: 'var(--space-3)',
+        }}
+      >
+        <p style={{ fontSize: '13px', color: 'var(--fg)', margin: 0 }}>{confirmText}</p>
+        {error && <InlineFeedback message={error} tone="danger" />}
+        {destructive && (
+          <FormField label={`Onaylamak için grup adını yaz: ${active?.name}`} htmlFor="confirm-group-name">
+            <TextInput
+              id="confirm-group-name"
+              disabled={!!busy}
+              value={confirmName}
+              onChange={(e) => setConfirmName(e.target.value)}
+              autoComplete="off"
+            />
+          </FormField>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+          <Button variant="secondary" size="sm" disabled={!!busy} onClick={() => setConfirmation(null)}>
+            İptal
+          </Button>
+          {confirmation.action === 'delete-habit' && !confirmation.target?.archived_at && (
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={!!busy}
+              onClick={() => {
+                const targetHabit = confirmation.target;
+                setConfirmation(null);
+                archiveHabit(targetHabit);
+              }}
+            >
+              Bunun yerine arşivle
+            </Button>
+          )}
+          <Button
+            variant={destructive || confirmation.action === 'kick' || confirmation.action === 'delete-habit' ? 'destructive' : 'primary'}
+            size="sm"
+            disabled={!!busy || (destructive && confirmName !== active?.name)}
+            loading={busy === 'confirm'}
+            onClick={confirmAction}
+          >
+            {confirmation.action === 'delete-habit' ? 'Kalıcı olarak sil' : 'Onayla'}
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  if (invite) {
+    return (
+      <section
+        id="view-group-invite"
+        aria-labelledby="group-invite-page-title"
+        style={{ width: '100%', minWidth: 0, maxWidth: '560px', display: 'grid', gap: 'var(--space-4)' }}
+      >
+        <Header
+          title={`"${invite.group_name}" Grubuna Katıl`}
+          subtitle="Grup daveti"
+        />
+        <div
+          style={{
+            border: '1px solid var(--border)',
+            backgroundColor: 'var(--surface-1)',
+            padding: 'var(--space-4)',
+            display: 'grid',
+            gap: 'var(--space-3)',
+          }}
+        >
+          <p style={{ fontSize: '14px', margin: 0 }}>
+            {invite.inviter_display || invite.inviter_name || 'Bir üye'} seni bu gruba davet etti.
+          </p>
+          {invite.group_description && (
+            <p style={{ fontSize: '13px', color: 'var(--fg-muted)', margin: 0 }}>{invite.group_description}</p>
+          )}
+          {error && <InlineFeedback message={error} tone="danger" />}
+          {!user && (
+            <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
+              <InlineFeedback message="Katılmak için giriş yap. Davet bağlantın korunuyor." />
+              <Button variant="primary" disabled={!!busy} onClick={() => onRequireAuth?.()}>
+                Giriş yap
+              </Button>
+            </div>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)', flexWrap: 'wrap', paddingTop: 'var(--space-2)' }}>
+            <Button variant="secondary" disabled={!!busy} onClick={close}>
+              İptal
+            </Button>
+            {user && (
+              <Button variant="tertiary" disabled={!!busy} onClick={declineInvite}>
+                Reddet
+              </Button>
+            )}
+            <Button variant="primary" disabled={!!busy || !user} loading={busy === 'accept'} onClick={acceptInvite}>
+              Gruba katıl
+            </Button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   if (pageMode) {
     return (
       <GroupFormPage
@@ -676,7 +907,7 @@ export default function GroupsView({
     <section id="view-groups" aria-labelledby="groups-title" style={{ width: '100%', minWidth: 0, maxWidth: '100%' }}>
       <Header
         title="Gruplar"
-        subtitle="Ortak sorumluluk ve haftalık takip"
+        subtitle="Ortak sorumluluk ve günlük takip"
         actions={
           <Button
             variant="primary"
@@ -696,7 +927,7 @@ export default function GroupsView({
 
       <div style={{ marginTop: 'var(--space-4)', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--space-4)', width: '100%', minWidth: 0, maxWidth: '100%' }}>
         {notice && <InlineFeedback message={notice} tone="signal" />}
-        {error && !modal && <InlineFeedback message={error} tone="danger" />}
+        {error && !record && !confirmation && <InlineFeedback message={error} tone="danger" />}
 
         {inviteError && (
           <ErrorState
@@ -704,25 +935,6 @@ export default function GroupsView({
             message={inviteError}
             onRetry={initialInviteToken ? () => setPreviewAttempt((n) => n + 1) : undefined}
           />
-        )}
-
-        {invite && modal === null && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 'var(--space-3)',
-              padding: 'var(--space-3) var(--space-4)',
-              border: '1px solid var(--border)',
-              backgroundColor: 'var(--surface-1)',
-            }}
-          >
-            <span className="mono" style={{ fontSize: '12px' }}>Bekleyen grup daveti</span>
-            <Button variant="secondary" onClick={() => setModal('accept')}>
-              Daveti gör
-            </Button>
-          </div>
         )}
 
         {loadGroupsError && (
@@ -779,887 +991,746 @@ export default function GroupsView({
                 alignItems: 'flex-start',
                 justifyContent: 'space-between',
                 gap: 'var(--space-3)',
-                paddingBottom: 'var(--space-4)',
+                paddingBottom: 'var(--space-3)',
                 borderBottom: '1px solid var(--border)',
-                marginBottom: 'var(--space-4)',
+                marginBottom: 'var(--space-3)',
               }}
             >
               <div>
-                <h2 style={{ fontSize: '18px' }}>{active.name}</h2>
+                <h2 style={{ fontSize: '18px', margin: 0 }}>{active.name}</h2>
                 {active.description && (
-                  <p style={{ fontSize: '13px', color: 'var(--fg-muted)', marginTop: 'var(--space-1)' }}>
+                  <p style={{ fontSize: '13px', color: 'var(--fg-muted)', marginTop: 'var(--space-1)', marginBottom: 0 }}>
                     {active.description}
                   </p>
                 )}
-                <p className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)', marginTop: 'var(--space-2)' }}>
-                  {loading ? 'Yükleniyor…' : `${members.length} ÜYE / ${habits.length} ORTAK ALIŞKANLIK`}
+                <p className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)', marginTop: 'var(--space-2)', marginBottom: 0 }}>
+                  {loading ? 'Yükleniyor…' : `${members.length} ÜYE · ${habits.length} ALIŞKANLIK`}
                 </p>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-                <Button variant="secondary" disabled={!!busy || loading} onClick={inviteLink}>
-                  <Icon icon={UserPlus} size={16} />
+                <Button variant={inviteOpen ? 'primary' : 'secondary'} size="sm" disabled={!!busy || loading} onClick={inviteLink}>
+                  <Icon icon={UserPlus} size={15} />
                   Davet et
-                </Button>
-                <Button variant="tertiary" disabled={!!busy || loading || !detail} onClick={() => confirm('leave')}>
-                  Gruptan ayrıl
                 </Button>
               </div>
             </div>
+
+            {inviteOpen && (
+              <div
+                style={{
+                  border: '1px solid var(--border-strong)',
+                  backgroundColor: 'var(--surface-2)',
+                  padding: 'var(--space-3)',
+                  marginBottom: 'var(--space-4)',
+                  display: 'grid',
+                  gap: 'var(--space-2)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)' }}>
+                  <span className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)', textTransform: 'uppercase' }}>
+                    Üye Davet Bağlantısı (7 gün geçerli)
+                  </span>
+                  <Button variant="tertiary" size="sm" disabled={!!busy} onClick={() => setInviteOpen(false)}>
+                    Kapat
+                  </Button>
+                </div>
+                {busy === 'invite' && <InlineFeedback message="Davet bağlantısı oluşturuluyor..." />}
+                <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <TextInput
+                    aria-label="Davet bağlantısı"
+                    readOnly
+                    value={link}
+                    onFocus={(e) => e.target.select()}
+                    style={{ flex: '1 1 180px', minWidth: 0, fontSize: '12px' }}
+                  />
+                  <Button variant="primary" size="sm" disabled={!link || !!busy} onClick={copyLink}>
+                    <Icon icon={copied ? Check : Copy} size={14} />
+                    {copied ? 'Kopyalandı' : 'Kopyala'}
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {loading && <LoadingState label="Grup yükleniyor…" />}
             {detailError && <ErrorState title="Grup hatası" message={detailError} onRetry={() => refresh()} />}
 
             {detail && !loading && (
               <>
-                {(justCreatedGroupId === active.id || members.length <= 1) && (
-                  <div
-                    style={{
-                      border: '1px solid var(--signal)',
-                      backgroundColor: 'var(--surface-2)',
-                      padding: 'var(--space-3) var(--space-4)',
-                      marginBottom: 'var(--space-4)',
-                      display: 'grid',
-                      gap: 'var(--space-2)',
+                <div style={{ marginBottom: 'var(--space-4)' }}>
+                  <TabNav
+                    tabs={[
+                      { id: 'today', label: 'Bugün', disabled: !!busy },
+                      { id: 'progress', label: 'İlerleme', disabled: !!busy },
+                      { id: 'members', label: 'Üyeler & Ayarlar', disabled: !!busy },
+                    ]}
+                    activeId={subTab}
+                    onChange={(id) => {
+                      setSubTab(id);
+                      setRecord(null);
+                      setConfirmation(null);
+                      setMenuHabitId(null);
                     }}
-                  >
-                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)' }}>
-                      <div>
-                        <div className="mono" style={{ fontSize: '11px', letterSpacing: '0.05em', color: 'var(--signal-text)' }}>
-                          DAVET LİNKİNİ PAYLAŞ
-                        </div>
-                        <p style={{ margin: '2px 0 0', fontSize: '13px', color: 'var(--fg)' }}>
-                          Arkadaşını davet et, aynı alışkanlıkta birlikte ilerleyip rekabet edin.
-                        </p>
-                      </div>
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        loading={busy === 'quick-invite'}
-                        disabled={!!busy}
-                        onClick={shareQuickInvite}
+                  />
+                </div>
+
+                {subTab === 'today' && (
+                  <section aria-labelledby="group-today-title">
+                    {(justCreatedGroupId === active.id || members.length <= 1) && (
+                      <div
+                        style={{
+                          border: '1px solid var(--signal)',
+                          backgroundColor: 'var(--surface-2)',
+                          padding: 'var(--space-3) var(--space-4)',
+                          marginBottom: 'var(--space-4)',
+                          display: 'grid',
+                          gap: 'var(--space-2)',
+                        }}
                       >
-                        <Icon icon={quickCopied ? Check : Share2} size={14} />
-                        {quickCopied ? 'Link kopyalandı' : 'Davet linkini paylaş'}
-                      </Button>
-                    </div>
-                    {quickInviteLink && (
-                      <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <TextInput
-                          id="quick-invite-link-input"
-                          value={quickInviteLink}
-                          readOnly
-                          aria-label="Hızlı davet bağlantısı"
-                          onFocus={(e) => e.target.select()}
-                          style={{ flex: '1 1 200px', fontSize: '12px' }}
-                        />
+                        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)' }}>
+                          <div>
+                            <div className="mono" style={{ fontSize: '11px', letterSpacing: '0.05em', color: 'var(--signal-text)' }}>
+                              DAVET LİNKİNİ PAYLAŞ
+                            </div>
+                            <p style={{ margin: '2px 0 0', fontSize: '13px', color: 'var(--fg)' }}>
+                              Arkadaşını davet et, aynı alışkanlıkta birlikte ilerleyin.
+                            </p>
+                          </div>
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            loading={busy === 'quick-invite'}
+                            disabled={!!busy}
+                            onClick={shareQuickInvite}
+                          >
+                            <Icon icon={quickCopied ? Check : Share2} size={14} />
+                            {quickCopied ? 'Link kopyalandı' : 'Davet linkini paylaş'}
+                          </Button>
+                        </div>
+                        {quickInviteLink && (
+                          <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <TextInput
+                              id="quick-invite-link-input"
+                              value={quickInviteLink}
+                              readOnly
+                              aria-label="Hızlı davet bağlantısı"
+                              onFocus={(e) => e.target.select()}
+                              style={{ flex: '1 1 200px', fontSize: '12px' }}
+                            />
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  await navigator.clipboard.writeText(quickInviteLink);
+                                  setQuickCopied(true);
+                                  setNotice('Davet bağlantısı kopyalandı.');
+                                } catch {
+                                  setError('Kopyalama başarısız oldu.');
+                                }
+                              }}
+                            >
+                              <Icon icon={quickCopied ? Check : Copy} size={14} />
+                              Kopyala
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)', marginBottom: 'var(--space-3)', flexWrap: 'wrap' }}>
+                      <h3 id="group-today-title" style={{ fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em', margin: 0 }}>
+                        Bugün — Ortak Alışkanlıklar
+                      </h3>
+                      {isOwner && (
                         <Button
                           variant="secondary"
                           size="sm"
-                          onClick={async () => {
-                            try {
-                              await navigator.clipboard.writeText(quickInviteLink);
-                              setQuickCopied(true);
-                              setNotice('Davet bağlantısı kopyalandı.');
-                            } catch {
-                              setError('Kopyalama başarısız oldu.');
-                            }
+                          disabled={!!busy}
+                          onClick={() => {
+                            setDraft(blankHabit());
+                            openPage('habit');
                           }}
                         >
-                          <Icon icon={quickCopied ? Check : Copy} size={14} />
-                          Kopyala
+                          <Icon icon={Plus} size={14} />
+                          Alışkanlık ekle
+                        </Button>
+                      )}
+                    </div>
+
+                    {lastArchivedHabit && lastArchivedHabit.groupId === active.id && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: 'var(--space-2)',
+                          flexWrap: 'wrap',
+                          padding: 'var(--space-2) var(--space-3)',
+                          marginBottom: 'var(--space-3)',
+                          border: '1px solid var(--signal)',
+                          backgroundColor: 'var(--surface-2)',
+                        }}
+                      >
+                        <span className="mono" style={{ fontSize: '12px' }}>
+                          "{lastArchivedHabit.habit.name}" arşivlendi. Geçmiş kayıtlar korundu.
+                        </span>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled={!!busy}
+                          onClick={() => restoreHabit(lastArchivedHabit.habit, lastArchivedHabit.groupId)}
+                        >
+                          <Icon icon={RotateCcw} size={14} />
+                          Geri al
                         </Button>
                       </div>
+                    )}
+
+                    {!habits.length ? (
+                      <EmptyState
+                        title="Henüz ortak alışkanlık yok"
+                        description={
+                          isOwner
+                            ? 'Grubun birlikte takip edeceği ilk ortak alışkanlığı ekleyerek başlayabilirsin.'
+                            : 'Grup sahibi ortak alışkanlık eklediğinde burada görünecek.'
+                        }
+                        action={
+                          isOwner ? (
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              disabled={!!busy}
+                              onClick={() => {
+                                setDraft(blankHabit());
+                                openPage('habit');
+                              }}
+                            >
+                              <Icon icon={Plus} size={14} />
+                              İlk ortak alışkanlığı ekle
+                            </Button>
+                          ) : undefined
+                        }
+                      />
+                    ) : (
+                      <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
+                        {habits.map((habit) => {
+                          const log = latestGroupLog(checkins, habit.id, user?.id, today);
+                          const state = groupDayState(habit, log, today, today);
+                          const done = state === 'Tamamlandı';
+                          const currentVal = log && !log.deleted ? Number(log.value || 0) : 0;
+                          const doneMembers = members.filter(
+                            (m) => groupDayState(habit, latestGroupLog(checkins, habit.id, m.user_id, today), today, today) === 'Tamamlandı',
+                          ).length;
+                          const isQuickBusy = busy === `quick:${habit.id}`;
+                          const menuOpen = menuHabitId === habit.id;
+                          const isEditingRecord = record?.source === 'today' && record?.habit.id === habit.id;
+                          const isConfirmingDelete = confirmation?.action === 'delete-habit' && confirmation?.target?.id === habit.id;
+                          return (
+                            <div
+                              key={habit.id}
+                              style={{
+                                border: `1px solid ${done ? 'var(--signal)' : 'var(--border)'}`,
+                                backgroundColor: done ? 'var(--surface-2)' : 'var(--surface-1)',
+                                padding: 'var(--space-3)',
+                                display: 'grid',
+                                gap: 'var(--space-2)',
+                              }}
+                            >
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  flexWrap: 'wrap',
+                                  gap: 'var(--space-3)',
+                                }}
+                              >
+                                <div style={{ flex: '1 1 160px', minWidth: 0 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                                    <StatusMarker status={done ? 'done' : 'missed'} size={10} />
+                                    <span style={{ fontWeight: 700, fontSize: '14px' }}>{habit.name}</span>
+                                  </div>
+                                  <div className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)', marginTop: '4px' }}>
+                                    {habit.tracking === 'quantity'
+                                      ? `${currentVal} / ${habit.target} ${habit.unit || ''}`.trim()
+                                      : done
+                                        ? 'Bugün tamamlandı'
+                                        : 'Bugün bekliyor'}
+                                    {` · ${doneMembers}/${members.length} üye`}
+                                  </div>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                                  {habit.tracking === 'check' ? (
+                                    <Button
+                                      variant={done ? 'secondary' : 'primary'}
+                                      size="sm"
+                                      disabled={!!busy}
+                                      loading={isQuickBusy}
+                                      onClick={() => quickCheckinToday(habit, 1, done)}
+                                      aria-label={`${habit.name} bugün için ${done ? 'geri al' : 'tamamla'}`}
+                                    >
+                                      <Icon icon={Check} size={14} />
+                                      {done ? 'Tamamlandı' : 'Tamamla'}
+                                    </Button>
+                                  ) : (
+                                    <>
+                                      <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        disabled={!!busy}
+                                        loading={isQuickBusy}
+                                        onClick={() => quickCheckinToday(habit, Number((currentVal + 1).toFixed(4)), false)}
+                                        aria-label={`${habit.name} bugünkü kaydı 1 artır`}
+                                      >
+                                        <Icon icon={Plus} size={14} />
+                                        1
+                                      </Button>
+                                      <Button
+                                        variant={isEditingRecord || done ? 'secondary' : 'primary'}
+                                        size="sm"
+                                        disabled={!!busy}
+                                        aria-expanded={isEditingRecord}
+                                        onClick={() => openRecord(habit, today, 'today')}
+                                        aria-label={`${habit.name} bugünkü miktarı gir`}
+                                      >
+                                        Miktar
+                                      </Button>
+                                    </>
+                                  )}
+                                  {isOwner && (
+                                    <IconButton
+                                      icon={MoreVertical}
+                                      label={`${habit.name} alışkanlık işlemleri`}
+                                      aria-expanded={menuOpen}
+                                      disabled={!!busy}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setRecord(null);
+                                        setConfirmation(null);
+                                        setMenuHabitId(menuOpen ? null : habit.id);
+                                      }}
+                                    />
+                                  )}
+                                </div>
+                              </div>
+
+                              {isEditingRecord && renderRecordEditor()}
+
+                              {isOwner && menuOpen && (
+                                <div
+                                  role="region"
+                                  aria-label={`${habit.name} yönetim işlemleri`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  style={{
+                                    display: 'flex',
+                                    flexWrap: 'wrap',
+                                    gap: 'var(--space-2)',
+                                    paddingTop: 'var(--space-2)',
+                                    borderTop: '1px solid var(--border)',
+                                  }}
+                                >
+                                  <Button variant="secondary" size="sm" disabled={!!busy} onClick={() => openEditHabit(habit)}>
+                                    <Icon icon={Pencil} size={14} />
+                                    Düzenle
+                                  </Button>
+                                  <Button variant="secondary" size="sm" disabled={!!busy} onClick={() => archiveHabit(habit)}>
+                                    <Icon icon={Archive} size={14} />
+                                    Arşivle
+                                  </Button>
+                                  <Button variant="destructive" size="sm" disabled={!!busy} onClick={() => confirm('delete-habit', habit)}>
+                                    <Icon icon={Trash2} size={14} />
+                                    Kalıcı sil
+                                  </Button>
+                                </div>
+                              )}
+
+                              {isConfirmingDelete && renderInlineConfirm()}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </section>
+                )}
+
+                {subTab === 'progress' && (
+                  <div style={{ display: 'grid', gap: 'var(--space-5)' }}>
+                    <GroupSocialPanel
+                      group={active}
+                      members={members}
+                      habits={habits}
+                      checkins={checkins}
+                      reactions={detail?.reactions || []}
+                      user={user}
+                      anchor={anchor}
+                      weekStart={weekStart}
+                      gamification={gamification}
+                      onRefresh={() => refresh(active.id)}
+                      onSocialRefresh={onSocialRefresh}
+                    />
+
+                    {habits.length > 0 && (
+                      <details
+                        style={{
+                          border: '1px solid var(--border)',
+                          backgroundColor: 'var(--surface-1)',
+                        }}
+                      >
+                        <summary
+                          className="mono"
+                          style={{
+                            padding: 'var(--space-3) var(--space-4)',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          Haftalık Takip Tablosu ({dayLabel(days[0])} – {dayLabel(days[6])})
+                        </summary>
+                        <div style={{ padding: 'var(--space-3)', borderTop: '1px solid var(--border)' }}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              flexWrap: 'wrap',
+                              alignItems: 'center',
+                              gap: 'var(--space-2)',
+                              marginBottom: 'var(--space-3)',
+                            }}
+                          >
+                            <IconButton
+                              icon={ChevronLeft}
+                              label="Önceki hafta"
+                              onClick={() => setAnchor(addDays(anchor, -7))}
+                            />
+                            <span className="mono" style={{ fontSize: '12px', fontWeight: 700 }}>
+                              {dayLabel(days[0])} – {dayLabel(days[6])}
+                            </span>
+                            <IconButton
+                              icon={ChevronRight}
+                              label="Sonraki hafta"
+                              disabled={days[6] >= today}
+                              onClick={() => setAnchor(addDays(anchor, 7))}
+                            />
+                            <Button variant="tertiary" size="sm" onClick={() => setAnchor(today)}>
+                              Bu hafta
+                            </Button>
+                          </div>
+
+                          <p className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)', marginBottom: 'var(--space-3)' }}>
+                            Geçmiş günleri düzenlemek için kendi satırına dokun.
+                          </p>
+
+                          <div
+                            className="table-container"
+                            tabIndex={0}
+                            role="region"
+                            aria-label="Haftalık grup takip tablosu"
+                            style={{ width: '100%', overflowX: 'auto', minWidth: 0, maxWidth: '100%', border: '1px solid var(--border)' }}
+                          >
+                            <table className="groups-table">
+                              <thead>
+                                <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--surface-2)' }}>
+                                  <th scope="col" className="mono" style={{ padding: 'var(--space-2) var(--space-3)', textAlign: 'left', fontSize: '11px' }}>
+                                    ÜYE
+                                  </th>
+                                  <th scope="col" className="mono" style={{ padding: 'var(--space-2) var(--space-3)', textAlign: 'left', fontSize: '11px' }}>
+                                    ALIŞKANLIK
+                                  </th>
+                                  {days.map((day) => (
+                                    <th key={day} scope="col" className="mono" style={{ padding: 'var(--space-2)', textAlign: 'center', fontSize: '11px' }}>
+                                      {dayLabel(day)}
+                                    </th>
+                                  ))}
+                                  <th scope="col" className="mono" style={{ padding: 'var(--space-2) var(--space-3)', textAlign: 'right', fontSize: '11px' }}>
+                                    ORAN
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {members.flatMap((member) =>
+                                  habits.map((habit) => {
+                                    const summary = groupWeekSummary(habit, checkins, member.user_id, anchor, weekStart, today);
+                                    const isCurrent = member.user_id === user?.id;
+                                    return (
+                                      <tr
+                                        key={`${member.user_id}-${habit.id}`}
+                                        style={{
+                                          borderBottom: '1px solid var(--border)',
+                                          backgroundColor: isCurrent ? 'var(--surface-2)' : 'var(--surface-1)',
+                                        }}
+                                      >
+                                        <th
+                                          scope="row"
+                                          style={{
+                                            padding: 'var(--space-2) var(--space-3)',
+                                            textAlign: 'left',
+                                            fontSize: '13px',
+                                            color: isCurrent ? 'var(--signal-text)' : 'var(--fg)',
+                                          }}
+                                        >
+                                          {member.display_name || 'Üye'}
+                                          {member.role === 'owner' ? ' (Sahip)' : ''}
+                                        </th>
+                                        <td className="group-habit-cell" style={{ padding: 'var(--space-2) var(--space-3)', fontSize: '13px' }}>
+                                          <div>{habit.name}</div>
+                                          <div className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)' }}>
+                                            {habit.tracking === 'quantity'
+                                              ? `${habit.direction === 'at_most' ? 'En fazla' : 'En az'} ${habit.target} ${habit.unit || ''}`
+                                              : 'Günlük takip'}
+                                          </div>
+                                        </td>
+                                        {days.map((day) => {
+                                          const log = latestGroupLog(checkins, habit.id, member.user_id, day);
+                                          const state = groupDayState(habit, log, day, today);
+                                          const done = state === 'Tamamlandı';
+                                          return (
+                                            <td key={day} className="group-day-cell" data-day={dayLabel(day)} style={{ padding: 'var(--space-1)', textAlign: 'center' }}>
+                                              {isCurrent && day <= today ? (
+                                                <button
+                                                  type="button"
+                                                  disabled={!!busy}
+                                                  onClick={() => openRecord(habit, day, 'matrix')}
+                                                  aria-label={`${habit.name}, ${dayLabel(day)}: ${state}. Kaydı düzenle`}
+                                                  className="mono"
+                                                  style={{
+                                                    minWidth: '44px',
+                                                    minHeight: '44px',
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    border: `1px solid ${done ? 'var(--signal)' : 'var(--border)'}`,
+                                                    backgroundColor: done ? 'var(--surface-2)' : 'transparent',
+                                                    color: done ? 'var(--signal-text)' : 'var(--fg)',
+                                                    fontSize: '12px',
+                                                    cursor: 'pointer',
+                                                  }}
+                                                >
+                                                  {done ? (
+                                                    <StatusMarker status="done" />
+                                                  ) : log && !log.deleted ? (
+                                                    log.value
+                                                  ) : (
+                                                    <Icon icon={Plus} size={14} />
+                                                  )}
+                                                </button>
+                                              ) : (
+                                                <span
+                                                  aria-label={`${dayLabel(day)}: ${state}`}
+                                                  style={{
+                                                    minWidth: '44px',
+                                                    minHeight: '44px',
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    color: 'var(--fg-muted)',
+                                                  }}
+                                                >
+                                                  {done ? (
+                                                    <StatusMarker status="done" />
+                                                  ) : day > today ? (
+                                                    <StatusMarker status="pending" />
+                                                  ) : (
+                                                    <Icon icon={Minus} size={14} />
+                                                  )}
+                                                  <span className="sr-only">{state}</span>
+                                                </span>
+                                              )}
+                                            </td>
+                                          );
+                                        })}
+                                        <td className="mono group-rate-cell" style={{ padding: 'var(--space-2) var(--space-3)', textAlign: 'right', fontSize: '12px' }}>
+                                          {summary.elapsed ? `${summary.completed}/${summary.elapsed} (%${summary.percentage})` : '—'}
+                                        </td>
+                                      </tr>
+                                    );
+                                  }),
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          {record?.source === 'matrix' && renderRecordEditor()}
+                        </div>
+                      </details>
                     )}
                   </div>
                 )}
 
-                <section aria-labelledby="group-today-title" style={{ marginBottom: 'var(--space-5)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)', marginBottom: 'var(--space-3)', flexWrap: 'wrap' }}>
-                    <h3 id="group-today-title" style={{ fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em', margin: 0 }}>
-                      Bugün — Ortak Alışkanlıklar
-                    </h3>
-                    {isOwner && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={!!busy}
-                        onClick={() => {
-                          setDraft(blankHabit());
-                          openPage('habit');
-                        }}
-                      >
-                        <Icon icon={Plus} size={14} />
-                        Alışkanlık ekle
-                      </Button>
-                    )}
-                  </div>
-
-                  {lastArchivedHabit && lastArchivedHabit.groupId === active.id && (
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: 'var(--space-2)',
-                        flexWrap: 'wrap',
-                        padding: 'var(--space-2) var(--space-3)',
-                        marginBottom: 'var(--space-3)',
-                        border: '1px solid var(--signal)',
-                        backgroundColor: 'var(--surface-2)',
-                      }}
-                    >
-                      <span className="mono" style={{ fontSize: '12px' }}>
-                        "{lastArchivedHabit.habit.name}" arşivlendi. Geçmiş kayıtlar korundu.
-                      </span>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={!!busy}
-                        onClick={() => restoreHabit(lastArchivedHabit.habit, lastArchivedHabit.groupId)}
-                      >
-                        <Icon icon={RotateCcw} size={14} />
-                        Geri al
-                      </Button>
+                {subTab === 'members' && (
+                  <section aria-labelledby="group-members-title" style={{ display: 'grid', gap: 'var(--space-4)' }}>
+                    <div>
+                      <h3 id="group-members-title" style={{ fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em', margin: 0 }}>
+                        Üyeler ({members.length})
+                      </h3>
+                      <p className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)', marginTop: 'var(--space-1)', marginBottom: 0 }}>
+                        {isOwner
+                          ? 'Grup sahibi olarak üyeleri ve ortak alışkanlıkları yönetebilirsin.'
+                          : 'Kendi kayıtlarını düzenleyebilirsin. Yönetim işlemleri grup sahibine aittir.'}
+                      </p>
                     </div>
-                  )}
 
-                  {!habits.length ? (
-                    <EmptyState
-                      title="Henüz ortak alışkanlık yok"
-                      description={
-                        isOwner
-                          ? 'Grubun birlikte takip edeceği ilk ortak alışkanlığı ekleyerek başlayabilirsin.'
-                          : 'Grup sahibi ortak alışkanlık eklediğinde burada görünecek.'
-                      }
-                      action={
-                        isOwner ? (
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            disabled={!!busy}
-                            onClick={() => {
-                              setDraft(blankHabit());
-                              openPage('habit');
-                            }}
-                          >
-                            <Icon icon={Plus} size={14} />
-                            İlk ortak alışkanlığı ekle
-                          </Button>
-                        ) : undefined
-                      }
-                    />
-                  ) : (
-                    <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
-                      {habits.map((habit) => {
-                        const log = latestGroupLog(checkins, habit.id, user?.id, today);
-                        const state = groupDayState(habit, log, today, today);
-                        const done = state === 'Tamamlandı';
-                        const currentVal = log && !log.deleted ? Number(log.value || 0) : 0;
-                        const doneMembers = members.filter(
-                          (m) => groupDayState(habit, latestGroupLog(checkins, habit.id, m.user_id, today), today, today) === 'Tamamlandı',
-                        ).length;
-                        const isQuickBusy = busy === `quick:${habit.id}`;
-                        const menuOpen = menuHabitId === habit.id;
+                    <div style={{ border: '1px solid var(--border)' }}>
+                      {members.map((member) => {
+                        const isConfirmingMember =
+                          (confirmation?.action === 'transfer' || confirmation?.action === 'kick') &&
+                          confirmation?.target?.user_id === member.user_id;
                         return (
                           <div
-                            key={habit.id}
+                            key={member.user_id}
                             style={{
-                              position: 'relative',
-                              border: `1px solid ${done ? 'var(--signal)' : 'var(--border)'}`,
-                              backgroundColor: done ? 'var(--surface-2)' : 'var(--surface-1)',
-                              padding: 'var(--space-3)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              flexWrap: 'wrap',
-                              gap: 'var(--space-3)',
+                              padding: 'var(--space-3) var(--space-4)',
+                              borderBottom: '1px solid var(--border)',
+                              display: 'grid',
+                              gap: 'var(--space-2)',
                             }}
                           >
-                            <div style={{ flex: '1 1 180px', minWidth: 0 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                                <StatusMarker status={done ? 'done' : 'missed'} size={10} />
-                                <span style={{ fontWeight: 700, fontSize: '14px' }}>{habit.name}</span>
-                              </div>
-                              <div className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)', marginTop: '4px' }}>
-                                {habit.tracking === 'quantity'
-                                  ? `${currentVal} / ${habit.target} ${habit.unit || ''}`.trim()
-                                  : done
-                                    ? 'Bugün tamamlandı'
-                                    : 'Bugün bekliyor'}
-                                {` · ${doneMembers}/${members.length} üye`}
-                              </div>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                              {habit.tracking === 'check' ? (
-                                <Button
-                                  variant={done ? 'secondary' : 'primary'}
-                                  size="sm"
-                                  disabled={!!busy}
-                                  loading={isQuickBusy}
-                                  onClick={() => quickCheckinToday(habit, 1, done)}
-                                  aria-label={`${habit.name} bugün için ${done ? 'geri al' : 'tamamla'}`}
-                                >
-                                  <Icon icon={Check} size={14} />
-                                  {done ? 'Tamamlandı' : 'Tamamla'}
-                                </Button>
-                              ) : (
-                                <>
-                                  <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    disabled={!!busy}
-                                    loading={isQuickBusy}
-                                    onClick={() => quickCheckinToday(habit, Number((currentVal + 1).toFixed(4)), false)}
-                                    aria-label={`${habit.name} bugünkü kaydı 1 artır`}
-                                  >
-                                    <Icon icon={Plus} size={14} />
-                                    1
+                            <div
+                              style={{
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: 'var(--space-2)',
+                              }}
+                            >
+                              <span style={{ fontSize: '14px', fontWeight: 600 }}>
+                                {member.display_name || 'Üye'}{' '}
+                                <span className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)' }}>
+                                  {member.role === 'owner' ? 'SAHİP' : 'ÜYE'}
+                                </span>
+                              </span>
+                              {isOwner && member.user_id !== user?.id && (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+                                  <Button variant="secondary" size="sm" disabled={!!busy} onClick={() => confirm('transfer', member)}>
+                                    Sahipliği devret
                                   </Button>
-                                  <Button
-                                    variant={done ? 'secondary' : 'primary'}
-                                    size="sm"
-                                    disabled={!!busy}
-                                    onClick={() => openRecord(habit, today)}
-                                    aria-label={`${habit.name} bugünkü miktarı gir`}
-                                  >
-                                    Miktar
+                                  <Button variant="destructive" size="sm" disabled={!!busy} onClick={() => confirm('kick', member)}>
+                                    Çıkar
                                   </Button>
-                                </>
-                              )}
-                              {isOwner && (
-                                <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
-                                  <IconButton
-                                    icon={MoreVertical}
-                                    label={`${habit.name} alışkanlık işlemleri`}
-                                    aria-haspopup="menu"
-                                    aria-expanded={menuOpen}
-                                    disabled={!!busy}
-                                    onClick={() => setMenuHabitId(menuOpen ? null : habit.id)}
-                                  />
-                                  {menuOpen && (
-                                    <div
-                                      role="menu"
-                                      aria-label={`${habit.name} işlemleri`}
-                                      style={{
-                                        position: 'absolute',
-                                        right: 0,
-                                        top: 'calc(100% + 4px)',
-                                        minWidth: '176px',
-                                        zIndex: 40,
-                                        border: '1px solid var(--border-strong)',
-                                        backgroundColor: 'var(--surface-2)',
-                                        display: 'grid',
-                                      }}
-                                    >
-                                      <button
-                                        type="button"
-                                        role="menuitem"
-                                        onClick={() => openEditHabit(habit)}
-                                        style={{
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          gap: 'var(--space-2)',
-                                          minHeight: '44px',
-                                          padding: '0 var(--space-3)',
-                                          background: 'transparent',
-                                          border: 0,
-                                          color: 'var(--fg)',
-                                          fontSize: '13px',
-                                          cursor: 'pointer',
-                                          textAlign: 'left',
-                                        }}
-                                      >
-                                        <Icon icon={Pencil} size={14} />
-                                        Düzenle
-                                      </button>
-                                      <button
-                                        type="button"
-                                        role="menuitem"
-                                        onClick={() => archiveHabit(habit)}
-                                        style={{
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          gap: 'var(--space-2)',
-                                          minHeight: '44px',
-                                          padding: '0 var(--space-3)',
-                                          background: 'transparent',
-                                          border: 0,
-                                          borderTop: '1px solid var(--border)',
-                                          color: 'var(--fg)',
-                                          fontSize: '13px',
-                                          cursor: 'pointer',
-                                          textAlign: 'left',
-                                        }}
-                                      >
-                                        <Icon icon={Archive} size={14} />
-                                        Arşivle
-                                      </button>
-                                      <button
-                                        type="button"
-                                        role="menuitem"
-                                        onClick={() => confirm('delete-habit', habit)}
-                                        style={{
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          gap: 'var(--space-2)',
-                                          minHeight: '44px',
-                                          padding: '0 var(--space-3)',
-                                          background: 'transparent',
-                                          border: 0,
-                                          borderTop: '1px solid var(--border)',
-                                          color: 'var(--danger)',
-                                          fontSize: '13px',
-                                          cursor: 'pointer',
-                                          textAlign: 'left',
-                                        }}
-                                      >
-                                        <Icon icon={Trash2} size={14} />
-                                        Kalıcı sil
-                                      </button>
-                                    </div>
-                                  )}
                                 </div>
                               )}
                             </div>
+                            {isConfirmingMember && renderInlineConfirm()}
                           </div>
                         );
                       })}
                     </div>
-                  )}
 
-                  {archivedHabits.length > 0 && (
-                    <details
-                      style={{
-                        marginTop: 'var(--space-3)',
-                        border: '1px solid var(--border)',
-                        backgroundColor: 'var(--surface-1)',
-                      }}
-                    >
-                      <summary
-                        className="mono"
+                    {archivedHabits.length > 0 && (
+                      <details
                         style={{
-                          padding: 'var(--space-3) var(--space-4)',
-                          fontSize: '12px',
-                          cursor: 'pointer',
-                          textTransform: 'uppercase',
+                          border: '1px solid var(--border)',
+                          backgroundColor: 'var(--surface-1)',
                         }}
                       >
-                        Arşivlenen Alışkanlıklar ({archivedHabits.length})
-                      </summary>
-                      <div style={{ display: 'grid' }}>
-                        {archivedHabits.map((habit) => (
-                          <div
-                            key={habit.id}
-                            style={{
-                              display: 'flex',
-                              flexWrap: 'wrap',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              gap: 'var(--space-2)',
-                              padding: 'var(--space-3) var(--space-4)',
-                              borderTop: '1px solid var(--border)',
-                            }}
-                          >
-                            <div>
-                              <div style={{ fontSize: '14px', fontWeight: 600 }}>{habit.name}</div>
-                              <div className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)' }}>
-                                {habit.tracking === 'quantity'
-                                  ? `${habit.direction === 'at_most' ? 'En fazla' : 'En az'} ${habit.target} ${habit.unit || ''}`.trim()
-                                  : 'İşaretleme'}
-                              </div>
-                            </div>
-                            {isOwner && (
-                              <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-                                <Button
-                                  variant="secondary"
-                                  size="sm"
-                                  disabled={!!busy}
-                                  loading={busy === `restore:${habit.id}`}
-                                  onClick={() => restoreHabit(habit)}
-                                >
-                                  <Icon icon={RotateCcw} size={14} />
-                                  Geri yükle
-                                </Button>
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  disabled={!!busy}
-                                  onClick={() => confirm('delete-habit', habit)}
-                                >
-                                  <Icon icon={Trash2} size={14} />
-                                  Kalıcı sil
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </details>
-                  )}
-                </section>
-
-                <GroupSocialPanel
-                  group={active}
-                  members={members}
-                  habits={habits}
-                  checkins={checkins}
-                  reactions={detail?.reactions || []}
-                  user={user}
-                  anchor={anchor}
-                  weekStart={weekStart}
-                  gamification={gamification}
-                  onRefresh={() => refresh(active.id)}
-                  onSocialRefresh={onSocialRefresh}
-                />
-
-                <section aria-labelledby="group-matrix-title" style={{ marginTop: 'var(--space-6)' }}>
-                  <h3 id="group-matrix-title" style={{ fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 'var(--space-3)' }}>
-                    Haftalık Takip Tablosu
-                  </h3>
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      alignItems: 'center',
-                      gap: 'var(--space-2)',
-                      marginBottom: 'var(--space-3)',
-                    }}
-                  >
-                    <IconButton
-                      icon={ChevronLeft}
-                      label="Önceki hafta"
-                      onClick={() => setAnchor(addDays(anchor, -7))}
-                    />
-                    <span className="mono" style={{ fontSize: '13px', fontWeight: 700 }}>
-                      {dayLabel(days[0])} – {dayLabel(days[6])}
-                    </span>
-                    <IconButton
-                      icon={ChevronRight}
-                      label="Sonraki hafta"
-                      disabled={days[6] >= today}
-                      onClick={() => setAnchor(addDays(anchor, 7))}
-                    />
-                    <Button variant="tertiary" onClick={() => setAnchor(today)}>
-                      Bu hafta
-                    </Button>
-                  </div>
-
-                  <p className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)', marginBottom: 'var(--space-3)' }}>
-                    Geçmiş günleri düzenlemek için kendi satırına dokun. Küçük ekranlarda yatay kaydırabilirsin.
-                  </p>
-
-                {habits.length > 0 && (
-                  <div
-                    className="table-container"
-                    tabIndex={0}
-                    role="region"
-                    aria-label="Haftalık grup takip tablosu"
-                    style={{ width: '100%', overflowX: 'auto', minWidth: 0, maxWidth: '100%', border: '1px solid var(--border)' }}
-                  >
-                    <table className="groups-table">
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--surface-2)' }}>
-                          <th scope="col" className="mono" style={{ padding: 'var(--space-2) var(--space-3)', textAlign: 'left', fontSize: '11px' }}>
-                            ÜYE
-                          </th>
-                          <th scope="col" className="mono" style={{ padding: 'var(--space-2) var(--space-3)', textAlign: 'left', fontSize: '11px' }}>
-                            ALIŞKANLIK
-                          </th>
-                          {days.map((day) => (
-                            <th key={day} scope="col" className="mono" style={{ padding: 'var(--space-2)', textAlign: 'center', fontSize: '11px' }}>
-                              {dayLabel(day)}
-                            </th>
-                          ))}
-                          <th scope="col" className="mono" style={{ padding: 'var(--space-2) var(--space-3)', textAlign: 'right', fontSize: '11px' }}>
-                            ORAN
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {members.flatMap((member) =>
-                          habits.map((habit) => {
-                            const summary = groupWeekSummary(habit, checkins, member.user_id, anchor, weekStart, today);
-                            const isCurrent = member.user_id === user?.id;
+                        <summary
+                          className="mono"
+                          style={{
+                            padding: 'var(--space-3) var(--space-4)',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          Arşivlenen Alışkanlıklar ({archivedHabits.length})
+                        </summary>
+                        <div style={{ display: 'grid' }}>
+                          {archivedHabits.map((habit) => {
+                            const isConfirmingArchivedDelete =
+                              confirmation?.action === 'delete-habit' && confirmation?.target?.id === habit.id;
                             return (
-                              <tr
-                                key={`${member.user_id}-${habit.id}`}
+                              <div
+                                key={habit.id}
                                 style={{
-                                  borderBottom: '1px solid var(--border)',
-                                  backgroundColor: isCurrent ? 'var(--surface-2)' : 'var(--surface-1)',
+                                  padding: 'var(--space-3) var(--space-4)',
+                                  borderTop: '1px solid var(--border)',
+                                  display: 'grid',
+                                  gap: 'var(--space-2)',
                                 }}
                               >
-                                <th
-                                  scope="row"
+                                <div
                                   style={{
-                                    padding: 'var(--space-2) var(--space-3)',
-                                    textAlign: 'left',
-                                    fontSize: '13px',
-                                    color: isCurrent ? 'var(--signal-text)' : 'var(--fg)',
+                                    display: 'flex',
+                                    flexWrap: 'wrap',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    gap: 'var(--space-2)',
                                   }}
                                 >
-                                  {member.display_name || 'Üye'}
-                                  {member.role === 'owner' ? ' (Sahip)' : ''}
-                                </th>
-                                <td className="group-habit-cell" style={{ padding: 'var(--space-2) var(--space-3)', fontSize: '13px' }}>
-                                  <div>{habit.name}</div>
-                                  <div className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)' }}>
-                                    {habit.tracking === 'quantity'
-                                      ? `${habit.direction === 'at_most' ? 'En fazla' : 'En az'} ${habit.target} ${habit.unit || ''}`
-                                      : 'Günlük takip'}
+                                  <div>
+                                    <div style={{ fontSize: '14px', fontWeight: 600 }}>{habit.name}</div>
+                                    <div className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)' }}>
+                                      {habit.tracking === 'quantity'
+                                        ? `${habit.direction === 'at_most' ? 'En fazla' : 'En az'} ${habit.target} ${habit.unit || ''}`.trim()
+                                        : 'İşaretleme'}
+                                    </div>
                                   </div>
-                                </td>
-                                {days.map((day) => {
-                                  const log = latestGroupLog(checkins, habit.id, member.user_id, day);
-                                  const state = groupDayState(habit, log, day, today);
-                                  const done = state === 'Tamamlandı';
-                                  return (
-                                    <td key={day} className="group-day-cell" data-day={dayLabel(day)} style={{ padding: 'var(--space-1)', textAlign: 'center' }}>
-                                      {isCurrent && day <= today ? (
-                                        <button
-                                          type="button"
-                                          disabled={!!busy}
-                                          onClick={() => openRecord(habit, day)}
-                                          aria-label={`${habit.name}, ${dayLabel(day)}: ${state}. Kaydı düzenle`}
-                                          className="mono"
-                                          style={{
-                                            minWidth: '44px',
-                                            minHeight: '44px',
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            border: `1px solid ${done ? 'var(--signal)' : 'var(--border)'}`,
-                                            backgroundColor: done ? 'var(--surface-2)' : 'transparent',
-                                            color: done ? 'var(--signal-text)' : 'var(--fg)',
-                                            fontSize: '12px',
-                                            cursor: 'pointer',
-                                          }}
-                                        >
-                                          {done ? (
-                                            <StatusMarker status="done" />
-                                          ) : log && !log.deleted ? (
-                                            log.value
-                                          ) : (
-                                            <Icon icon={Plus} size={14} />
-                                          )}
-                                        </button>
-                                      ) : (
-                                        <span
-                                          aria-label={`${dayLabel(day)}: ${state}`}
-                                          style={{
-                                            minWidth: '44px',
-                                            minHeight: '44px',
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            color: 'var(--fg-muted)',
-                                          }}
-                                        >
-                                          {done ? (
-                                            <StatusMarker status="done" />
-                                          ) : day > today ? (
-                                            <StatusMarker status="pending" />
-                                          ) : (
-                                            <Icon icon={Minus} size={14} />
-                                          )}
-                                          <span className="sr-only">{state}</span>
-                                        </span>
-                                      )}
-                                    </td>
-                                  );
-                                })}
-                                <td className="mono group-rate-cell" style={{ padding: 'var(--space-2) var(--space-3)', textAlign: 'right', fontSize: '12px' }}>
-                                  {summary.elapsed ? `${summary.completed}/${summary.elapsed} (%${summary.percentage})` : '—'}
-                                </td>
-                              </tr>
+                                  {isOwner && (
+                                    <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+                                      <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        disabled={!!busy}
+                                        loading={busy === `restore:${habit.id}`}
+                                        onClick={() => restoreHabit(habit)}
+                                      >
+                                        <Icon icon={RotateCcw} size={14} />
+                                        Geri yükle
+                                      </Button>
+                                      <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        disabled={!!busy}
+                                        onClick={() => confirm('delete-habit', habit)}
+                                      >
+                                        <Icon icon={Trash2} size={14} />
+                                        Kalıcı sil
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                                {isConfirmingArchivedDelete && renderInlineConfirm()}
+                              </div>
                             );
-                          }),
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-                </section>
+                          })}
+                        </div>
+                      </details>
+                    )}
 
-                <section style={{ marginTop: 'var(--space-6)' }} aria-labelledby="group-members-title">
-                  <h3 id="group-members-title" style={{ fontSize: '16px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Üyeler ve Yönetim
-                  </h3>
-                  <p className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)', marginTop: 'var(--space-1)', marginBottom: 'var(--space-3)' }}>
-                    {isOwner
-                      ? 'Grup sahibi olarak üyeleri ve ortak alışkanlıkları yönetebilirsin.'
-                      : 'Kendi kayıtlarını düzenleyebilirsin. Yönetim işlemleri grup sahibine aittir.'}
-                  </p>
-                  <div style={{ border: '1px solid var(--border)' }}>
-                    {members.map((member) => (
-                      <div
-                        key={member.user_id}
-                        style={{
-                          display: 'flex',
-                          flexWrap: 'wrap',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: 'var(--space-2)',
-                          padding: 'var(--space-3) var(--space-4)',
-                          borderBottom: '1px solid var(--border)',
-                        }}
-                      >
-                        <span style={{ fontSize: '14px', fontWeight: 600 }}>
-                          {member.display_name || 'Üye'}{' '}
-                          <span className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)' }}>
-                            {member.role === 'owner' ? 'SAHİP' : 'ÜYE'}
-                          </span>
-                        </span>
-                        {isOwner && member.user_id !== user?.id && (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-                            <Button variant="secondary" disabled={!!busy} onClick={() => confirm('transfer', member)}>
-                              Sahipliği devret
-                            </Button>
-                            <Button variant="destructive" disabled={!!busy} onClick={() => confirm('kick', member)}>
-                              Çıkar
-                            </Button>
-                          </div>
+                    <div style={{ display: 'grid', gap: 'var(--space-2)', paddingTop: 'var(--space-2)', borderTop: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+                        {isOwner && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            disabled={!!busy}
+                            onClick={() => {
+                              setName(active.name);
+                              setDescription(active.description || '');
+                              openPage('edit');
+                            }}
+                          >
+                            Grubu düzenle
+                          </Button>
+                        )}
+                        <Button variant="tertiary" size="sm" disabled={!!busy} onClick={() => confirm('leave')}>
+                          Gruptan ayrıl
+                        </Button>
+                        {isOwner && (
+                          <Button variant="destructive" size="sm" disabled={!!busy} onClick={() => confirm('delete')}>
+                            Grubu sil
+                          </Button>
                         )}
                       </div>
-                    ))}
-                  </div>
-
-                  {isOwner && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginTop: 'var(--space-4)' }}>
-                      <Button
-                        variant="primary"
-                        disabled={!!busy}
-                        onClick={() => {
-                          setDraft(blankHabit());
-                          openPage('habit');
-                        }}
-                      >
-                        Ortak alışkanlık ekle
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        disabled={!!busy}
-                        onClick={() => {
-                          setName(active.name);
-                          setDescription(active.description || '');
-                          openPage('edit');
-                        }}
-                      >
-                        Grubu düzenle
-                      </Button>
-                      <Button variant="destructive" disabled={!!busy} onClick={() => confirm('delete')}>
-                        Grubu sil
-                      </Button>
+                      {(confirmation?.action === 'leave' || confirmation?.action === 'delete') && renderInlineConfirm()}
                     </div>
-                  )}
-                </section>
+                  </section>
+                )}
               </>
             )}
           </div>
         )}
       </div>
-
-      <Modal open={modal === 'record' && Boolean(record)} title={record ? `${record.habit.name}` : ''} onClose={close}>
-        {record && (
-          <form onSubmit={saveRecord} aria-busy={!!busy}>
-            <fieldset disabled={!!busy} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: 'grid', gap: 'var(--space-3)' }}>
-              {error && <InlineFeedback message={error} tone="danger" />}
-              <p className="mono" style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>
-                {dayLabel(record.day)} / Kendi kaydını düzenliyorsun
-              </p>
-              {record.serverValue !== undefined && (
-                <InlineFeedback
-                  message={`Sunucu değeri: ${record.serverValue === null ? 'Yok' : record.serverValue}. Girdiğin değer korunuyor.`}
-                  tone="neutral"
-                />
-              )}
-              {record.conflict && (
-                <Button variant="secondary" onClick={refreshRecordVersion} disabled={!!busy}>
-                  Güncel kaydı yükle
-                </Button>
-              )}
-              {record.habit.tracking === 'check' ? (
-                <FormField label="Tamamlama Durumu" htmlFor="group-record-check">
-                  <Select
-                    id="group-record-check"
-                    value={record.value ? 1 : 0}
-                    onChange={(e) => setRecord({ ...record, value: Number(e.target.value), key: token() })}
-                    options={[
-                      { value: 0, label: 'Tamamlanmadı' },
-                      { value: 1, label: 'Tamamlandı' },
-                    ]}
-                  />
-                </FormField>
-              ) : (
-                <FormField label={`Miktar (${record.habit.unit || 'birim'})`} htmlFor="group-record-amount">
-                  <TextInput
-                    id="group-record-amount"
-                    type="text"
-                    inputMode="decimal"
-                    pattern="[0-9.,]*"
-                    required
-                    value={record.value}
-                    onChange={(e) => setRecord({ ...record, value: e.target.value, key: token() })}
-                  />
-                </FormField>
-              )}
-              <p className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)' }}>
-                {record.habit.direction === 'at_most'
-                  ? 'Hedef ve altındaki değerler (sıfır dahil) tamamlandı sayılır.'
-                  : 'Hedefe ulaşmak günü tamamlar.'}
-              </p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
-                <Button variant="secondary" disabled={!!busy} onClick={close}>
-                  İptal
-                </Button>
-                {record.hasRecord && (
-                  <Button
-                    variant="destructive"
-                    disabled={!!busy || record.conflict}
-                    onClick={() => saveRecord(null, true)}
-                  >
-                    Kaldır
-                  </Button>
-                )}
-                <Button type="submit" variant="primary" loading={Boolean(busy)} disabled={!!busy || record.conflict}>
-                  Kaydı kaydet
-                </Button>
-              </div>
-            </fieldset>
-          </form>
-        )}
-      </Modal>
-
-      <Modal open={modal === 'invite'} title="Üye Davet Et" onClose={close}>
-        <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
-          <p style={{ fontSize: '13px', color: 'var(--fg-muted)' }}>
-            Bu bağlantıya sahip olan herkes grubu önizleyebilir ve katılabilir. 7 gün geçerlidir.
-          </p>
-          {busy && <InlineFeedback message="Davet bağlantısı oluşturuluyor..." />}
-          {error && <InlineFeedback message={error} tone="danger" />}
-          {error && !link && (
-            <Button variant="secondary" onClick={inviteLink} disabled={!!busy}>
-              Yeniden dene
-            </Button>
-          )}
-          <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-            <TextInput
-              aria-label="Davet bağlantısı"
-              readOnly
-              value={link}
-              onFocus={(e) => e.target.select()}
-              style={{ flex: 1, minWidth: 0 }}
-            />
-            <Button variant="primary" disabled={!link || !!busy} onClick={copyLink}>
-              <Icon icon={copied ? Check : Copy} size={16} />
-              {copied ? 'Kopyalandı' : 'Kopyala'}
-            </Button>
-          </div>
-          {copied && <InlineFeedback message="Davet bağlantısı kopyalandı." tone="signal" />}
-        </div>
-      </Modal>
-
-      <Modal open={modal === 'accept' && Boolean(invite)} title={invite ? `"${invite.group_name}" Grubuna Katıl` : ''} onClose={close}>
-        {invite && (
-          <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
-            <p style={{ fontSize: '14px' }}>
-              {invite.inviter_display || invite.inviter_name || 'Bir üye'} seni bu gruba davet etti.
-            </p>
-            {invite.group_description && (
-              <p style={{ fontSize: '13px', color: 'var(--fg-muted)' }}>{invite.group_description}</p>
-            )}
-            {error && <InlineFeedback message={error} tone="danger" />}
-            {!user && (
-              <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
-                <InlineFeedback message="Katılmak için giriş yap. Davet bağlantın korunuyor." />
-                <Button
-                  variant="primary"
-                  disabled={!!busy}
-                  onClick={() => {
-                    setModal(null);
-                    onRequireAuth?.();
-                  }}
-                >
-                  Giriş yap
-                </Button>
-              </div>
-            )}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-              <Button variant="secondary" disabled={!!busy} onClick={close}>
-                İptal
-              </Button>
-              {user && (
-                <Button variant="tertiary" disabled={!!busy} onClick={declineInvite}>
-                  Reddet
-                </Button>
-              )}
-              <Button variant="primary" disabled={!!busy || !user} loading={Boolean(busy)} onClick={acceptInvite}>
-                Gruba katıl
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      <Modal
-        open={modal === 'confirm' && Boolean(confirmation)}
-        title={
-          confirmation?.action === 'delete'
-            ? 'Grubu Sil'
-            : confirmation?.action === 'delete-habit'
-              ? 'Ortak Alışkanlığı Kalıcı Sil'
-              : confirmation?.action === 'leave'
-                ? 'Gruptan Ayrıl'
-                : confirmation?.action === 'transfer'
-                  ? 'Sahipliği Devret'
-                  : 'Üyeyi Çıkar'
-        }
-        onClose={close}
-      >
-        {confirmation && (
-          <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
-            <p style={{ fontSize: '14px', color: 'var(--fg-muted)' }}>{confirmText}</p>
-            {error && <InlineFeedback message={error} tone="danger" />}
-            {destructive && (
-              <FormField label={`Onaylamak için grup adını yaz: ${active?.name}`} htmlFor="confirm-group-name">
-                <TextInput
-                  id="confirm-group-name"
-                  disabled={!!busy}
-                  value={confirmName}
-                  onChange={(e) => setConfirmName(e.target.value)}
-                  autoComplete="off"
-                />
-              </FormField>
-            )}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-              <Button variant="secondary" disabled={!!busy} onClick={close}>
-                İptal
-              </Button>
-              {confirmation.action === 'delete-habit' && !confirmation.target?.archived_at && (
-                <Button
-                  variant="secondary"
-                  disabled={!!busy}
-                  onClick={() => {
-                    const targetHabit = confirmation.target;
-                    setModal(null);
-                    setConfirmation(null);
-                    archiveHabit(targetHabit);
-                  }}
-                >
-                  Bunun yerine arşivle
-                </Button>
-              )}
-              <Button
-                variant={destructive || confirmation.action === 'kick' || confirmation.action === 'delete-habit' ? 'destructive' : 'primary'}
-                disabled={!!busy || (destructive && confirmName !== active?.name)}
-                loading={Boolean(busy)}
-                onClick={confirmAction}
-              >
-                {confirmation.action === 'delete-habit' ? 'Kalıcı olarak sil' : 'Onayla'}
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
     </section>
   );
 }
