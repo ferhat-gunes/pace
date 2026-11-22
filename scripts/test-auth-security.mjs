@@ -197,3 +197,200 @@ test('Backup & Restore: JSON data import validates structure and upserts habits 
   assert.equal(res.habits_count, 2);
   assert.equal(res.checkins_count, 2);
 });
+
+import { DatabaseSync } from 'node:sqlite';
+import { readFileSync } from 'node:fs';
+import { onRequest } from '../functions/api/[[path]].js';
+import { hmac } from '../functions/lib/auth.js';
+
+const AUTH_TEST_MIGRATIONS = [
+  '0001_initial.sql',
+  '0002_password_accounts.sql',
+  '0003_checkin_tombstones.sql',
+  '0004_groups_and_social.sql',
+  '0005_social_reactions_and_gamification.sql',
+  '0006_web_push.sql',
+  '0007_unified_habits_and_usernames.sql',
+];
+
+function createRealApiEnv() {
+  const db = new DatabaseSync(':memory:');
+  db.exec('PRAGMA foreign_keys = ON;');
+  for (const file of AUTH_TEST_MIGRATIONS) {
+    db.exec(readFileSync(new URL(`../migrations/${file}`, import.meta.url), 'utf8'));
+  }
+  const statement = (sql, args = []) => ({
+    bind(...a) { return statement(sql, a); },
+    async first() { return db.prepare(sql).get(...args) ?? null; },
+    async all() { return { results: db.prepare(sql).all(...args) }; },
+    async run() {
+      const r = db.prepare(sql).run(...args);
+      return { meta: { changes: Number(r.changes) } };
+    },
+  });
+  return {
+    db,
+    env: {
+      AUTH_SECRET: 'test-auth-secret-native-bearer',
+      DB: {
+        prepare: sql => statement(sql),
+        async batch(stmts) {
+          db.exec('BEGIN');
+          try {
+            const out = [];
+            for (const s of stmts) out.push(await s.run());
+            db.exec('COMMIT');
+            return out;
+          } catch (err) {
+            db.exec('ROLLBACK');
+            throw err;
+          }
+        },
+      },
+    },
+  };
+}
+
+async function callRealApi(env, path, { method = 'GET', token = null, cookie = null, body = null } = {}) {
+  const headers = { Origin: 'https://pace.test' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (cookie) headers.Cookie = cookie;
+  if (body !== null) headers['Content-Type'] = 'application/json';
+  const request = new Request(`https://pace.test/api/${path}`, {
+    method,
+    headers,
+    body: body !== null ? JSON.stringify(body) : undefined,
+  });
+  const response = await onRequest({ request, env, params: { path: path.split('/') } });
+  const data = await response.json().catch(() => null);
+  return { status: response.status, headers: response.headers, data };
+}
+
+test('Real API: POST /api/auth/verify-code returns token in JSON AND Set-Cookie, and Bearer token authenticates GET /api/auth/me', async () => {
+  const { db, env } = createRealApiEnv();
+  const email = 'native-code@pace.app';
+  const code = '482910';
+  const codeHash = await hmac(env.AUTH_SECRET, `${email}:${code}`);
+  const now = new Date().toISOString();
+  const expires = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  db.prepare(
+    'INSERT INTO login_codes(id, email, code_hash, expires_at, created_at, request_key) VALUES(?,?,?,?,?,?)'
+  ).run(crypto.randomUUID(), email, codeHash, expires, now, crypto.randomUUID());
+
+  const verify = await callRealApi(env, 'auth/verify-code', {
+    method: 'POST',
+    body: { email, code },
+  });
+  assert.equal(verify.status, 200);
+  assert.equal(verify.data.ok, true);
+  assert.equal(typeof verify.data.token, 'string');
+  assert.ok(verify.data.token.length >= 32, 'verify-code must return session token in JSON body');
+  assert.ok((verify.headers.get('Set-Cookie') || '').includes('__Host-pace_session='), 'verify-code must preserve Set-Cookie');
+
+  const me = await callRealApi(env, 'auth/me', {
+    method: 'GET',
+    token: verify.data.token,
+  });
+  assert.equal(me.status, 200);
+  assert.equal(me.data.ok, true);
+  assert.equal(me.data.user.email, email);
+});
+
+test('Real API: POST /api/auth/logout with Authorization Bearer revokes session in DB so GET /api/auth/me fails with 401', async () => {
+  const { db, env } = createRealApiEnv();
+  const reg = await callRealApi(env, 'auth/register', {
+    method: 'POST',
+    body: { email: 'native-logout@pace.app', password: 'StrongPassword2026!' },
+  });
+  assert.equal(reg.status, 200);
+  const token = reg.data.token;
+  assert.ok(token);
+
+  const meBefore = await callRealApi(env, 'auth/me', { method: 'GET', token });
+  assert.equal(meBefore.status, 200);
+
+  const sessionsBefore = db.prepare('SELECT COUNT(*) AS cnt FROM sessions').get().cnt;
+  assert.equal(sessionsBefore, 1);
+
+  const logout = await callRealApi(env, 'auth/logout', { method: 'POST', token });
+  assert.equal(logout.status, 200);
+  assert.equal(logout.data.ok, true);
+  assert.ok((logout.headers.get('Set-Cookie') || '').includes('Max-Age=0'));
+
+  const sessionsAfter = db.prepare('SELECT COUNT(*) AS cnt FROM sessions').get().cnt;
+  assert.equal(sessionsAfter, 0, 'Bearer logout must delete session from sessions table');
+
+  const meAfter = await callRealApi(env, 'auth/me', { method: 'GET', token });
+  assert.equal(meAfter.status, 401);
+});
+
+test('Real API: POST /api/auth/logout revokes Bearer session even when a stale Cookie is also present', async () => {
+  const { db, env } = createRealApiEnv();
+  const reg = await callRealApi(env, 'auth/register', {
+    method: 'POST',
+    body: { email: 'dual-logout@pace.app', password: 'StrongPassword2026!' },
+  });
+  assert.equal(reg.status, 200);
+  const bearerToken = reg.data.token;
+  assert.ok(bearerToken);
+
+  const meBefore = await callRealApi(env, 'auth/me', { method: 'GET', token: bearerToken });
+  assert.equal(meBefore.status, 200);
+
+  const logout = await callRealApi(env, 'auth/logout', {
+    method: 'POST',
+    token: bearerToken,
+    cookie: '__Host-pace_session=stale-or-different-cookie-token',
+  });
+  assert.equal(logout.status, 200);
+  assert.equal(logout.data.ok, true);
+
+  const sessionsAfter = db.prepare('SELECT COUNT(*) AS cnt FROM sessions').get().cnt;
+  assert.equal(sessionsAfter, 0, 'Bearer session must be revoked even when Cookie header is also sent');
+
+  const meAfter = await callRealApi(env, 'auth/me', { method: 'GET', token: bearerToken });
+  assert.equal(meAfter.status, 401);
+});
+
+test('Real API: POST /api/import upserts habit_participants owner row for imported habits', async () => {
+  const { db, env } = createRealApiEnv();
+  const reg = await callRealApi(env, 'auth/register', {
+    method: 'POST',
+    body: { email: 'import-owner@pace.app', password: 'StrongPassword2026!' },
+  });
+  assert.equal(reg.status, 200);
+  const token = reg.data.token;
+  const userId = reg.data.user.id;
+
+  const imp = await callRealApi(env, 'import', {
+    method: 'POST',
+    token,
+    body: {
+      week_start: 1,
+      habits: [
+        {
+          id: 'imp_habit_1',
+          name: 'Imported Habit',
+          tracking: 'check',
+          direction: 'at_least',
+          target: 1,
+          schedule: { type: 'daily', days: [], times_per_week: null },
+          progression: { enabled: false, step: 0, cap: null },
+          debt: { enabled: false, cap: null },
+          start_date: '2026-11-01',
+          versions: [],
+        },
+      ],
+      checkins: [],
+    },
+  });
+  assert.equal(imp.status, 200);
+  assert.equal(imp.data.ok, true);
+
+  const participant = db
+    .prepare('SELECT role FROM habit_participants WHERE habit_id = ? AND user_id = ?')
+    .get('imp_habit_1', userId);
+  assert.ok(participant, 'importData must insert habit_participants row');
+  assert.equal(participant.role, 'owner');
+});
+
