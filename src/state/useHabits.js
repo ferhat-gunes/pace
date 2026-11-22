@@ -13,8 +13,8 @@ export function useHabits() {
   const [selectedDate, setSelectedDate] = useState(dateKey);
   const [habits, setHabits] = useState([]);
   const [snapshot, setSnapshot] = useState(emptySnapshot);
-  const [groups, setGroups] = useState([]);
-  const [groupsError, setGroupsError] = useState('');
+  const [participantCheckins, setParticipantCheckins] = useState([]);
+  const [inviteInbox, setInviteInbox] = useState([]);
   const [user, setUserState] = useState(null);
   const [guestMode,setGuestMode]=useState(false);
   const [authRequired,setAuthRequired]=useState(false);
@@ -61,7 +61,7 @@ export function useHabits() {
       habitMutationVersion.current = 0;
       preferencesVersion.current++;
       mutationChains.current.clear();
-      setHabits([]); setSnapshot(emptySnapshot()); setGroups([]); setLastArchivedHabit(null);
+      setHabits([]); setSnapshot(emptySnapshot()); setParticipantCheckins([]); setInviteInbox([]); setLastArchivedHabit(null);
       setStorageError('');setServerGamification(null);
     }
     account.current = next;
@@ -87,11 +87,26 @@ export function useHabits() {
     return created;
   }, [publish]);
 
+  const refreshInviteInbox = useCallback(async () => {
+    if (!account.current?.id || account.current?.is_guest) {
+      if (mounted.current) setInviteInbox([]);
+      return [];
+    }
+    try {
+      const result = await api.getInviteInbox();
+      if (mounted.current && Array.isArray(result?.invites)) {
+        setInviteInbox(result.invites);
+        return result.invites;
+      }
+    } catch { /* ignore transient inbox errors */ }
+    return [];
+  }, []);
+
   const loadData = useCallback(async () => {
     let ticket = guard.current.begin();
     const started = habitMutationVersion.current;
     let preferenceAtStart = preferencesVersion.current;
-    setLoadError(null); setGroupsError('');
+    setLoadError(null);
     setSyncState('Yükleniyor…');
     try {
       const data = await api.request('habits');
@@ -108,6 +123,7 @@ export function useHabits() {
       const nextHabits = data.habits.filter(h => !protectedIds.has(h.id));
       nextHabits.push(...habitsRef.current.filter(h => protectedIds.has(h.id)));
       habitsRef.current = nextHabits; setHabits(nextHabits);
+      setParticipantCheckins(Array.isArray(data.participant_checkins) ? data.participant_checkins : []);
       const first = Number(data.user.week_start ?? data.week_start) === 0 ? 0 : 1;
       if (preferencesVersion.current === preferenceAtStart) { preferredWeek.current = first; setWeekStart(first); }
       account.current = { ...data.user, week_start: preferredWeek.current }; setUserState(account.current);
@@ -115,22 +131,14 @@ export function useHabits() {
       try {
         if (cacheEnabled.current) storage()?.setItem(accountStorageKey('cache', data.user.id), JSON.stringify({ user_id: data.user.id, habits: nextHabits, checkins: active.snapshot().records, week_start: preferredWeek.current }));
       } catch { setStorageError('Tarayıcı yerel kopyayı saklayamadı. Sunucudaki kayıtların etkilenmedi.'); }
-      try {
-        const result = await api.request('groups');
-        if (!guard.current.isCurrent(ticket) || !mounted.current) return false;
-        if (!Array.isArray(result?.groups)) throw new Error('Sunucu grup listesini doğrulamadı.');
-        setGroups(result.groups);
-      } catch (err) {
-        if (!guard.current.isCurrent(ticket) || !mounted.current) return false;
-        setGroupsError(err.message || 'Gruplar yüklenemedi.');
-      }
+      void refreshInviteInbox();
       if (!active.snapshot().pendingEntries.length) setSyncState('Güncel');
       return true;
     } catch (err) {
       if (!guard.current.isCurrent(ticket) || !mounted.current) return false;
       if (err.status === 401) {
         const data=readGuest();setUser({...GUEST_USER,week_start:data.week_start});setAuthRequired(true);
-        ticket=guard.current.begin();habitsRef.current=data.habits;setHabits(data.habits);setWeekStart(data.week_start);preferredWeek.current=data.week_start;openEngine(data.checkins);setGroups([]);setSyncState('Cihazda kaydedildi');
+        ticket=guard.current.begin();habitsRef.current=data.habits;setHabits(data.habits);setParticipantCheckins([]);setInviteInbox([]);setWeekStart(data.week_start);preferredWeek.current=data.week_start;openEngine(data.checkins);setSyncState('Cihazda kaydedildi');
       }
       else {
         // An offline cache is usable only after this tab has positively identified its account.
@@ -148,7 +156,7 @@ export function useHabits() {
       setLoadError({ message: err.message || 'Veriler yüklenemedi.', unauthorized: err.status === 401 });
       return false;
     } finally { if (mounted.current && (guard.current.isCurrent(ticket) || !account.current)) setLoading(false); }
-  }, [openEngine, setUser]);
+  }, [openEngine, refreshInviteInbox, setUser]);
   refreshRef.current = loadData;
 
   useEffect(() => {
@@ -247,15 +255,116 @@ export function useHabits() {
     } catch (err) { if (account.current?.id === owner && sessionEpoch.current === epoch) setSyncState('Kaydedilemedi: ' + err.message); throw err; }
   }), [serialize]);
   const togglePause = useCallback(habit => updateHabit(habit.id, { paused: !habit.paused, effective_from: dateKey() }), [updateHabit]);
-  const archiveHabit = useCallback(async id => {
+
+  const applyHabitLifecycleLocal = useCallback((id, patch) => {
+    const effective = dateKey();
     const original = habitsRef.current.find(h => h.id === id);
-    const result = await updateHabit(id, { archived_at: new Date().toISOString(), effective_from: dateKey() });
-    setLastArchivedHabit(original); return result;
-  }, [updateHabit]);
-  const restoreHabit = useCallback(async id => {
-    const result = await updateHabit(id, { archived_at: null, paused: false, effective_from: dateKey() });
-    setLastArchivedHabit(null); return result;
-  }, [updateHabit]);
+    if (!original) return null;
+    const atEffective = { ...settingsAt(original, effective), ...patch };
+    const settings = { name: atEffective.name, tracking: atEffective.tracking, direction: atEffective.direction, unit: atEffective.unit, target: atEffective.target, schedule: atEffective.schedule, progression: atEffective.progression, debt: atEffective.debt, paused: Boolean(atEffective.paused), archived_at: atEffective.archived_at ?? null };
+    const baseline = original.versions?.length ? original.versions : [{ effective_from: original.start_date || effective, settings: { ...original, paused: Boolean(original.paused), archived_at: original.archived_at ?? null } }];
+    const versions = baseline.filter(v => v.effective_from !== effective);
+    versions.push({ effective_from: effective, settings });
+    versions.sort((a, b) => a.effective_from.localeCompare(b.effective_from));
+    const updated = { ...original, ...settingsAt({ ...original, versions }, effective), versions, updated_at: new Date().toISOString() };
+    habitChanges.current.set(id, ++habitMutationVersion.current);
+    habitsRef.current = habitsRef.current.map(h => h.id === id ? updated : h);
+    setHabits(habitsRef.current);
+    return updated;
+  }, []);
+
+  const archiveHabit = useCallback(id => serialize(`habit:${id}`, async (owner, epoch) => {
+    setSyncState('Kaydediliyor…');
+    try {
+      const original = habitsRef.current.find(h => h.id === id);
+      const effective = dateKey();
+      const result = await accountRequest(`habits/${encodeURIComponent(id)}/archive`, { method: 'POST', body: JSON.stringify({ effective_from: effective }) });
+      requireOk(result);
+      if (account.current?.id !== owner || sessionEpoch.current !== epoch) return;
+      const updated = applyHabitLifecycleLocal(id, { archived_at: result.archived_at || new Date().toISOString(), paused: false });
+      setLastArchivedHabit(original || updated);
+      setSyncState('Kaydedildi');
+      return updated;
+    } catch (err) { if (account.current?.id === owner && sessionEpoch.current === epoch) setSyncState('Arşivlenemedi: ' + err.message); throw err; }
+  }), [applyHabitLifecycleLocal, serialize]);
+
+  const restoreHabit = useCallback(id => serialize(`habit:${id}`, async (owner, epoch) => {
+    setSyncState('Kaydediliyor…');
+    try {
+      const effective = dateKey();
+      const result = await accountRequest(`habits/${encodeURIComponent(id)}/restore`, { method: 'POST', body: JSON.stringify({ effective_from: effective }) });
+      requireOk(result);
+      if (account.current?.id !== owner || sessionEpoch.current !== epoch) return;
+      const updated = applyHabitLifecycleLocal(id, { archived_at: null, paused: false });
+      setLastArchivedHabit(null);
+      setSyncState('Kaydedildi');
+      return updated;
+    } catch (err) { if (account.current?.id === owner && sessionEpoch.current === epoch) setSyncState('Geri yüklenemedi: ' + err.message); throw err; }
+  }), [applyHabitLifecycleLocal, serialize]);
+
+  const deleteHabit = useCallback(id => serialize(`habit:${id}`, async (owner, epoch) => {
+    setSyncState('Kaydediliyor…');
+    try {
+      const result = await accountRequest(`habits/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      requireOk(result);
+      if (account.current?.id !== owner || sessionEpoch.current !== epoch) return;
+      habitChanges.current.set(id, ++habitMutationVersion.current);
+      habitsRef.current = habitsRef.current.filter(h => h.id !== id);
+      setHabits(habitsRef.current);
+      setParticipantCheckins(prev => prev.filter(c => c.habit_id !== id));
+      setSyncState('Kaydedildi');
+      return result;
+    } catch (err) { if (account.current?.id === owner && sessionEpoch.current === epoch) setSyncState('Kaydedilemedi: ' + err.message); throw err; }
+  }), [serialize]);
+
+  const leaveHabit = useCallback(id => serialize(`habit:${id}`, async (owner, epoch) => {
+    setSyncState('Kaydediliyor…');
+    try {
+      const result = await api.leaveHabit(id);
+      requireOk(result);
+      if (account.current?.id !== owner || sessionEpoch.current !== epoch) return;
+      habitChanges.current.set(id, ++habitMutationVersion.current);
+      habitsRef.current = habitsRef.current.filter(h => h.id !== id);
+      setHabits(habitsRef.current);
+      setParticipantCheckins(prev => prev.filter(c => c.habit_id !== id));
+      setSyncState('Kaydedildi');
+      return result;
+    } catch (err) { if (account.current?.id === owner && sessionEpoch.current === epoch) setSyncState('Kaydedilemedi: ' + err.message); throw err; }
+  }), [serialize]);
+
+  const removeParticipant = useCallback((habitId, userId) => serialize(`habit:${habitId}`, async (owner, epoch) => {
+    setSyncState('Kaydediliyor…');
+    try {
+      const result = await api.removeParticipant(habitId, userId);
+      requireOk(result);
+      if (account.current?.id !== owner || sessionEpoch.current !== epoch) return;
+      habitsRef.current = habitsRef.current.map(h => {
+        if (h.id !== habitId) return h;
+        const participants = (h.participants || []).filter(p => p.user_id !== userId);
+        return { ...h, participants, participant_count: participants.length };
+      });
+      setHabits(habitsRef.current);
+      setParticipantCheckins(prev => prev.filter(c => !(c.habit_id === habitId && c.user_id === userId)));
+      setSyncState('Kaydedildi');
+      return result;
+    } catch (err) { if (account.current?.id === owner && sessionEpoch.current === epoch) setSyncState('Kaydedilemedi: ' + err.message); throw err; }
+  }), [serialize]);
+
+  const updateUsername = useCallback(username => serialize('username', async (owner, epoch) => {
+    const result = await api.setUsername(username);
+    requireOk(result);
+    if (account.current?.id === owner && sessionEpoch.current === epoch) {
+      const nextUsername = result.username;
+      account.current = { ...account.current, username: nextUsername };
+      setUserState(account.current);
+      habitsRef.current = habitsRef.current.map(h => ({
+        ...h,
+        participants: (h.participants || []).map(p => p.user_id === owner ? { ...p, username: nextUsername } : p),
+      }));
+      setHabits(habitsRef.current);
+    }
+    return result;
+  }), [serialize]);
 
   const updateWeekStart = useCallback(value => {
     const ownerAtCall = account.current?.id, epochAtCall = sessionEpoch.current;
@@ -308,5 +417,5 @@ export function useHabits() {
     const completed = todayHabits.filter(h => stateFor(h, selectedDate, checkins, weekStart).status === 'done').length;
     return { completed, total: todayHabits.length, percentage: todayHabits.length ? Math.round(100 * completed / todayHabits.length) : 0 };
   }, [todayHabits, checkins, selectedDate, weekStart]);
-  return { guestMode,authRequired,setAuthRequired,serverGamification,migrateGuestToCloud,guestBackup,guestDraftCount:readGuest().habits.length,confirmedCheckins:snapshot.records,checkinErrors,clearCheckinError:()=>{},togglePauseHabit:togglePause, habits, checkins, groups, groupsError, user, setUser, weekStart, updateWeekStart, loading, syncState, loadError, storageError, selectedDate, setSelectedDate, today, filterMode, setFilterMode, todayHabits, completionStats, logCheckin, addHabit, updateHabit, togglePause, archiveHabit, restoreHabit, lastArchivedHabit, setLastArchivedHabit, importBackup, loadData, entryStates: snapshot.entryStates, pendingEntries: snapshot.pendingEntries, retryEntry, undoEntry, clearLocalData };
+  return { guestMode,authRequired,setAuthRequired,serverGamification,migrateGuestToCloud,guestBackup,guestDraftCount:readGuest().habits.length,confirmedCheckins:snapshot.records,checkinErrors,clearCheckinError:()=>{},togglePauseHabit:togglePause, habits, checkins, participantCheckins, inviteInbox, refreshInviteInbox, user, setUser, weekStart, updateWeekStart, loading, syncState, loadError, storageError, selectedDate, setSelectedDate, today, filterMode, setFilterMode, todayHabits, completionStats, logCheckin, addHabit, updateHabit, togglePause, archiveHabit, restoreHabit, deleteHabit, leaveHabit, removeParticipant, updateUsername, lastArchivedHabit, setLastArchivedHabit, importBackup, loadData, entryStates: snapshot.entryStates, pendingEntries: snapshot.pendingEntries, retryEntry, undoEntry, clearLocalData };
 }

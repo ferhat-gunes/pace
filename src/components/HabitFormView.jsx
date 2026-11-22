@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Pause, Play, Archive, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Pause, Play, Archive, RotateCcw, UserPlus } from 'lucide-react';
 import { describeHabitRules } from '../lib/habit-form.js';
 import { dateKey, settingsAt } from '../lib/rules.js';
 import { buildHabitPayload, initialHabitValues } from './habit-form-model.js';
@@ -29,6 +29,9 @@ export default function HabitFormView({
   onTogglePause,
   onArchiveHabit,
   onRestoreHabit,
+  onInviteHabit,
+  user = null,
+  guestMode = false,
   habit = null,
   initialDate = dateKey(),
 }) {
@@ -40,6 +43,7 @@ export default function HabitFormView({
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [createdHabit, setCreatedHabit] = useState(null);
   const formRef = useRef(null);
   const closePromptRef = useRef(null);
   const submitLock = useRef(false);
@@ -59,12 +63,13 @@ export default function HabitFormView({
     setConfirmArchive(false);
     setActionBusy(false);
     setActionError('');
+    setCreatedHabit(null);
     submitLock.current = false;
   }, [habit?.id, initialDate]);
 
   const requestBack = () => {
     if (submitLock.current || actionBusy) return;
-    if (dirty) setConfirmClose(true);
+    if (dirty && !createdHabit) setConfirmClose(true);
     else onBack?.();
   };
 
@@ -116,7 +121,11 @@ export default function HabitFormView({
       const result = editing ? await save(habit.id, payload) : await save(payload);
       if (result === false || result?.success === false) throw new Error(result?.error || 'Alışkanlık kaydedilemedi.');
       setDirty(false);
-      onBack?.();
+      if (!editing && result?.id && user && !guestMode && typeof onInviteHabit === 'function') {
+        setCreatedHabit(result);
+      } else {
+        onBack?.();
+      }
     } catch (err) {
       setError({ message: err.message || 'Alışkanlık kaydedilemedi. Lütfen yeniden dene.' });
     } finally {
@@ -142,6 +151,34 @@ export default function HabitFormView({
       setActionBusy(false);
     }
   };
+
+  if (createdHabit) {
+    return (
+      <section className="page-view" id="view-habit-form" aria-labelledby="habit-form-title">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', maxWidth: 520 }}>
+          <h1 id="habit-form-title" style={{ margin: 0 }}>
+            Alışkanlık oluşturuldu
+          </h1>
+          <InlineFeedback tone="neutral">
+            <strong>{createdHabit.name}</strong> planına eklendi. İstersen arkadaşlarını davet ederek birlikte takip edebilirsin.
+          </InlineFeedback>
+          <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+            <Button
+              type="button"
+              variant="primary"
+              onClick={() => onInviteHabit?.(createdHabit)}
+            >
+              <UserPlus size={16} strokeWidth={1.5} aria-hidden="true" />
+              <span>Arkadaş Davet Et</span>
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => onBack?.()}>
+              Tek Başına Devam Et
+            </Button>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="page-view" id="view-habit-form" aria-labelledby="habit-form-title">

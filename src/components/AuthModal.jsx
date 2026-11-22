@@ -14,6 +14,7 @@ export default function AuthModal({
 }) {
   const [mode, setMode] = useState(initialMode);
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [recoveryCode, setRecoveryCode] = useState('');
   const [generatedCode, setGeneratedCode] = useState('');
@@ -109,13 +110,19 @@ export default function AuthModal({
     controllerRef.current = controller;
     try {
       const endpoint = action === 'code' ? (codeSent ? 'verify-code' : 'request-code') : action;
+      const cleanedUsername = username.trim().replace(/^@+/, '').toLowerCase();
       const payload = await api.request(`auth/${endpoint}`, {
         method: 'POST',
         signal: controller.signal,
         body: JSON.stringify(
           action === 'code'
             ? { email: email.trim(), ...(codeSent ? { code: emailCode.trim() } : {}) }
-            : { email: email.trim(), password, ...(action === 'recover' ? { recovery_code: recoveryCode.trim() } : {}) }
+            : {
+                email: email.trim(),
+                password,
+                ...(action === 'register' && cleanedUsername ? { username: cleanedUsername } : {}),
+                ...(action === 'recover' ? { recovery_code: recoveryCode.trim() } : {}),
+              }
         ),
       });
       if (!mountedRef.current || controller.signal.aborted) return;
@@ -323,6 +330,23 @@ export default function AuthModal({
                   placeholder="ornek@email.com"
                   aria-describedby={errorMsg ? 'auth-error' : undefined}
                 />
+
+                {mode === 'register' && (
+                  <TextInput
+                    id="auth-username"
+                    name="username"
+                    type="text"
+                    label="@kullanıcıadı (isteğe bağlı)"
+                    value={username}
+                    onChange={(event) => setUsername(event.target.value)}
+                    autoComplete="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    maxLength={25}
+                    placeholder="ornek.kullanici"
+                    help="3–24 karakter: küçük harf, rakam, nokta ve alt çizgi. İstersen daha sonra da belirleyebilirsin."
+                  />
+                )}
 
                 {mode === 'code' && codeSent && (
                   <TextInput

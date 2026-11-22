@@ -1,32 +1,204 @@
 flowchart TD
-    Start(["HabitsView (#/habits) or TodayView CTA"]) --> Action{"Select Habit Action"}
+    %% =========================================================================
+    %% PACE — Birleşik Alışkanlık Sistemi Kullanıcı Akış Diyagramı
+    %% Mimari: Tekil alışkanlık modeli + @kullaniciadi kimliği (ayrı Gruplar sekmesi yok)
+    %% İlgili alt akışlar:
+    %%   - Misafir → Bulut veri aktarımı: docs/flows/onboarding-flow.mmd & auth-session-flow.mmd
+    %%   - Çevrimdışı öncelikli (offline-first) senkronizasyon: docs/flows/offline-sync-flow.mmd
+    %% =========================================================================
 
-    Action -->|"Create New"| OpenCreate["Open HabitModal (Create)"]
-    OpenCreate --> FillForm["Set Title, Type (Boolean/Quantity), Target, Schedule, Reminder"]
-    FillForm --> ValidateForm{"Valid Input?"}
-    ValidateForm -->|No| InlineErr["Show Inline Validation Error"]
-    InlineErr --> FillForm
-    ValidateForm -->|Yes| SaveCreate{"Authenticated?"}
-    SaveCreate -->|Yes| PostHabit["POST /api/habits"]
-    SaveCreate -->|No| SaveGuest["Save to GuestStore"]
-    PostHabit -->|201 Created| UpdateList["Update Habits State & Close Modal"]
-    PostHabit -->|Error| ApiErr["Show Error & Retry Option"]
-    ApiErr --> FillForm
-    SaveGuest --> UpdateList
+    %% -------------------------------------------------------------------------
+    %% GİRİŞ & YÖNLENDİRME
+    %% -------------------------------------------------------------------------
+    subgraph Entry["Giriş & Yönlendirme"]
+        Start(["Uygulama Açılır<br/>(Bugün / Alışkanlıklar)"]) --> HasHabits{"Alışkanlık<br/>var mı?"}
+        HasHabits -->|Hayır| EmptyState["Boş Durum Ekranı<br/>(Başlangıç Önerisi)"]
+        HasHabits -->|Evet| MainAction{"Kullanıcı ne<br/>yapmak istiyor?"}
+    end
 
-    Action -->|"Edit Existing"| OpenEdit["Open HabitModal (Edit)"]
-    OpenEdit --> ModifyFields["Modify Fields (Creates New Habit Version)"]
-    ModifyFields --> SaveEdit["PUT /api/habits/:id"]
-    SaveEdit -->|200 OK| UpdateList
-    SaveEdit -->|Error| ApiErr
+    %% -------------------------------------------------------------------------
+    %% A. ALIŞKANLIK OLUŞTURMA
+    %% -------------------------------------------------------------------------
+    subgraph SectionA["A. Alışkanlık Oluşturma"]
+        CreateFlow["Alışkanlık Oluşturma Formu"] --> FillInfo["Bilgileri Belirle<br/>(Ad, Takip Türü, Hedef, Sıklık)"]
+        FillInfo --> ValidInfo{"Bilgiler<br/>geçerli mi?"}
+        ValidInfo -->|Hayır| FormError["Doğrulama Hatası Göster"]
+        FormError --> FillInfo
+        ValidInfo -->|Evet| SaveHabit["Alışkanlığı Kaydet<br/>(habit_versions + owner)"]
+        SaveHabit --> WantFriends{"Arkadaş davet<br/>etmek ister misin?"}
+        WantFriends -->|Hayır| HabitActive(["Alışkanlık Aktif<br/>(Tek Başına / Misafirde @kullaniciadi İstenmez)"])
+    end
 
-    Action -->|"Pause / Resume"| TogglePause["PATCH /api/habits/:id (status: paused/active)"]
-    TogglePause --> UpdateList
+    EmptyState --> CreateFlow
+    MainAction -->|"Yeni Alışkanlık Oluştur"| CreateFlow
 
-    Action -->|"Archive"| ConfirmArchive["Archive Habit (status: archived)"]
-    ConfirmArchive --> UpdateList
+    %% -------------------------------------------------------------------------
+    %% PAYLAŞIMLI ALT AKIŞ: ARKADAŞ DAVET ET (A ve D2'den çağrılır)
+    %% -------------------------------------------------------------------------
+    subgraph InviteShared["Paylaşımlı Alt Akış: Arkadaş Davet Et"]
+        InviteCheckAuth{"Oturum<br/>açık mı?"} -->|Hayır| PromptAuthInvite["Giriş / Kayıt İste<br/>(Misafir → Bulut Aktarımı)"]
+        PromptAuthInvite --> InviteAuthOk{"Oturum açma<br/>başarılı mı?"}
+        InviteAuthOk -->|Hayır / İptal| InviteCancelled(["Davet İptal Edildi<br/>(Önceki Ekrana Dön)"])
+        InviteAuthOk -->|Evet| InviteHasUsername{"@kullaniciadi<br/>tanımlı mı?"}
+        InviteCheckAuth -->|Evet| InviteHasUsername
 
-    Action -->|"Restore Archived"| RestoreHabit["PATCH /api/habits/:id (status: active)"]
-    RestoreHabit --> UpdateList
+        InviteHasUsername -->|Hayır| PromptUsernameInvite["@kullaniciadi Belirle<br/>(^[a-z0-9._]{3,24}$)"]
+        PromptUsernameInvite --> UsernameInviteOk{"Kaydedildi mi?"}
+        UsernameInviteOk -->|Hayır / İptal| InviteCancelled
+        UsernameInviteOk -->|Evet| InviteMethod{"Davet yöntemi seç"}
+        InviteHasUsername -->|Evet| InviteMethod
 
-    UpdateList --> End(["Updated Habit List"])
+        InviteMethod -->|"Bağlantı (7 gün)"| CreateLinkInvite["7 Günlük Davet Bağlantısı Oluştur<br/>(Üyelik kontrolü katılımda yapılır)"]
+        InviteMethod -->|"@kullaniciadi"| EnterTargetUsername["Hedef @kullaniciadi Gir"]
+        EnterTargetUsername --> CheckUsernameConflict{"Kullanıcı var mı?<br/>Zaten katılımcı mı? /<br/>Bekleyen davet var mı?"}
+        CheckUsernameConflict -->|"Bulunamadı (404) /<br/>Kendisi (400)"| InviteTargetError["Geçersiz @kullaniciadi Hatası"]
+        InviteTargetError --> EnterTargetUsername
+        CheckUsernameConflict -->|"Zaten katılımcı veya<br/>bekleyen davet (409)"| InviteConflictError["409 Çakışma Uyarısı<br/>(Zaten Katılımcı / Bekleyen Davet)"]
+        InviteConflictError --> InviteMethod
+        CheckUsernameConflict -->|Uygun| SendUsernameInvite["@kullaniciadi Daveti Gönder<br/>(status: pending)"]
+
+        CreateLinkInvite --> MoreFriends{"Başka arkadaş<br/>davet edilsin mi?"}
+        SendUsernameInvite --> MoreFriends
+        MoreFriends -->|Evet| InviteMethod
+        MoreFriends -->|Hayır| InviteDone(["Davet Akışı Tamamlandı<br/>(Oluşturma → Aktif / Yönetim → Detay)"])
+    end
+
+    WantFriends -->|Evet| InviteCheckAuth
+
+    %% -------------------------------------------------------------------------
+    %% B. DAVET & KATILIM (BAĞLANTI / @KULLANICIADI)
+    %% -------------------------------------------------------------------------
+    subgraph SectionB["B. Davet & Katılım (Arkadaş Tarafı)"]
+        InviteEntry(["Davet Bağlantısı (?join=/?invite=)<br/>veya @kullaniciadi Gelen Kutusu"]) --> InviteValid{"Davet geçerli ve<br/>süresi dolmamış mı?"}
+        InviteValid -->|Hayır| InviteInvalid(["Geçersiz veya Süresi Dolmuş Davet"])
+        InviteValid -->|Evet| PreviewInvite["Alışkanlık Önizlemesini Göster<br/>(Gizlilik: Katılımcı verisi gösterilmez)"]
+        PreviewInvite --> InviteeAuth{"Oturum<br/>açık mı?"}
+        InviteeAuth -->|Hayır| InviteeSignIn["Giriş Yap / Kayıt Ol<br/>(Davet korunur; misafir → bulut)"]
+        InviteeSignIn --> InviteeAuthOk{"Oturum açma<br/>başarılı mı?"}
+        InviteeAuthOk -->|Hayır / İptal| InvitePendingClose(["Ekran Kapatılır<br/>(Davet Beklemede Kalır)"])
+        InviteeAuthOk -->|Evet| RevalidateInvite{"Oturum sonrası davet<br/>hâlâ geçerli ve<br/>alıcı uyumlu mu?"}
+        InviteeAuth -->|Evet| RevalidateInvite
+
+        RevalidateInvite -->|"Hayır / 403 Alıcı Uyuşmazlığı"| InviteInvalid
+        RevalidateInvite -->|Evet| InviteeHasUsername{"@kullaniciadi<br/>tanımlı mı?"}
+        InviteeHasUsername -->|Hayır| PromptUsernameAccept["@kullaniciadi Belirle<br/>(İlk Katılımda Zorunlu)"]
+        PromptUsernameAccept --> UsernameAcceptOk{"Kaydedildi mi?"}
+        UsernameAcceptOk -->|Hayır / İptal| InvitePendingClose
+        UsernameAcceptOk -->|Evet| AlreadyMember{"Kişi zaten<br/>katılımcı mı?"}
+        InviteeHasUsername -->|Evet| AlreadyMember
+
+        AlreadyMember -->|"Evet (already_member)"| OpenExistingHabit(["Mevcut Alışkanlığa Yönlendir"])
+        AlreadyMember -->|Hayır| InviteDecision{"Davet kararı"}
+        InviteDecision -->|"Kapat / Yanıtsız"| InvitePendingClose
+        InviteDecision -->|Reddet| DeclineInvite["Daveti Reddet<br/>(status: declined)"]
+        DeclineInvite --> InviteDeclined(["Katılım Gerçekleşmez<br/>(Ana Ekrana Dön)"])
+        InviteDecision -->|Kabul Et| JoinHabit["Katılımcı Olarak Ekle<br/>(role: member)"]
+        JoinHabit --> JoinedActive(["Alışkanlık Listesine Eklenir<br/>(Bağımsız Takip Başlar)"])
+    end
+
+    %% Asenkron davet bağlantısı (Paylaşımlı Davet -> Bölüm B)
+    CreateLinkInvite -. "Bağlantı daveti (7 gün)" .-> InviteEntry
+    SendUsernameInvite -. "@kullaniciadi daveti (Gelen Kutusu)" .-> InviteEntry
+
+    %% -------------------------------------------------------------------------
+    %% C. GÜNLÜK ALIŞKANLIK TAKİBİ
+    %% -------------------------------------------------------------------------
+    subgraph SectionC["C. Günlük Takip"]
+        TodayScreen["Bugün Ekranı<br/>(Tek Birleşik Liste + Katılımcı Rozeti)"] --> SelectHabit["Alışkanlık Satırını Seç"]
+        SelectHabit --> TrackAction{"Günlük işlem seç"}
+
+        TrackAction -->|"Arkadaş İlerlemesini Gör<br/>(Kendi kaydından bağımsız)"| ViewFriendsProgress["Katılımcıların @kullaniciadi<br/>Günlük İlerlemesini Görüntüle"]
+        ViewFriendsProgress --> TodayScreen
+
+        TrackAction -->|"Atla / Boş Bırak"| StayIncomplete(["Tamamlanmadı Olarak Kalır"])
+        TrackAction -->|"Tamamla / İşaretle"| RecordComplete["Tamamlandı Olarak Kaydet"]
+        TrackAction -->|"Kısmi İlerleme<br/>(Sayısal / Miktar)"| RecordPartial["Kısmi İlerleme Kaydet<br/>(Devam Ediyor)"]
+        TrackAction -->|"Geri Al (Undo)"| UndoCheckin["Günlük Kaydı Geri Al"]
+        TrackAction -->|"Geçmiş Günü Düzelt"| EditPastDay["Geçmiş Gün Kaydını Düzenle"]
+
+        RecordComplete --> UpdateOwnStats["Kendi Serini ve İlerlemeni Güncelle<br/>(Offline Sync + OCC)"]
+        RecordPartial --> UpdateOwnStats
+        UndoCheckin --> UpdateOwnStats
+        EditPastDay --> UpdateOwnStats
+        UpdateOwnStats --> TrackDone(["Günlük Takip Güncellendi"])
+    end
+
+    MainAction -->|"Günlük Takip Yap"| TodayScreen
+
+    %% -------------------------------------------------------------------------
+    %% D. ALIŞKANLIK YÖNETİMİ
+    %% -------------------------------------------------------------------------
+    subgraph SectionD["D. Alışkanlık Yönetimi"]
+        HabitDetail["Alışkanlık Detayı Ekranı<br/>(Katılımcılar @kullaniciadi ile)"] --> ManageAction{"Yönetim işlemi seç"}
+
+        %% D1. Düzenleme & Duraklat / Sürdür
+        ManageAction -->|Düzenle| CanEdit{"Yetki var mı?<br/>(Oluşturan)"}
+        CanEdit -->|Hayır| NoEditPerm["Yalnızca Oluşturan Düzenleyebilir"]
+        NoEditPerm --> HabitDetail
+        CanEdit -->|Evet| EditForm["Alışkanlık Bilgilerini Düzenle"]
+        EditForm --> ValidEdit{"Bilgiler<br/>geçerli mi?"}
+        ValidEdit -->|Hayır| EditFormError["Doğrulama Hatası Göster"]
+        EditFormError --> EditForm
+        ValidEdit -->|Evet| SaveEdit["Değişiklikleri Kaydet<br/>(habit_versions: bugünden itibaren geçerli)"]
+        SaveEdit --> HabitDetail
+
+        ManageAction -->|"Duraklat / Sürdür"| CanPause{"Yetki var mı?<br/>(Oluşturan)"}
+        CanPause -->|Hayır| NoEditPerm
+        CanPause -->|Evet| TogglePause["Duraklat veya Sürdür<br/>(Aktif ↔ Duraklatıldı)"]
+        TogglePause --> HabitDetail
+
+        %% D2. Katılımcı Yönetimi
+        ManageAction -->|"Katılımcı Yönetimi"| FriendMgmt{"İşlem türü"}
+        FriendMgmt -->|"Katılımcı Çıkar"| CanRemove{"Yetki var mı?<br/>(Oluşturan)"}
+        CanRemove -->|Hayır| NoRemovePerm["Yalnızca Oluşturan Çıkarabilir"]
+        NoRemovePerm --> HabitDetail
+        CanRemove -->|Evet| ConfirmRemove{"Katılımcıyı çıkarmayı<br/>onaylıyor musun?"}
+        ConfirmRemove -->|Hayır| HabitDetail
+        ConfirmRemove -->|Evet| RemoveMember["Katılımcıyı ve Kayıtlarını Kaldır"]
+        RemoveMember --> HabitDetail
+
+        %% D3. Alışkanlıktan Ayrılma
+        ManageAction -->|"Alışkanlıktan Ayrıl"| IsSoloHabit{"Tek katılımcı<br/>sen misin?"}
+        IsSoloHabit -->|"Evet (409 REQUIRES_DELETE)"| ConfirmDelete
+        IsSoloHabit -->|Hayır| ConfirmLeave{"Ayrılmayı onaylıyor musun?"}
+        ConfirmLeave -->|Hayır| HabitDetail
+        ConfirmLeave -->|Evet| IsOwnerLeave{"Ayrılan kişi<br/>oluşturan mı?"}
+        IsOwnerLeave -->|Hayır| LeaveAsMember["Kendi Kayıtlarını Sil ve Ayrıl<br/>(Diğerleri Devam Eder)"]
+        LeaveAsMember --> ManageDone(["Yönetim İşlemi Tamamlandı"])
+        IsOwnerLeave -->|Evet| TransferOwner["Yetkiyi En Eski Üyeye Devret<br/>ve Kendi Kayıtlarını Silip Ayrıl"]
+        TransferOwner --> ManageDone
+
+        %% D4. Arşivle / Geri Yükle & Kalıcı Sil
+        ManageAction -->|"Arşivle / Geri Yükle"| CanArchive{"Yetki var mı?<br/>(Oluşturan)"}
+        CanArchive -->|Hayır| NoDeletePerm["Yalnızca Oluşturan<br/>Arşivleyebilir / Silebilir"]
+        NoDeletePerm --> HabitDetail
+        CanArchive -->|Evet| ToggleArchive["Arşivle veya Arşivden Geri Yükle<br/>(Geçmiş Korunur)"]
+        ToggleArchive --> HabitDetail
+
+        ManageAction -->|"Kalıcı Sil"| CanDelete{"Yetki var mı?<br/>(Oluşturan)"}
+        CanDelete -->|Hayır| NoDeletePerm
+        CanDelete -->|Evet| ConfirmDelete{"Kalıcı silmeyi onaylıyor musun?<br/>(Tüm katılımcılardan kaldırılır)"}
+        ConfirmDelete -->|Hayır| HabitDetail
+        ConfirmDelete -->|Evet| DeleteHabitRecord["Alışkanlığı ve Tüm Kayıtları<br/>Kalıcı Olarak Sil"]
+        DeleteHabitRecord --> ManageDone
+    end
+
+    MainAction -->|"Alışkanlığı Yönet"| HabitDetail
+    FriendMgmt -->|"Arkadaş Davet Et"| InviteCheckAuth
+
+    %% -------------------------------------------------------------------------
+    %% STİL TANIMLARI (classDef)
+    %% -------------------------------------------------------------------------
+    classDef screen fill:#e0f2fe,stroke:#0284c7,stroke-width:1.5px,color:#0c4a6e
+    classDef action fill:#f0fdf4,stroke:#16a34a,stroke-width:1.5px,color:#14532d
+    classDef decision fill:#fef9c3,stroke:#ca8a04,stroke-width:1.5px,color:#713f12
+    classDef danger fill:#fee2e2,stroke:#dc2626,stroke-width:1.5px,color:#7f1d1d
+    classDef error fill:#ffedd5,stroke:#ea580c,stroke-width:1.5px,color:#7c2d12
+    classDef terminal fill:#f3e8ff,stroke:#9333ea,stroke-width:1.5px,color:#581c87
+
+    class EmptyState,CreateFlow,PreviewInvite,TodayScreen,HabitDetail,EditForm,ViewFriendsProgress screen
+    class FillInfo,SaveHabit,PromptAuthInvite,PromptUsernameInvite,CreateLinkInvite,EnterTargetUsername,SendUsernameInvite,InviteeSignIn,PromptUsernameAccept,JoinHabit,SelectHabit,RecordComplete,RecordPartial,UndoCheckin,EditPastDay,UpdateOwnStats,SaveEdit,TogglePause,ToggleArchive action
+    class HasHabits,MainAction,ValidInfo,WantFriends,InviteCheckAuth,InviteAuthOk,InviteHasUsername,UsernameInviteOk,InviteMethod,CheckUsernameConflict,MoreFriends,InviteValid,InviteeAuth,InviteeAuthOk,RevalidateInvite,InviteeHasUsername,UsernameAcceptOk,AlreadyMember,InviteDecision,TrackAction,ManageAction,CanEdit,ValidEdit,CanPause,FriendMgmt,CanRemove,ConfirmRemove,IsSoloHabit,ConfirmLeave,IsOwnerLeave,CanArchive,CanDelete,ConfirmDelete decision
+    class RemoveMember,LeaveAsMember,TransferOwner,DeleteHabitRecord,DeclineInvite danger
+    class FormError,InviteTargetError,InviteConflictError,EditFormError,NoEditPerm,NoRemovePerm,NoDeletePerm error
+    class Start,HabitActive,InviteCancelled,InviteDone,InviteEntry,InviteInvalid,InvitePendingClose,OpenExistingHabit,InviteDeclined,JoinedActive,StayIncomplete,TrackDone,ManageDone terminal

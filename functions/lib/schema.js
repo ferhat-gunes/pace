@@ -114,6 +114,31 @@ const EXTENDED_SCHEMA_STATEMENTS = [
   )`,
   `CREATE INDEX IF NOT EXISTS push_subscriptions_user_idx ON push_subscriptions(user_id)`,
   `CREATE INDEX IF NOT EXISTS push_subscriptions_daily_idx ON push_subscriptions(daily_enabled, last_sent_date)`,
+  // 0007_unified_habits_and_usernames.sql
+  `CREATE TABLE IF NOT EXISTS habit_participants (
+    id TEXT PRIMARY KEY,
+    habit_id TEXT NOT NULL REFERENCES habits(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('owner', 'member')),
+    joined_at TEXT NOT NULL,
+    UNIQUE(habit_id, user_id)
+  )`,
+  `CREATE INDEX IF NOT EXISTS habit_participants_user_idx ON habit_participants(user_id, joined_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS habit_participants_habit_role_idx ON habit_participants(habit_id, role)`,
+  `CREATE TABLE IF NOT EXISTS habit_invites (
+    id TEXT PRIMARY KEY,
+    habit_id TEXT NOT NULL REFERENCES habits(id) ON DELETE CASCADE,
+    inviter_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token TEXT NOT NULL UNIQUE,
+    invite_type TEXT NOT NULL CHECK (invite_type IN ('link', 'username')),
+    target_user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined')),
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS habit_invites_token_idx ON habit_invites(token)`,
+  `CREATE INDEX IF NOT EXISTS habit_invites_habit_status_idx ON habit_invites(habit_id, status)`,
+  `CREATE INDEX IF NOT EXISTS habit_invites_target_status_idx ON habit_invites(target_user_id, status)`,
 ];
 
 const ensuredDbs = new WeakMap();
@@ -123,15 +148,29 @@ export async function ensureExtendedSchema(db) {
   let pending = ensuredDbs.get(db);
   if (!pending) {
     pending = Promise.resolve()
-      .then(() =>
-        db.batch(
+      .then(async () => {
+        await db.batch(
           EXTENDED_SCHEMA_STATEMENTS.map(sql => {
             const stmt = db.prepare(sql);
             return typeof stmt.run === 'function' ? stmt : stmt.bind();
           })
-        )
-      )
-      .then(() => true)
+        );
+        try {
+          await db.prepare('ALTER TABLE users ADD COLUMN username TEXT').run();
+        } catch {
+          // Column already exists; ignore duplicate column error
+        }
+        try {
+          await db
+            .prepare(
+              'CREATE UNIQUE INDEX IF NOT EXISTS users_username_nocase_idx ON users(username COLLATE NOCASE) WHERE username IS NOT NULL'
+            )
+            .run();
+        } catch {
+          // Ignore if index creation is unsupported on mock DB
+        }
+        return true;
+      })
       .catch(err => {
         ensuredDbs.delete(db);
         throw err;
@@ -140,3 +179,4 @@ export async function ensureExtendedSchema(db) {
   }
   return pending;
 }
+

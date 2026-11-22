@@ -69,7 +69,7 @@ export async function dispatchDueDailyPushes(env){
   for(const sub of rows.results||[]){
     const {date,hhmm}=localClockForTz(sub.timezone);
     if(sub.last_sent_date===date||hhmm<sub.reminder_time||isWithinQuietHours(hhmm,sub.quiet_start,sub.quiet_end)){skipped++;continue}
-    const incomplete=await env.DB.prepare('SELECT h.id,h.name FROM habits h WHERE h.user_id=? AND h.paused=0 AND h.archived_at IS NULL AND NOT EXISTS(SELECT 1 FROM checkins c WHERE c.habit_id=h.id AND c.habit_date=? AND c.deleted=0 AND c.value>0)').bind(sub.user_id,date).all();
+    const incomplete=await env.DB.prepare('SELECT DISTINCT h.id,h.name FROM habits h LEFT JOIN habit_participants hp ON hp.habit_id=h.id AND hp.user_id=? WHERE (hp.user_id=? OR h.user_id=?) AND h.paused=0 AND h.archived_at IS NULL AND NOT EXISTS(SELECT 1 FROM checkins c WHERE c.habit_id=h.id AND c.user_id=? AND c.habit_date=? AND c.deleted=0 AND c.value>0)').bind(sub.user_id,sub.user_id,sub.user_id,sub.user_id,date).all();
     const cnt=(incomplete.results||[]).length;
     if(!cnt){skipped++;continue}
     const body=cnt===1?`"${incomplete.results[0].name}" bugün seni bekliyor. Küçük bir adım yeterli.`:`${cnt} rutinin bugün seni bekliyor. Kendi ritminde devam et!`;
@@ -113,7 +113,7 @@ import { ensureExtendedSchema } from '../lib/schema.js';
 import { settingsAt } from '../../src/lib/rules.js';
 import { validateBackup, BACKUP_LIMITS } from '../../src/lib/backup.js';
 import {passwordAuth,changePassword,regenerateRecoveryCode} from '../lib/password.js';
-import { json,error,readJson,validEmail,currentUser,digest,hmac,randomToken,secureCookie,readCookie,clearCookie,sessionCookie,requireSameOrigin,timingSafeEqualStr } from '../lib/auth.js';
+import { json,error,readJson,validEmail,normalizeUsername,currentUser,digest,hmac,randomToken,secureCookie,readCookie,clearCookie,sessionCookie,requireSameOrigin,timingSafeEqualStr } from '../lib/auth.js';
 const SESSION_COOKIE='__Host-pace_session';const EMAIL_RETRY='Giriş kodu isteğin işlenemedi. Biraz sonra yeniden dene.';
 function nowIso(){return new Date().toISOString()}
 function validDate(value){if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;const d=new Date(value+'T12:00:00Z');return !Number.isNaN(d.valueOf())&&d.toISOString().slice(0,10)===value}
@@ -123,18 +123,198 @@ function mapHabit(row,versions=[]){let h={id:row.id,name:row.name,tracking:row.t
 async function rateLimit(db,secret,key,max=5){const hash=await hmac(secret,key);const now=Math.floor(Date.now()/1000);const window=Math.floor(now/900)*900;const row=await db.prepare('INSERT INTO rate_limits(key_hash,window_start,count) VALUES(?,?,1) ON CONFLICT(key_hash) DO UPDATE SET count=CASE WHEN rate_limits.window_start<=? THEN 1 ELSE rate_limits.count+1 END, window_start=CASE WHEN rate_limits.window_start<=? THEN excluded.window_start ELSE rate_limits.window_start END RETURNING count').bind(hash,window,now-900,now-900).first();return Number(row?.count||0)<=max}
 async function sendCode(env,email,code){if(!env.RESEND_API_KEY||!env.EMAIL_FROM)return false;const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{'Authorization':'Bearer '+env.RESEND_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({from:env.EMAIL_FROM,to:[email],subject:'PACE giriş kodun',html:'<div style="font-family:Arial,sans-serif;color:#1f2937"><h1>PACE</h1><p>Giriş kodun:</p><p style="font-size:28px;font-weight:700;letter-spacing:6px">'+code+'</p><p>Bu kod 10 dakika geçerlidir. Bu isteği sen yapmadıysan e-postayı yok sayabilirsin.</p></div>',text:'PACE giriş kodun: '+code+' — 10 dakika geçerlidir.'})});return response.ok}
 async function requestCode(request,env){let body;try{body=await readJson(request)}catch(e){return error(e.message)}const email=String(body.email||'').trim().toLowerCase();if(!validEmail(email))return error('Geçerli bir e-posta adresi gir.');if(!env.AUTH_SECRET)return error('Giriş hizmeti henüz yapılandırılmadı.',503);const ip=request.headers.get('CF-Connecting-IP')||'unknown';const okEmail=await rateLimit(env.DB,env.AUTH_SECRET,'email:'+email,5);const okIp=await rateLimit(env.DB,env.AUTH_SECRET,'ip:'+ip,12);if(!okEmail||!okIp)return error('Çok fazla kod istendi. 15 dakika sonra yeniden dene.',429);const code=String(crypto.getRandomValues(new Uint32Array(1))[0]%1000000).padStart(6,'0');const id=crypto.randomUUID();const requestKey=crypto.randomUUID();const codeHash=await hmac(env.AUTH_SECRET,email+':'+code);const created=nowIso();const expires=new Date(Date.now()+10*60*1000).toISOString();await env.DB.prepare('DELETE FROM login_codes WHERE expires_at<? OR consumed_at IS NOT NULL').bind(created).run();await env.DB.prepare('INSERT INTO login_codes(id,email,code_hash,expires_at,created_at,request_key) VALUES(?,?,?,?,?,?)').bind(id,email,codeHash,expires,created,requestKey).run();const sent=await sendCode(env,email,code);if(!sent){await env.DB.prepare('DELETE FROM login_codes WHERE id=?').bind(id).run();return error('Giriş e-postası gönderilemedi. Yayın ayarlarında e-posta hizmeti eksik.',503)}return json({ok:true,message:'E-posta adresin kayıtlıysa giriş kodu gönderildi.'})}
-async function verifyCode(request,env){let body;try{body=await readJson(request)}catch(e){return error(e.message)}const email=String(body.email||'').trim().toLowerCase(),code=String(body.code||'').trim();if(!validEmail(email)||!/^\d{6}$/.test(code))return error('E-posta veya kod geçersiz.');const ip=request.headers.get('CF-Connecting-IP')||'unknown';const okIp=await rateLimit(env.DB,env.AUTH_SECRET,'verify:ip:'+ip,20);const okEmail=await rateLimit(env.DB,env.AUTH_SECRET,'verify:email:'+email,10);if(!okIp||!okEmail)return error('Çok fazla doğrulama denemesi. 15 dakika sonra yeniden dene.',429);const row=await env.DB.prepare('SELECT * FROM login_codes WHERE email=? AND consumed_at IS NULL AND expires_at>? ORDER BY created_at DESC LIMIT 1').bind(email,nowIso()).first();if(!row||row.attempts>=5)return error('Kod geçersiz veya süresi dolmuş.',401);const expected=await hmac(env.AUTH_SECRET,email+':'+code);if(!timingSafeEqualStr(expected,row.code_hash)){await env.DB.prepare('UPDATE login_codes SET attempts=attempts+1 WHERE id=?').bind(row.id).run();return error('Kod geçersiz veya süresi dolmuş.',401)}const consumed=await env.DB.prepare('UPDATE login_codes SET consumed_at=? WHERE id=? AND consumed_at IS NULL AND expires_at>? AND attempts<5').bind(nowIso(),row.id,nowIso()).run();if(!consumed.meta?.changes)return error('Kod zaten kullanıldı. Yeni kod iste.',401);const now=nowIso();let user=await env.DB.prepare('SELECT id,email,week_start,timezone FROM users WHERE email=? COLLATE NOCASE').bind(email).first();if(!user){const id=crypto.randomUUID();const tz='Europe/Istanbul';await env.DB.prepare('INSERT INTO users(id,email,week_start,timezone,created_at,updated_at) VALUES(?,?,1,?,?,?)').bind(id,email,tz,now,now).run();user={id,email,week_start:1,timezone:tz}}const token=randomToken(32),tokenHash=await digest(token),sessionId=crypto.randomUUID(),expires=new Date(Date.now()+30*86400000).toISOString();await env.DB.prepare('INSERT INTO sessions(id,user_id,token_hash,created_at,expires_at) VALUES(?,?,?,?,?)').bind(sessionId,user.id,tokenHash,now,expires).run();return json({ok:true,user:{id:user.id,email:user.email,week_start:user.week_start,timezone:user.timezone}},200,{'Set-Cookie':sessionCookie(token)})}
-async function stateFor(user,env){const habitsRows=await env.DB.prepare('SELECT * FROM habits WHERE user_id=? ORDER BY created_at').bind(user.id).all();const versions=await env.DB.prepare('SELECT habit_id,id,effective_from,settings_json FROM habit_versions WHERE user_id=? ORDER BY effective_from').bind(user.id).all();const versionsBy={};for(const v of versions.results||[]){(versionsBy[v.habit_id]||(versionsBy[v.habit_id]=[])).push(v)}const habits=(habitsRows.results||[]).map(row=>mapHabit(row,versionsBy[row.id]||[]));const logs=await env.DB.prepare('SELECT id,habit_id,habit_date,value,note,idempotency_key,revision,deleted,created_at,updated_at FROM checkins WHERE user_id=? ORDER BY habit_date DESC').bind(user.id).all();const gamification=await readUserGamification(user,env);const hasPassword=await hasPasswordCredential(user.id,env);return {user:{id:user.id,email:user.email,week_start:user.week_start,timezone:user.timezone,has_password:hasPassword},week_start:user.week_start,habits,checkins:logs.results||[],...(gamification?{gamification}:{})}}
-async function createHabit(request,user,env){let body;try{body=await readJson(request)}catch(e){return error(e.message)}let settings;try{settings=settingsFrom(body)}catch(e){return error(e.message)}if(body.start_date!==undefined&&!validDate(body.start_date))return error('Başlangıç tarihi geçersiz.');const id=crypto.randomUUID(),now=nowIso(),start=validDate(body.start_date)?body.start_date:now.slice(0,10);const row={...settings,start_date:start};await env.DB.prepare('INSERT INTO habits(id,user_id,name,tracking,direction,unit,target,schedule_type,schedule_days,times_per_week,progression_enabled,progression_step,progression_cap,debt_enabled,debt_cap,start_date,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id,user.id,...dbFields(row),start,now,now).run();await env.DB.prepare('INSERT INTO habit_versions(id,habit_id,user_id,effective_from,settings_json,created_at) VALUES(?,?,?,?,?,?)').bind(crypto.randomUUID(),id,user.id,start,JSON.stringify({...settings,paused:false,archived_at:null}),now).run();return json({habit:{id,name:settings.name}} ,201)}
+async function verifyCode(request,env){let body;try{body=await readJson(request)}catch(e){return error(e.message)}const email=String(body.email||'').trim().toLowerCase(),code=String(body.code||'').trim();if(!validEmail(email)||!/^\d{6}$/.test(code))return error('E-posta veya kod geçersiz.');const ip=request.headers.get('CF-Connecting-IP')||'unknown';const okIp=await rateLimit(env.DB,env.AUTH_SECRET,'verify:ip:'+ip,20);const okEmail=await rateLimit(env.DB,env.AUTH_SECRET,'verify:email:'+email,10);if(!okIp||!okEmail)return error('Çok fazla doğrulama denemesi. 15 dakika sonra yeniden dene.',429);const row=await env.DB.prepare('SELECT * FROM login_codes WHERE email=? AND consumed_at IS NULL AND expires_at>? ORDER BY created_at DESC LIMIT 1').bind(email,nowIso()).first();if(!row||row.attempts>=5)return error('Kod geçersiz veya süresi dolmuş.',401);const expected=await hmac(env.AUTH_SECRET,email+':'+code);if(!timingSafeEqualStr(expected,row.code_hash)){await env.DB.prepare('UPDATE login_codes SET attempts=attempts+1 WHERE id=?').bind(row.id).run();return error('Kod geçersiz veya süresi dolmuş.',401)}const consumed=await env.DB.prepare('UPDATE login_codes SET consumed_at=? WHERE id=? AND consumed_at IS NULL AND expires_at>? AND attempts<5').bind(nowIso(),row.id,nowIso()).run();if(!consumed.meta?.changes)return error('Kod zaten kullanıldı. Yeni kod iste.',401);const now=nowIso();let user=await env.DB.prepare('SELECT id,email,username,week_start,timezone FROM users WHERE email=? COLLATE NOCASE').bind(email).first();if(!user){const id=crypto.randomUUID();const tz='Europe/Istanbul';await env.DB.prepare('INSERT INTO users(id,email,week_start,timezone,created_at,updated_at) VALUES(?,?,1,?,?,?)').bind(id,email,tz,now,now).run();user={id,email,username:null,week_start:1,timezone:tz}}const token=randomToken(32),tokenHash=await digest(token),sessionId=crypto.randomUUID(),expires=new Date(Date.now()+30*86400000).toISOString();await env.DB.prepare('INSERT INTO sessions(id,user_id,token_hash,created_at,expires_at) VALUES(?,?,?,?,?)').bind(sessionId,user.id,tokenHash,now,expires).run();return json({ok:true,user:{id:user.id,email:user.email,username:user.username||null,week_start:user.week_start,timezone:user.timezone}},200,{'Set-Cookie':sessionCookie(token)})}
+async function updateUsername(request,user,env){
+  let body;try{body=await readJson(request)}catch(e){return error(e.message)}
+  const username=normalizeUsername(body.username);
+  if(!username)return error('Kullanıcı adı 3–24 karakter olmalı ve yalnızca küçük harf, rakam, nokta veya alt çizgi içerebilir.',400);
+  const taken=await env.DB.prepare('SELECT id FROM users WHERE username=? COLLATE NOCASE AND id!=?').bind(username,user.id).first();
+  if(taken)return error('Bu kullanıcı adı zaten kullanılıyor.',409);
+  try{
+    await env.DB.prepare('UPDATE users SET username=?, updated_at=? WHERE id=?').bind(username,nowIso(),user.id).run();
+  }catch{
+    return error('Bu kullanıcı adı zaten kullanılıyor.',409);
+  }
+  return json({ok:true,username});
+}
+async function stateFor(user,env){
+  const habitsRows=await env.DB.prepare('SELECT h.*, COALESCE(hp.role, CASE WHEN h.user_id=? THEN \'owner\' ELSE \'member\' END) AS participant_role FROM habits h LEFT JOIN habit_participants hp ON hp.habit_id=h.id AND hp.user_id=? WHERE hp.user_id=? OR h.user_id=? ORDER BY h.created_at').bind(user.id,user.id,user.id,user.id).all();
+  const rows=habitsRows.results||[];
+  const habitIds=rows.map(r=>r.id);
+  const versionsBy={};
+  const allVersions=[];
+  const participantsBy={};
+  let participantCheckins=[];
+  if(habitIds.length){
+    const placeholders=habitIds.map(()=>'?').join(',');
+    const vRes=await env.DB.prepare(`SELECT habit_id,id,effective_from,settings_json FROM habit_versions WHERE habit_id IN (${placeholders}) ORDER BY effective_from`).bind(...habitIds).all();
+    for(const v of vRes.results||[]){
+      (versionsBy[v.habit_id]||(versionsBy[v.habit_id]=[])).push(v);
+      allVersions.push({id:v.id,habit_id:v.habit_id,effective_from:v.effective_from,settings:JSON.parse(v.settings_json)});
+    }
+    const pRes=await env.DB.prepare(`SELECT hp.habit_id, hp.user_id, hp.role, hp.joined_at, u.username FROM habit_participants hp JOIN users u ON u.id=hp.user_id WHERE hp.habit_id IN (${placeholders}) ORDER BY hp.joined_at ASC`).bind(...habitIds).all();
+    for(const p of pRes.results||[]){
+      (participantsBy[p.habit_id]||(participantsBy[p.habit_id]=[])).push({user_id:p.user_id,username:p.username||null,role:p.role,joined_at:p.joined_at,is_me:p.user_id===user.id});
+    }
+    const pcRes=await env.DB.prepare(`SELECT habit_id, user_id, habit_date, value, updated_at FROM checkins WHERE habit_id IN (${placeholders}) AND deleted=0 ORDER BY habit_date DESC`).bind(...habitIds).all();
+    participantCheckins=pcRes.results||[];
+  }
+  const today=nowIso().slice(0,10);
+  const todayCheckinsByHabit={};
+  for(const pc of participantCheckins){
+    if(pc.habit_date===today){
+      (todayCheckinsByHabit[pc.habit_id]||(todayCheckinsByHabit[pc.habit_id]=new Map())).set(pc.user_id,Number(pc.value||0));
+    }
+  }
+  const habits=rows.map(row=>{
+    const base=mapHabit(row,versionsBy[row.id]||[]);
+    const participants=participantsBy[row.id]&&participantsBy[row.id].length?participantsBy[row.id]:[{user_id:user.id,username:user.username||null,role:'owner',joined_at:row.created_at,is_me:true}];
+    const todayMap=todayCheckinsByHabit[row.id]||new Map();
+    let completed=0;
+    for(const p of participants){
+      if(!todayMap.has(p.user_id))continue;
+      const val=todayMap.get(p.user_id);
+      if(row.tracking==='check'){if(val>0)completed++}
+      else if(row.direction==='at_most'){if(val<=Number(row.target))completed++}
+      else{if(val>=Number(row.target))completed++}
+    }
+    return {...base,role:row.participant_role||'owner',participants,participant_count:participants.length,today_summary:{completed,total:participants.length}};
+  });
+  const logs=await env.DB.prepare('SELECT id,habit_id,habit_date,value,note,idempotency_key,revision,deleted,created_at,updated_at FROM checkins WHERE user_id=? ORDER BY habit_date DESC').bind(user.id).all();
+  const gamification=await readUserGamification(user,env);
+  const hasPassword=await hasPasswordCredential(user.id,env);
+  return {ok:true,user:{id:user.id,email:user.email,username:user.username||null,week_start:user.week_start,timezone:user.timezone,has_password:hasPassword},week_start:user.week_start,habits,versions:allVersions,checkins:logs.results||[],participant_checkins:participantCheckins,server_time:nowIso(),...(gamification?{gamification}:{})};
+}
+async function createHabit(request,user,env){
+  let body;try{body=await readJson(request)}catch(e){return error(e.message)}
+  let settings;try{settings=settingsFrom(body)}catch(e){return error(e.message)}
+  if(body.start_date!==undefined&&!validDate(body.start_date))return error('Başlangıç tarihi geçersiz.');
+  const id=crypto.randomUUID(),now=nowIso(),start=validDate(body.start_date)?body.start_date:now.slice(0,10);
+  const row={...settings,start_date:start};
+  await env.DB.batch([
+    env.DB.prepare('INSERT INTO habits(id,user_id,name,tracking,direction,unit,target,schedule_type,schedule_days,times_per_week,progression_enabled,progression_step,progression_cap,debt_enabled,debt_cap,start_date,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id,user.id,...dbFields(row),start,now,now),
+    env.DB.prepare('INSERT INTO habit_versions(id,habit_id,user_id,effective_from,settings_json,created_at) VALUES(?,?,?,?,?,?)').bind(crypto.randomUUID(),id,user.id,start,JSON.stringify({...settings,paused:false,archived_at:null}),now),
+    env.DB.prepare('INSERT INTO habit_participants(id,habit_id,user_id,role,joined_at) VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),id,user.id,'owner',now),
+  ]);
+  return json({habit:{id,name:settings.name}},201);
+}
 export async function updateHabit(request,user,env,id){
- const row=await env.DB.prepare('SELECT * FROM habits WHERE id=? AND user_id=?').bind(id,user.id).first();if(!row)return error('Alışkanlık bulunamadı.',404);
- let body;try{body=await readJson(request)}catch(e){return error(e.message)}
- if(body.effective_from!==undefined&&!validDate(body.effective_from))return error('Geçerlilik tarihi geçersiz.');
- const now=nowIso(),effective=validDate(body.effective_from)?body.effective_from:now.slice(0,10),versionRows=await env.DB.prepare('SELECT id,effective_from,settings_json FROM habit_versions WHERE habit_id=? AND user_id=? ORDER BY effective_from').bind(id,user.id).all(),current=settingsAt(mapHabit(row,versionRows.results||[]),effective);
- let settings;try{settings=settingsFrom({...current,...body});settings.paused=Object.prototype.hasOwnProperty.call(body,'paused')?Boolean(body.paused):current.paused;settings.archived_at=Object.prototype.hasOwnProperty.call(body,'archived_at')?body.archived_at:current.archived_at;if(settings.archived_at!==null&&settings.archived_at!==undefined&&(typeof settings.archived_at!=='string'||!Number.isFinite(Date.parse(settings.archived_at))))throw new Error('Arşiv tarihi geçersiz.');settings.archived_at=settings.archived_at??null}catch(e){return error(e.message)}
- const update=env.DB.prepare('UPDATE habits SET name=?,tracking=?,direction=?,unit=?,target=?,schedule_type=?,schedule_days=?,times_per_week=?,progression_enabled=?,progression_step=?,progression_cap=?,debt_enabled=?,debt_cap=?,paused=?,archived_at=?,updated_at=? WHERE id=? AND user_id=?').bind(...dbFields(settings),settings.paused?1:0,settings.archived_at,now,id,user.id);
- const version=env.DB.prepare('INSERT INTO habit_versions(id,habit_id,user_id,effective_from,settings_json,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT(habit_id,effective_from) DO UPDATE SET settings_json=excluded.settings_json,created_at=excluded.created_at').bind(crypto.randomUUID(),id,user.id,effective,JSON.stringify(settings),now);
- await env.DB.batch([update,version]);return json({ok:true});
+  const row=await env.DB.prepare('SELECT h.*, hp.role AS participant_role FROM habits h LEFT JOIN habit_participants hp ON hp.habit_id=h.id AND hp.user_id=? WHERE h.id=? AND (hp.user_id=? OR h.user_id=?)').bind(user.id,id,user.id,user.id).first();
+  if(!row)return error('Alışkanlık bulunamadı.',404);
+  if(row.participant_role&&row.participant_role!=='owner')return error('Yalnızca alışkanlık sahibi düzenleyebilir.',403);
+  let body;try{body=await readJson(request)}catch(e){return error(e.message)}
+  if(body.effective_from!==undefined&&!validDate(body.effective_from))return error('Geçerlilik tarihi geçersiz.');
+  const now=nowIso(),effective=validDate(body.effective_from)?body.effective_from:now.slice(0,10),versionRows=await env.DB.prepare('SELECT id,effective_from,settings_json FROM habit_versions WHERE habit_id=? ORDER BY effective_from').bind(id).all(),current=settingsAt(mapHabit(row,versionRows.results||[]),effective);
+  let settings;try{settings=settingsFrom({...current,...body});settings.paused=Object.prototype.hasOwnProperty.call(body,'paused')?Boolean(body.paused):current.paused;settings.archived_at=Object.prototype.hasOwnProperty.call(body,'archived_at')?body.archived_at:current.archived_at;if(settings.archived_at!==null&&settings.archived_at!==undefined&&(typeof settings.archived_at!=='string'||!Number.isFinite(Date.parse(settings.archived_at))))throw new Error('Arşiv tarihi geçersiz.');settings.archived_at=settings.archived_at??null}catch(e){return error(e.message)}
+  const update=env.DB.prepare('UPDATE habits SET name=?,tracking=?,direction=?,unit=?,target=?,schedule_type=?,schedule_days=?,times_per_week=?,progression_enabled=?,progression_step=?,progression_cap=?,debt_enabled=?,debt_cap=?,paused=?,archived_at=?,updated_at=? WHERE id=?').bind(...dbFields(settings),settings.paused?1:0,settings.archived_at,now,id);
+  const version=env.DB.prepare('INSERT INTO habit_versions(id,habit_id,user_id,effective_from,settings_json,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT(habit_id,effective_from) DO UPDATE SET settings_json=excluded.settings_json,created_at=excluded.created_at').bind(crypto.randomUUID(),id,user.id,effective,JSON.stringify(settings),now);
+  await env.DB.batch([update,version]);return json({ok:true});
+}
+async function deleteHabitPermanent(user,env,id){
+  const row=await env.DB.prepare('SELECT h.id, h.user_id, hp.role AS participant_role FROM habits h LEFT JOIN habit_participants hp ON hp.habit_id=h.id AND hp.user_id=? WHERE h.id=? AND (hp.user_id=? OR h.user_id=?)').bind(user.id,id,user.id,user.id).first();
+  if(!row)return error('Alışkanlık bulunamadı.',404);
+  const role=row.participant_role||(row.user_id===user.id?'owner':'member');
+  if(role!=='owner')return error('Yalnızca alışkanlık sahibi kalıcı olarak silebilir.',403);
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM habit_invites WHERE habit_id=?').bind(id),
+    env.DB.prepare('DELETE FROM checkins WHERE habit_id=?').bind(id),
+    env.DB.prepare('DELETE FROM habit_versions WHERE habit_id=?').bind(id),
+    env.DB.prepare('DELETE FROM habit_participants WHERE habit_id=?').bind(id),
+    env.DB.prepare('DELETE FROM habits WHERE id=?').bind(id),
+  ]);
+  return json({ok:true,deleted:true,id});
+}
+async function leaveHabit(user,env,id){
+  const row=await env.DB.prepare('SELECT h.id, h.user_id, hp.role AS participant_role FROM habits h LEFT JOIN habit_participants hp ON hp.habit_id=h.id AND hp.user_id=? WHERE h.id=? AND (hp.user_id=? OR h.user_id=?)').bind(user.id,id,user.id,user.id).first();
+  if(!row)return error('Alışkanlık bulunamadı.',404);
+  const role=row.participant_role||(row.user_id===user.id?'owner':'member');
+  if(role==='member'){
+    await env.DB.batch([
+      env.DB.prepare('DELETE FROM checkins WHERE habit_id=? AND user_id=?').bind(id,user.id),
+      env.DB.prepare('DELETE FROM habit_participants WHERE habit_id=? AND user_id=?').bind(id,user.id),
+    ]);
+    return json({ok:true,left:true});
+  }
+  const other=await env.DB.prepare('SELECT id, user_id FROM habit_participants WHERE habit_id=? AND user_id!=? ORDER BY joined_at ASC LIMIT 1').bind(id,user.id).first();
+  if(!other){
+    return json({ok:false,code:'REQUIRES_DELETE',error:'Tek katılımcı sensin. Alışkanlığı kalıcı olarak silmelisin.'},409);
+  }
+  await env.DB.batch([
+    env.DB.prepare('UPDATE habit_participants SET role=\'owner\' WHERE id=?').bind(other.id),
+    env.DB.prepare('UPDATE habits SET user_id=?, updated_at=? WHERE id=?').bind(other.user_id,nowIso(),id),
+    env.DB.prepare('DELETE FROM checkins WHERE habit_id=? AND user_id=?').bind(id,user.id),
+    env.DB.prepare('DELETE FROM habit_participants WHERE habit_id=? AND user_id=?').bind(id,user.id),
+  ]);
+  return json({ok:true,left:true,transferred_to:other.user_id});
+}
+async function removeHabitParticipant(user,env,id,targetUserId){
+  const row=await env.DB.prepare('SELECT h.id, h.user_id, hp.role AS participant_role FROM habits h LEFT JOIN habit_participants hp ON hp.habit_id=h.id AND hp.user_id=? WHERE h.id=? AND (hp.user_id=? OR h.user_id=?)').bind(user.id,id,user.id,user.id).first();
+  if(!row)return error('Alışkanlık bulunamadı.',404);
+  const role=row.participant_role||(row.user_id===user.id?'owner':'member');
+  if(role!=='owner')return error('Yalnızca alışkanlık sahibi katılımcı çıkarabilir.',403);
+  if(targetUserId===user.id)return error('Kendini katılımcı listesinden çıkaramazsın.',400);
+  const target=await env.DB.prepare('SELECT id FROM habit_participants WHERE habit_id=? AND user_id=?').bind(id,targetUserId).first();
+  if(!target)return error('Katılımcı bulunamadı.',404);
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM checkins WHERE habit_id=? AND user_id=?').bind(id,targetUserId),
+    env.DB.prepare('DELETE FROM habit_participants WHERE habit_id=? AND user_id=?').bind(id,targetUserId),
+  ]);
+  return json({ok:true,removed:targetUserId});
+}
+async function createHabitInvite(request,user,env,habitId){
+  const part=await env.DB.prepare('SELECT h.id FROM habits h LEFT JOIN habit_participants hp ON hp.habit_id=h.id AND hp.user_id=? WHERE h.id=? AND (hp.user_id=? OR h.user_id=?)').bind(user.id,habitId,user.id,user.id).first();
+  if(!part)return error('Alışkanlık bulunamadı.',404);
+  if(!user.username)return json({ok:false,code:'USERNAME_REQUIRED',error:'Davet göndermek için önce bir @kullaniciadi belirlemelisin.'},400);
+  let body={};try{body=await readJson(request)}catch(e){return error(e.message)}
+  const inviteType=body.invite_type||'link';
+  if(inviteType==='email'||!['link','username'].includes(inviteType))return error('Yalnızca bağlantı veya @kullaniciadi daveti desteklenir.',400);
+  const token=randomToken(16),now=nowIso(),expires=new Date(Date.now()+7*86400000).toISOString(),id=crypto.randomUUID();
+  if(inviteType==='link'){
+    await env.DB.prepare('INSERT INTO habit_invites(id,habit_id,inviter_id,token,invite_type,target_user_id,status,expires_at,created_at) VALUES(?,?,?,?,?,?,?,?,?)').bind(id,habitId,user.id,token,'link',null,'pending',expires,now).run();
+    return json({ok:true,invite:{id,habit_id:habitId,token,invite_type:'link',target_user_id:null,target_username:null,status:'pending',expires_at:expires,created_at:now}},201);
+  }
+  const targetUsername=normalizeUsername(body.username);
+  if(!targetUsername)return error('Geçerli bir @kullaniciadi gir.',400);
+  const target=await env.DB.prepare('SELECT id, username FROM users WHERE username=? COLLATE NOCASE').bind(targetUsername).first();
+  if(!target)return error('Bu @kullaniciadi ile kayıtlı kullanıcı bulunamadı.',404);
+  if(target.id===user.id)return error('Kendini davet edemezsin.',400);
+  const already=await env.DB.prepare('SELECT id FROM habit_participants WHERE habit_id=? AND user_id=?').bind(habitId,target.id).first();
+  if(already)return error('Bu kişi zaten katılımcı',409);
+  const pending=await env.DB.prepare('SELECT id FROM habit_invites WHERE habit_id=? AND target_user_id=? AND status=\'pending\' AND expires_at>?').bind(habitId,target.id,now).first();
+  if(pending)return error('Bekleyen davet zaten var',409);
+  await env.DB.prepare('INSERT INTO habit_invites(id,habit_id,inviter_id,token,invite_type,target_user_id,status,expires_at,created_at) VALUES(?,?,?,?,?,?,?,?,?)').bind(id,habitId,user.id,token,'username',target.id,'pending',expires,now).run();
+  return json({ok:true,invite:{id,habit_id:habitId,token,invite_type:'username',target_user_id:target.id,target_username:target.username,status:'pending',expires_at:expires,created_at:now}},201);
+}
+async function listHabitInviteInbox(user,env){
+  const rows=await env.DB.prepare('SELECT hi.id, hi.token, hi.habit_id, hi.invite_type, hi.expires_at, hi.created_at, h.name AS habit_name, h.tracking, h.target, h.unit, u.username AS inviter_username FROM habit_invites hi JOIN habits h ON h.id=hi.habit_id JOIN users u ON u.id=hi.inviter_id WHERE hi.target_user_id=? AND hi.status=\'pending\' AND hi.expires_at>? ORDER BY hi.created_at DESC').bind(user.id,nowIso()).all();
+  return json({ok:true,invites:(rows.results||[]).map(r=>({id:r.id,token:r.token,habit_id:r.habit_id,invite_type:r.invite_type||'username',habit_name:r.habit_name,tracking:r.tracking,target:r.target,unit:r.unit,inviter_username:r.inviter_username||null,expires_at:r.expires_at,created_at:r.created_at}))});
+}
+async function getHabitInvitePreview(env,token){
+  const inv=await env.DB.prepare('SELECT hi.token, hi.habit_id, hi.invite_type, hi.expires_at, h.name AS habit_name, h.tracking, h.target, h.unit, (SELECT COUNT(*) FROM habit_participants WHERE habit_id=h.id) AS participant_count, u.username AS inviter_username FROM habit_invites hi JOIN habits h ON h.id=hi.habit_id JOIN users u ON u.id=hi.inviter_id WHERE hi.token=? AND hi.status=\'pending\' AND hi.expires_at>?').bind(token,nowIso()).first();
+  if(inv){
+    return json({ok:true,invite:{token:inv.token,habit_id:inv.habit_id,habit_name:inv.habit_name,tracking:inv.tracking,target:inv.target,unit:inv.unit,participant_count:Number(inv.participant_count||1),inviter_username:inv.inviter_username||null,invite_type:inv.invite_type,expires_at:inv.expires_at}});
+  }
+  return getInvitePreview(env,token);
+}
+async function respondHabitInvite(request,user,env,token,action){
+  if(!['accept','decline'].includes(action))return error('Davet yanıtı geçersiz.');
+  const inv=await env.DB.prepare('SELECT * FROM habit_invites WHERE token=? AND status=\'pending\' AND expires_at>?').bind(token,nowIso()).first();
+  if(!inv)return respondInvite(request,user,env,token,action);
+  if(inv.invite_type==='username'&&inv.target_user_id!==user.id)return error('Bu davet başka bir kullanıcıya gönderilmiş.',403);
+  if(action==='decline'){
+    if(inv.invite_type==='username'){
+      await env.DB.prepare('UPDATE habit_invites SET status=\'declined\' WHERE id=?').bind(inv.id).run();
+    }
+    return json({ok:true,status:'declined'});
+  }
+  if(!user.username)return json({ok:false,code:'USERNAME_REQUIRED',error:'Daveti kabul etmek için önce bir @kullaniciadi belirlemelisin.'},400);
+  const existing=await env.DB.prepare('SELECT id FROM habit_participants WHERE habit_id=? AND user_id=?').bind(inv.habit_id,user.id).first();
+  if(existing)return json({ok:true,habit_id:inv.habit_id,already_member:true});
+  const now=nowIso();
+  const stmts=[env.DB.prepare('INSERT INTO habit_participants(id,habit_id,user_id,role,joined_at) VALUES(?,?,?,?,?) ON CONFLICT(habit_id,user_id) DO NOTHING').bind(crypto.randomUUID(),inv.habit_id,user.id,'member',now)];
+  if(inv.invite_type==='username')stmts.push(env.DB.prepare('UPDATE habit_invites SET status=\'accepted\' WHERE id=?').bind(inv.id));
+  await env.DB.batch(stmts);
+  return json({ok:true,habit_id:inv.habit_id,already_member:false});
 }
 function maskEmail(email){if(!email||typeof email!=='string')return 'Anonim';const [name,domain]=email.split('@');if(!domain)return email;return name.slice(0,2)+'***@'+domain}
 async function listGroups(user,env){const rows=await env.DB.prepare('SELECT g.id, g.name, g.description, g.owner_id, gm.role, gm.joined_at, (SELECT COUNT(*) FROM group_members WHERE group_id = g.id) AS member_count, (SELECT COUNT(*) FROM group_habits WHERE group_id = g.id AND archived_at IS NULL) AS habit_count FROM groups g JOIN group_members gm ON gm.group_id = g.id WHERE gm.user_id = ? ORDER BY g.created_at DESC').bind(user.id).all();return json({groups:rows.results||[]})}
@@ -184,18 +364,19 @@ export async function createGroupInvite(request,user,env,groupId){const membersh
 async function getInvitePreview(env,token){const invite=await env.DB.prepare('SELECT gi.id, gi.group_id, gi.status, gi.expires_at, g.name AS group_name, g.description AS group_description, (SELECT COUNT(*) FROM group_members WHERE group_id = g.id) AS member_count, u.email AS inviter_email FROM group_invites gi JOIN groups g ON g.id = gi.group_id JOIN users u ON u.id = gi.inviter_id WHERE gi.token = ? AND gi.status = \'pending\' AND gi.expires_at > ?').bind(token,nowIso()).first();if(!invite)return error('Davet geçersiz veya süresi dolmuş.',404);return json({invite:{group_id:invite.group_id,group_name:invite.group_name,group_description:invite.group_description,member_count:invite.member_count,inviter_display:maskEmail(invite.inviter_email),expires_at:invite.expires_at}})}
 async function respondInvite(request,user,env,token,action){if(!['accept','decline'].includes(action))return error('Davet yanıtı geçersiz.');const invite=await env.DB.prepare('SELECT * FROM group_invites WHERE token=? AND status=\'pending\' AND expires_at>?').bind(token,nowIso()).first();if(!invite)return error('Davet bulunamadı veya süresi dolmuş.',404);if(invite.invite_type==='username')return error('Bu kullanıcı adı daveti desteklenmiyor. Yeni bir bağlantı daveti iste.',403);if(invite.invite_type==='email'&&invite.recipient&&invite.recipient.toLowerCase()!==user.email.toLowerCase()){return error('Bu davet başka bir e-posta adresine gönderilmiş.',403)}if(action==='decline'){if(invite.invite_type==='link'){return json({ok:true,status:'declined'})}await env.DB.prepare('UPDATE group_invites SET status=\'declined\' WHERE id=?').bind(invite.id).run();return json({ok:true,status:'declined'})}const existing=await env.DB.prepare('SELECT id FROM group_members WHERE group_id=? AND user_id=?').bind(invite.group_id,user.id).first();if(existing)return json({ok:true,group_id:invite.group_id,already_member:true});const memberId=crypto.randomUUID(),now=nowIso();const addMember=env.DB.prepare('INSERT INTO group_members(id, group_id, user_id, role, joined_at) VALUES(?,?,?,?,?) ON CONFLICT(group_id, user_id) DO NOTHING').bind(memberId,invite.group_id,user.id,'member',now);const updateInvite=(invite.invite_type==='email'||invite.invite_type==='username')?env.DB.prepare('UPDATE group_invites SET status=\'accepted\' WHERE id=?').bind(invite.id):env.DB.prepare('SELECT 1');await env.DB.batch([addMember,updateInvite]);return json({ok:true,group_id:invite.group_id,joined:true})}
 async function setGroupCheckin(request,user,env,groupId,habitId,day){if(!validDate(day))return error('Tarih geçersiz.');const membership=await env.DB.prepare('SELECT role FROM group_members WHERE group_id=? AND user_id=?').bind(groupId,user.id).first();if(!membership)return error('Grup bulunamadı.',404);const habit=await env.DB.prepare('SELECT id FROM group_habits WHERE id=? AND group_id=? AND archived_at IS NULL').bind(habitId,groupId).first();if(!habit)return error('Grup alışkanlığı bulunamadı.',404);let body={};try{body=await readJson(request)}catch(e){return error(e.message)}const deleted=request.method==='DELETE'?1:0,value=deleted?0:Number(body.value);if(!Number.isFinite(value)||value<0||value>1000000)return error('Kayıt 0 ile 1.000.000 arasında olmalı.');const key=String(body.idempotency_key||'');if(!key||key.length>80)return error('Kayıt kimliği eksik.');const duplicate=await env.DB.prepare('SELECT id, group_habit_id, habit_date, value, revision, deleted FROM group_checkins WHERE user_id=? AND idempotency_key=?').bind(user.id,key).first();if(duplicate){if(duplicate.group_habit_id!==habitId||duplicate.habit_date!==day||duplicate.value!==value||duplicate.deleted!==deleted)return error('Kayıt kimliği başka bir işlemde kullanıldı.',409);return json({checkin:duplicate})}const existing=await env.DB.prepare('SELECT id, revision FROM group_checkins WHERE group_id=? AND group_habit_id=? AND user_id=? AND habit_date=?').bind(groupId,habitId,user.id,day).first();const expected=Number(body.expected_revision||0);if((existing?.revision||0)!==expected)return error('Kayıt başka bir cihazda değişti. Güncel durumu yenile.',409);const now=nowIso();if(existing){const result=await env.DB.prepare('UPDATE group_checkins SET value=?, deleted=?, idempotency_key=?, revision=revision+1, updated_at=? WHERE id=? AND user_id=? AND revision=?').bind(value,deleted,key,now,existing.id,user.id,expected).run();if(!result.meta?.changes)return error('Kayıt başka bir cihazda değişti.',409);return json({checkin:{id:existing.id,group_habit_id:habitId,habit_date:day,value,deleted,revision:expected+1,updated_at:now}})}const id=crypto.randomUUID();const insertResult=await env.DB.prepare('INSERT INTO group_checkins(id, group_id, group_habit_id, user_id, habit_date, value, idempotency_key, deleted, revision, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?,1,?,?) ON CONFLICT(group_habit_id, user_id, habit_date) DO NOTHING').bind(id,groupId,habitId,user.id,day,value,key,deleted,now,now).run();if(!insertResult.meta?.changes)return error('Kayıt eşzamanlı olarak değişti. Güncel durumu yenile.',409);return json({checkin:{id,group_habit_id:habitId,habit_date:day,value,deleted,revision:1,created_at:now,updated_at:now}},201)}
-async function setCheckin(request,user,env,habitId,day){if(!validDate(day))return error('Tarih geçersiz.');const habit=await env.DB.prepare('SELECT id,tracking,direction FROM habits WHERE id=? AND user_id=? AND archived_at IS NULL').bind(habitId,user.id).first();if(!habit)return error('Alışkanlık bulunamadı.',404);let body={};try{body=await readJson(request)}catch(e){return error(e.message)}const deleted=request.method==='DELETE'?1:0;const value=deleted?0:Number(body.value);if(!Number.isFinite(value)||value<0||value>1000000)return error('Kayıt 0 ile 1.000.000 arasında olmalı.');const key=String(body.idempotency_key||'');if(!key||key.length>80)return error('Kayıt kimliği eksik.');const duplicate=await env.DB.prepare('SELECT id,habit_id,habit_date,value,revision,deleted FROM checkins WHERE user_id=? AND idempotency_key=?').bind(user.id,key).first();if(duplicate){if(duplicate.habit_id!==habitId||duplicate.habit_date!==day||duplicate.value!==value||duplicate.deleted!==deleted)return error('Kayıt kimliği başka bir işlemde kullanıldı.',409);return json({checkin:duplicate})}const existing=await env.DB.prepare('SELECT id,revision FROM checkins WHERE user_id=? AND habit_id=? AND habit_date=?').bind(user.id,habitId,day).first();const expected=Number(body.expected_revision||0);if((existing?.revision||0)!==expected)return error('Bu gün başka bir cihazda değişmiş. Güncel kayıt yüklendi; yeniden dene.',409);const now=nowIso();if(existing){const result=await env.DB.prepare('UPDATE checkins SET value=?,deleted=?,idempotency_key=?,revision=revision+1,updated_at=? WHERE id=? AND user_id=? AND revision=?').bind(value,deleted,key,now,existing.id,user.id,expected).run();if(!result.meta?.changes)return error('Kayıt başka bir cihazda değişti. Güncel durumu yenile.',409);return json({checkin:{id:existing.id,habit_id:habitId,habit_date:day,value,deleted,revision:expected+1,updated_at:now}})}const id=crypto.randomUUID();const result=await env.DB.prepare('INSERT INTO checkins(id,user_id,habit_id,habit_date,value,idempotency_key,deleted,revision,created_at,updated_at) VALUES(?,?,?,?,?,?,?,1,?,?) ON CONFLICT(user_id,habit_id,habit_date) DO NOTHING').bind(id,user.id,habitId,day,value,key,deleted,now,now).run();if(!result.meta?.changes)return error('Kayıt eşzamanlı olarak değişti. Güncel durumu yenile.',409);return json({checkin:{id,habit_id:habitId,habit_date:day,value,deleted,revision:1,created_at:now,updated_at:now}},201)}
+async function setCheckin(request,user,env,habitId,day){if(!validDate(day))return error('Tarih geçersiz.');const habit=await env.DB.prepare('SELECT h.id,h.tracking,h.direction FROM habits h LEFT JOIN habit_participants hp ON hp.habit_id=h.id AND hp.user_id=? WHERE h.id=? AND h.archived_at IS NULL AND (hp.user_id=? OR h.user_id=?)').bind(user.id,habitId,user.id,user.id).first();if(!habit)return error('Alışkanlık bulunamadı.',404);let body={};try{body=await readJson(request)}catch(e){return error(e.message)}const deleted=request.method==='DELETE'?1:0;const value=deleted?0:Number(body.value);if(!Number.isFinite(value)||value<0||value>1000000)return error('Kayıt 0 ile 1.000.000 arasında olmalı.');const key=String(body.idempotency_key||'');if(!key||key.length>80)return error('Kayıt kimliği eksik.');const duplicate=await env.DB.prepare('SELECT id,habit_id,habit_date,value,revision,deleted FROM checkins WHERE user_id=? AND idempotency_key=?').bind(user.id,key).first();if(duplicate){if(duplicate.habit_id!==habitId||duplicate.habit_date!==day||duplicate.value!==value||duplicate.deleted!==deleted)return error('Kayıt kimliği başka bir işlemde kullanıldı.',409);return json({checkin:duplicate})}const existing=await env.DB.prepare('SELECT id,revision FROM checkins WHERE user_id=? AND habit_id=? AND habit_date=?').bind(user.id,habitId,day).first();const expected=Number(body.expected_revision||0);if((existing?.revision||0)!==expected)return error('Bu gün başka bir cihazda değişmiş. Güncel kayıt yüklendi; yeniden dene.',409);const now=nowIso();if(existing){const result=await env.DB.prepare('UPDATE checkins SET value=?,deleted=?,idempotency_key=?,revision=revision+1,updated_at=? WHERE id=? AND user_id=? AND revision=?').bind(value,deleted,key,now,existing.id,user.id,expected).run();if(!result.meta?.changes)return error('Kayıt başka bir cihazda değişti. Güncel durumu yenile.',409);return json({checkin:{id:existing.id,habit_id:habitId,habit_date:day,value,deleted,revision:expected+1,updated_at:now}})}const id=crypto.randomUUID();const result=await env.DB.prepare('INSERT INTO checkins(id,user_id,habit_id,habit_date,value,idempotency_key,deleted,revision,created_at,updated_at) VALUES(?,?,?,?,?,?,?,1,?,?) ON CONFLICT(user_id,habit_id,habit_date) DO NOTHING').bind(id,user.id,habitId,day,value,key,deleted,now,now).run();if(!result.meta?.changes)return error('Kayıt eşzamanlı olarak değişti. Güncel durumu yenile.',409);return json({checkin:{id,habit_id:habitId,habit_date:day,value,deleted,revision:1,created_at:now,updated_at:now}},201)}
 async function handle(context){const {request,env}=context;const path=(Array.isArray(context.params.path)?context.params.path.join('/'):context.params.path||'').replace(/^\/+|\/+$/g,'');if(!env.DB)return error('Veri tabanı bağlantısı yapılandırılmamış.',503);if(request.method==='OPTIONS')return new Response(null,{status:204,headers:{'Allow':'GET,POST,PUT,PATCH,DELETE,OPTIONS'}});
-const needsExtendedSchema=path==='groups'||path.startsWith('groups/')||path.startsWith('invites/')||path.startsWith('social/')||path==='gamification'||path.startsWith('push/')||path==='internal/dispatch-push'||(path==='habits'&&request.method==='GET')||(path==='account'&&request.method==='DELETE');
+const needsExtendedSchema=path==='groups'||path.startsWith('groups/')||path.startsWith('invites/')||path.startsWith('social/')||path==='gamification'||path.startsWith('push/')||path==='internal/dispatch-push'||path==='habits'||path.startsWith('habits/')||path==='account'||path.startsWith('account/')||path.startsWith('auth/');
 if(needsExtendedSchema){try{await ensureExtendedSchema(env.DB)}catch(err){console.error('PACE: automatic schema bootstrap failed',err?.message||err)}}
 if(path==='internal/dispatch-push'&&request.method==='POST'){const secret=request.headers.get('X-Dispatch-Secret')||'';if(!env.PUSH_DISPATCH_SECRET||!timingSafeEqualStr(secret,env.PUSH_DISPATCH_SECRET))return error('Yetkisiz.',401);return json({ok:true,...(await dispatchDueDailyPushes(env))})}
 if(['POST','PUT','PATCH','DELETE'].includes(request.method)&&!(await requireSameOrigin(request)))return error('İstek kaynağı doğrulanamadı.',403);
 if(path==='auth/capabilities'&&request.method==='GET')return json({email_code_enabled:Boolean(env.RESEND_API_KEY&&env.EMAIL_FROM),push_enabled:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY)});
 if(path==='push/public-key'&&request.method==='GET')return json({public_key:env.VAPID_PUBLIC_KEY||null});
 if(request.method==='POST'&&['auth/register','auth/login','auth/recover'].includes(path))return passwordAuth(request,env,path.split('/')[1]);
-if(path==='auth/request-code'&&request.method==='POST')return requestCode(request,env);if(path==='auth/verify-code'&&request.method==='POST')return verifyCode(request,env);if(path==='auth/me'&&request.method==='GET'){const user=await currentUser(request,env);return user?json({user:{id:user.id,email:user.email,week_start:user.week_start,timezone:user.timezone,has_password:await hasPasswordCredential(user.id,env)}}):error('Oturum açman gerekiyor.',401)}if(path==='auth/logout'&&request.method==='POST'){const token=readCookie(request,SESSION_COOKIE);if(token)await env.DB.prepare('DELETE FROM sessions WHERE token_hash=?').bind(await digest(token)).run();return json({ok:true},200,{'Set-Cookie':clearCookie(SESSION_COOKIE)})}
-const invitePreview=path.match(/^invites\/([^/]+)$/);if(invitePreview&&request.method==='GET')return getInvitePreview(env,decodeURIComponent(invitePreview[1]));
+if(path==='auth/request-code'&&request.method==='POST')return requestCode(request,env);if(path==='auth/verify-code'&&request.method==='POST')return verifyCode(request,env);if(path==='auth/me'&&request.method==='GET'){const user=await currentUser(request,env);return user?json({ok:true,user:{id:user.id,email:user.email,username:user.username||null,week_start:user.week_start,timezone:user.timezone,has_password:await hasPasswordCredential(user.id,env)}}):error('Oturum açman gerekiyor.',401)}if(path==='auth/logout'&&request.method==='POST'){const token=readCookie(request,SESSION_COOKIE);if(token)await env.DB.prepare('DELETE FROM sessions WHERE token_hash=?').bind(await digest(token)).run();return json({ok:true},200,{'Set-Cookie':clearCookie(SESSION_COOKIE)})}
+const invitePreview=path.match(/^invites\/([^/]+)$/);if(invitePreview&&invitePreview[1]!=='inbox'&&request.method==='GET')return getHabitInvitePreview(env,decodeURIComponent(invitePreview[1]));
 const user=await currentUser(request,env);if(!user)return error('Oturum açman gerekiyor.',401);if(path==='habits'&&request.method==='GET')return json(await stateFor(user,env));if(path==='habits'&&request.method==='POST')return createHabit(request,user,env);
+if(path==='invites/inbox'&&request.method==='GET')return listHabitInviteInbox(user,env);
 if(path==='gamification'&&request.method==='GET')return json({gamification:await readUserGamification(user,env)});
 if(path==='gamification'&&request.method==='PUT')return saveUserGamification(request,user,env);
 if(path==='social/inbox'&&request.method==='GET')return listSocialInbox(user,env);
@@ -204,6 +385,7 @@ if(path==='push/subscribe'&&request.method==='POST')return subscribePush(request
 if(path==='push/subscribe'&&request.method==='DELETE'){let b={};try{b=await readJson(request)}catch{}try{if(b.endpoint)await env.DB.prepare('DELETE FROM push_subscriptions WHERE user_id=? AND endpoint=?').bind(user.id,b.endpoint).run();else await env.DB.prepare('DELETE FROM push_subscriptions WHERE user_id=?').bind(user.id).run()}catch{}return json({ok:true})}
 if(path==='push/preferences'&&request.method==='PATCH')return updatePushPrefs(request,user,env);
 if(path==='export'&&request.method==='GET')return json(await stateFor(user,env));if(path==='import'&&request.method==='POST')return importData(request,user,env);if(path==='account/preferences'&&request.method==='PATCH'){let body;try{body=await readJson(request)}catch(e){return error(e.message)}const start=Number(body.week_start)===0?0:1;await env.DB.prepare('UPDATE users SET week_start=?,updated_at=? WHERE id=?').bind(start,nowIso(),user.id).run();return json({ok:true,week_start:start})}
+if(path==='account/username'&&request.method==='PATCH')return updateUsername(request,user,env);
 if(path==='account/password'&&request.method==='POST')return changePassword(request,user,env);
 if(path==='account/recovery-code'&&request.method==='POST')return regenerateRecoveryCode(request,user,env);
 if(path==='account'&&request.method==='DELETE'){
@@ -222,6 +404,8 @@ if(path==='account'&&request.method==='DELETE'){
   ];
   try{
     await env.DB.batch([
+      env.DB.prepare('DELETE FROM habit_invites WHERE inviter_id=? OR target_user_id=?').bind(user.id,user.id),
+      env.DB.prepare('DELETE FROM habit_participants WHERE user_id=?').bind(user.id),
       env.DB.prepare('DELETE FROM group_reactions WHERE sender_user_id=? OR target_user_id=? OR group_id IN (SELECT id FROM groups WHERE owner_id=?)').bind(user.id,user.id,user.id),
       env.DB.prepare('DELETE FROM user_gamification WHERE user_id=?').bind(user.id),
       env.DB.prepare('DELETE FROM push_subscriptions WHERE user_id=?').bind(user.id),
@@ -240,11 +424,14 @@ const groupHabitLifecycle=path.match(/^groups\/([^/]+)\/habits\/([^/]+)\/(archiv
 const groupHabitDetail=path.match(/^groups\/([^/]+)\/habits\/([^/]+)$/);if(groupHabitDetail&&request.method==='PATCH')return updateGroupHabit(request,user,env,decodeURIComponent(groupHabitDetail[1]),decodeURIComponent(groupHabitDetail[2]));if(groupHabitDetail&&request.method==='DELETE')return deleteGroupHabit(user,env,decodeURIComponent(groupHabitDetail[1]),decodeURIComponent(groupHabitDetail[2]));
 const groupInvites=path.match(/^groups\/([^/]+)\/invites$/);if(groupInvites&&request.method==='POST')return createGroupInvite(request,user,env,decodeURIComponent(groupInvites[1]));
 const groupReactions=path.match(/^groups\/([^/]+)\/reactions$/);if(groupReactions&&request.method==='POST')return createGroupReaction(request,user,env,decodeURIComponent(groupReactions[1]));
-const inviteAction=path.match(/^invites\/([^/]+)\/(accept|decline|respond)$/);if(inviteAction&&request.method==='POST'){let act=inviteAction[2];if(act==='respond'){try{const b=await readJson(request);act=b.action}catch(e){return error(e.message)}}return respondInvite(request,user,env,decodeURIComponent(inviteAction[1]),act);}
+const inviteAction=path.match(/^invites\/([^/]+)\/(accept|decline|respond)$/);if(inviteAction&&request.method==='POST'){let act=inviteAction[2];if(act==='respond'){try{const b=await readJson(request);act=b.action}catch(e){return error(e.message)}}return respondHabitInvite(request,user,env,decodeURIComponent(inviteAction[1]),act);}
 const groupCheckin=path.match(/^groups\/([^/]+)\/habits\/([^/]+)\/check-ins\/(\d{4}-\d{2}-\d{2})$/);if(groupCheckin&&['PUT','DELETE'].includes(request.method))return setGroupCheckin(request,user,env,decodeURIComponent(groupCheckin[1]),decodeURIComponent(groupCheckin[2]),groupCheckin[3]);
+const habitLeave=path.match(/^habits\/([^/]+)\/leave$/);if(habitLeave&&request.method==='POST')return leaveHabit(user,env,decodeURIComponent(habitLeave[1]));
+const habitParticipantRemove=path.match(/^habits\/([^/]+)\/participants\/([^/]+)$/);if(habitParticipantRemove&&request.method==='DELETE')return removeHabitParticipant(user,env,decodeURIComponent(habitParticipantRemove[1]),decodeURIComponent(habitParticipantRemove[2]));
+const habitInvites=path.match(/^habits\/([^/]+)\/invites$/);if(habitInvites&&request.method==='POST')return createHabitInvite(request,user,env,decodeURIComponent(habitInvites[1]));
 const habitArchive=path.match(/^habits\/([^/]+)\/archive$/);if(habitArchive&&request.method==='POST'){let body={};try{if(request.headers.get('Content-Type'))body=await readJson(request)}catch(e){return error(e.message)}if(body.effective_from!==undefined&&!validDate(body.effective_from))return error('Geçerlilik tarihi geçersiz.');const archived_at=nowIso();return updateHabit(new Request(request.url,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({archived_at,effective_from:body.effective_from||archived_at.slice(0,10)})}),user,env,decodeURIComponent(habitArchive[1]))}
 const habitRestore=path.match(/^habits\/([^/]+)\/restore$/);if(habitRestore&&request.method==='POST'){let body={};try{if(request.headers.get('Content-Type'))body=await readJson(request)}catch(e){return error(e.message)}if(body.effective_from!==undefined&&!validDate(body.effective_from))return error('Geçerlilik tarihi geçersiz.');return updateHabit(new Request(request.url,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({archived_at:null,paused:false,effective_from:body.effective_from||nowIso().slice(0,10)})}),user,env,decodeURIComponent(habitRestore[1]))}
-const checkin=path.match(/^habits\/([^/]+)\/check-ins\/(\d{4}-\d{2}-\d{2})$/);if(checkin&&['PUT','DELETE'].includes(request.method))return setCheckin(request,user,env,decodeURIComponent(checkin[1]),checkin[2]);const habit=path.match(/^habits\/([^/]+)$/);if(habit&&request.method==='PATCH')return updateHabit(request,user,env,decodeURIComponent(habit[1]));if(habit&&request.method==='DELETE'){const archived_at=nowIso();return updateHabit(new Request(request.url,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({archived_at,effective_from:archived_at.slice(0,10)})}),user,env,decodeURIComponent(habit[1]))}return error('Bu sayfa bulunamadı.',404)}
+const checkin=path.match(/^habits\/([^/]+)\/check-ins\/(\d{4}-\d{2}-\d{2})$/);if(checkin&&['PUT','DELETE'].includes(request.method))return setCheckin(request,user,env,decodeURIComponent(checkin[1]),checkin[2]);const habit=path.match(/^habits\/([^/]+)$/);if(habit&&request.method==='PATCH')return updateHabit(request,user,env,decodeURIComponent(habit[1]));if(habit&&request.method==='DELETE')return deleteHabitPermanent(user,env,decodeURIComponent(habit[1]));return error('Bu sayfa bulunamadı.',404)}
 export async function onRequest(context){
  try{return await handle(context)}catch(e){
   // D1 may wrap SQLite's error in a cause. Never expose raw database errors.

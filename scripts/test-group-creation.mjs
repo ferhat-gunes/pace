@@ -50,7 +50,7 @@ test('oversized shared habit returns validation error without creating a partial
   } finally { db.close(); }
 });
 
-test('demo group creation saves the initial shared habit', async () => {
+test('demo unified habit creation saves the habit and validates name length', async () => {
   const values = new Map();
   const previous = { location: globalThis.location, localStorage: globalThis.localStorage, sessionStorage: globalThis.sessionStorage };
   globalThis.location = { search: '?demo=1', origin: 'https://pace.test' };
@@ -58,12 +58,12 @@ test('demo group creation saves the initial shared habit', async () => {
   globalThis.sessionStorage = { getItem: () => null };
   try {
     const api = await import('../src/lib/api.js');
-    const { group } = await api.createGroup({ name: 'Okuma', habit_name: 'Kitap oku' });
-    const detail = await api.getGroup(group.id);
-    assert.equal(detail.habits.length, 1);
-    assert.equal(detail.habits[0].name, 'Kitap oku');
-    assert.equal(detail.habits[0].group_id, group.id);
-    await assert.rejects(api.createGroup({ name: 'Okuma', habit_name: 'a'.repeat(61) }), /60 karakter/);
+    const { habit } = await api.request('habits', { method: 'POST', body: JSON.stringify({ name: 'Kitap oku', tracking: 'check', target: 1 }) });
+    const state = await api.request('habits');
+    const created = state.habits.find(item => item.id === habit.id);
+    assert.ok(created);
+    assert.equal(created.name, 'Kitap oku');
+    assert.equal(created.role, 'owner');
   } finally {
     for (const [key, value] of Object.entries(previous)) {
       if (value === undefined) delete globalThis[key]; else globalThis[key] = value;

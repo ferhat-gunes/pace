@@ -10,7 +10,6 @@ export async function guestRequest(path,options={}){
  const s=readGuest(),method=options.method||'GET',body=options.body?JSON.parse(options.body):{};
  const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(s))}catch{throw new Error('Cihaz verileri saklanamadı. Depolama alanını kontrol et.')}};
  if(path==='habits'&&method==='GET')return s;
- if(path==='groups'&&method==='GET')return {groups:[]};
  if(path==='export')return s;
  if(path==='habits'&&method==='POST'){
   const habit={...body,id:crypto.randomUUID(),start_date:body.start_date||dateKey(),created_at:new Date().toISOString(),paused:false,archived_at:null};
@@ -27,6 +26,10 @@ export async function guestRequest(path,options={}){
   if(index<0)s.checkins.push(checkin);else s.checkins[index]=checkin;save();return {checkin};
  }
  const habit=path.match(/^habits\/([^/]+)(?:\/(archive|restore))?$/);
+ if(habit&&method==='DELETE'&&!habit[2]){
+  const id=decodeURIComponent(habit[1]);
+  s.habits=s.habits.filter(h=>h.id!==id);s.checkins=s.checkins.filter(c=>c.habit_id!==id);save();return {ok:true,deleted:true,id};
+ }
  if(habit&&['POST','PATCH'].includes(method)){
   const index=s.habits.findIndex(h=>h.id===decodeURIComponent(habit[1]));if(index<0)throw new Error('Alışkanlık bulunamadı.');
   const h=s.habits[index],effective=body.effective_from||dateKey(),patch=habit[2]?{archived_at:habit[2]==='archive'?new Date().toISOString():null,paused:false}:body;

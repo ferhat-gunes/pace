@@ -11,7 +11,7 @@ const payload = () => ({ week_start: 1, habits: [{ ...base, id: 'source-habit', 
 const request = (body, path = 'import') => new Request(`https://pace.test/api/${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'https://pace.test', Authorization: 'Bearer test-session' }, body: JSON.stringify(body) });
 function database() {
   const db = new DatabaseSync(':memory:');
-  for (const name of ['0001_initial.sql', '0002_password_accounts.sql', '0003_checkin_tombstones.sql', '0004_groups_and_social.sql']) db.exec(readFileSync(new URL('../migrations/' + name, import.meta.url), 'utf8'));
+  for (const name of ['0001_initial.sql', '0002_password_accounts.sql', '0003_checkin_tombstones.sql', '0004_groups_and_social.sql', '0005_social_reactions_and_gamification.sql', '0006_web_push.sql', '0007_unified_habits_and_usernames.sql']) db.exec(readFileSync(new URL('../migrations/' + name, import.meta.url), 'utf8'));
   db.prepare('INSERT INTO users(id,email,created_at,updated_at) VALUES(?,?,?,?)').run('u1', 'one@example.test', 'now', 'now');
   db.prepare('INSERT INTO users(id,email,created_at,updated_at) VALUES(?,?,?,?)').run('u2', 'two@example.test', 'now', 'now');
   const wrap = (sql, args) => ({

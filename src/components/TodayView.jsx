@@ -1,11 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
-import { Plus, Minus, ChevronLeft, ChevronRight, RotateCcw, Check } from 'lucide-react';
+import { Plus, Minus, ChevronLeft, ChevronRight, RotateCcw, Check, Users } from 'lucide-react';
 import { addDays, formatNumber, formatTarget, latestCheckins, recordFor, settingsAt, goalFor, stateFor, weekDays as calendarWeek } from '../lib/rules';
 import { dailyCompletion } from '../lib/statistics.js';
 import { resolveRolloverSelection, useLocalDate } from '../lib/local-date.js';
 import { parseEntryAmount } from '../lib/numeric-entry.js';
 import DailyEngagement from './DailyEngagement.jsx';
-import TodaySharedHabits from './Groups/TodaySharedHabits.jsx';
 import { Button, IconButton, StatusMarker, ProgressBar, InlineFeedback, EmptyState, LoadingState } from './ui/index.js';
 
 const OnboardingStarter = lazy(() => import('./OnboardingStarter.jsx'));
@@ -20,9 +19,8 @@ export default function TodayView({
   todayHabits = [],
   habits = [],
   checkins = [],
-  groups = [],
+  participantCheckins = [],
   user = null,
-  onOpenGroup,
   logCheckin,
   completionStats = { completed: 0, total: 0, percentage: 0 },
   filterMode = 'planned',
@@ -354,6 +352,75 @@ export default function TodayView({
                       Seçili gün: {isDone ? 'Yapıldı' : 'Henüz tamamlanmadı'}
                     </p>
                   )}
+
+                  {Array.isArray(habit.participants) && habit.participants.length > 1 && (() => {
+                    const participants = habit.participants;
+                    const statuses = participants.map((p) => {
+                      const isMe = Boolean(p.is_me || (user?.id && p.user_id === user.id));
+                      if (isMe) return { ...p, done: isDone };
+                      const pc = participantCheckins.find(
+                        (c) => c.habit_id === habit.id && c.user_id === p.user_id && c.habit_date === selectedDate
+                      );
+                      const pVal = Number(pc?.value || 0);
+                      const pDone = h.tracking === 'check'
+                        ? pVal >= 1
+                        : h.direction === 'at_most'
+                          ? Boolean(pc) && pVal <= target
+                          : pVal >= target;
+                      return { ...p, done: pDone };
+                    });
+                    const doneCount = statuses.filter((s) => s.done).length;
+                    return (
+                      <div
+                        className="shared-participants-inline"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          gap: 'var(--space-2)',
+                          marginTop: 'var(--space-2)',
+                        }}
+                      >
+                        <span
+                          className="mono"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            padding: '2px 6px',
+                            border: '1px solid var(--border)',
+                            background: 'var(--surface-2)',
+                            color: doneCount === statuses.length ? 'var(--signal-text)' : 'var(--fg)',
+                          }}
+                        >
+                          <Users size={11} strokeWidth={1.75} aria-hidden="true" />
+                          {doneCount}/{statuses.length} tamamlandı
+                        </span>
+                        {statuses.slice(0, 5).map((p) => (
+                          <span
+                            key={p.user_id}
+                            className="mono"
+                            style={{
+                              fontSize: '11px',
+                              padding: '1px 6px',
+                              border: '1px solid var(--border)',
+                              background: p.done ? 'var(--surface-2)' : 'transparent',
+                              color: p.done ? 'var(--signal-text)' : 'var(--fg-muted)',
+                            }}
+                          >
+                            {p.done ? '✓ ' : ''}@{p.username || 'uye'}
+                          </span>
+                        ))}
+                        {statuses.length > 5 && (
+                          <span className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)' }}>
+                            +{statuses.length - 5}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="habit-actions" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'var(--space-2)', maxWidth: '100%' }}>
@@ -549,14 +616,6 @@ export default function TodayView({
           })}
         </div>
       )}
-
-      <TodaySharedHabits
-        groups={groups}
-        user={user}
-        selectedDate={selectedDate}
-        today={todayIso}
-        onOpenGroup={onOpenGroup}
-      />
 
       <div style={{ marginTop: 'var(--space-6)' }}>
         <DailyEngagement

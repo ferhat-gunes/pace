@@ -408,32 +408,6 @@ export async function sendNudge({
   groupId = 'default',
   reactionType = 'nudge',
 }) {
-  const habitDate = localDateIso();
-  if (groupId && groupId !== 'default' && targetMember?.user_id) {
-    try {
-      const res = await api.sendGroupReaction(groupId, {
-        target_user_id: targetMember.user_id,
-        reaction_type: reactionType,
-        emoji,
-        message,
-        habit_date: habitDate,
-      });
-      if (res?.reaction) {
-        return {
-          success: true,
-          nudge: res.reaction,
-          xpBonus: reactionType === 'cheer' ? 10 : 5,
-          synced: true,
-        };
-      }
-    } catch (err) {
-      if (err?.status === 429) {
-        return { success: false, error: err.message, xpBonus: 0 };
-      }
-      console.warn('Backend reaction fallback:', err);
-    }
-  }
-
   const nudges = getAllNudges();
   const senderName =
     senderUser?.email ? senderUser.email.split('@')[0] : 'Arkadaşın';

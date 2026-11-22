@@ -21,10 +21,10 @@ export default function SettingsView({
   user,
   habits = [],
   checkins = [],
-  groups = [],
   pendingEntries = [],
   weekStart = 1,
   updateWeekStart,
+  updateUsername,
   importBackup,
   onSignOut,
   onClearLocalData,
@@ -41,10 +41,13 @@ export default function SettingsView({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [deletePhrase, setDeletePhrase] = useState('');
+  const [usernameInput, setUsernameInput] = useState(user?.username || '');
+  const [editingUsername, setEditingUsername] = useState(false);
   const isDemo = api.demoMode;
   const authorized = Boolean(user?.id) && !isDemo && !guestMode;
   const personalAvailable = authorized || isDemo || guestMode;
   const pendingCount = pendingEntries.length;
+  const sharedCount = habits.filter((h) => (h.participants?.length || 0) > 1).length;
   const inform = (message, error = false) => setNotice({ message, error });
 
   const handleExport = async () => {
@@ -198,7 +201,7 @@ export default function SettingsView({
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 'var(--space-2)' }}>
           <StatBlock label="Alışkanlık" value={habits.length} />
-          <StatBlock label="Grup" value={groups.length} />
+          <StatBlock label="Ortak" value={sharedCount} />
           <StatBlock label="Bekleyen" value={pendingCount} highlight={pendingCount > 0} />
         </div>
 
@@ -309,6 +312,88 @@ export default function SettingsView({
               </Button>
             )}
           </div>
+
+          {authorized && (
+            <div style={rowStyle}>
+              <div style={{ flex: 1, minWidth: '200px' }}>
+                <strong style={{ fontSize: '14px' }}>@kullanıcıadı</strong>
+                <p style={{ fontSize: '12px', color: 'var(--fg-muted)', marginTop: 'var(--space-1)' }}>
+                  {user?.username
+                    ? `Ortak alışkanlıklarda @${user.username} olarak görünürsün.`
+                    : 'Henüz belirlenmedi. Arkadaş davet etmek için bir @kullanıcıadı seçebilirsin.'}
+                </p>
+              </div>
+              {editingUsername ? (
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (busy) return;
+                    const cleaned = usernameInput.trim().replace(/^@+/, '').toLowerCase();
+                    if (!/^[a-z0-9._]{3,24}$/.test(cleaned)) {
+                      inform('Kullanıcı adı 3–24 karakter olmalı; yalnızca küçük harf, rakam, nokta ve alt çizgi kullanılabilir.', true);
+                      return;
+                    }
+                    setBusy('username');
+                    try {
+                      await updateUsername?.(cleaned);
+                      setEditingUsername(false);
+                      inform(`Kullanıcı adın @${cleaned} olarak kaydedildi.`);
+                    } catch (err) {
+                      inform(err.message || 'Kullanıcı adı kaydedilemedi.', true);
+                    } finally {
+                      setBusy('');
+                    }
+                  }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}
+                >
+                  <TextInput
+                    id="settings-username-input"
+                    aria-label="Kullanıcı adı"
+                    value={usernameInput}
+                    onChange={(e) => setUsernameInput(e.target.value)}
+                    placeholder="ornek.kullanici"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    maxLength={25}
+                    disabled={Boolean(busy)}
+                  />
+                  <Button type="submit" variant="primary" size="sm" disabled={Boolean(busy)} loading={busy === 'username'}>
+                    Kaydet
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="tertiary"
+                    size="sm"
+                    disabled={Boolean(busy)}
+                    onClick={() => {
+                      setEditingUsername(false);
+                      setUsernameInput(user?.username || '');
+                    }}
+                  >
+                    Vazgeç
+                  </Button>
+                </form>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                  <span className="mono" style={{ fontSize: '13px', fontWeight: 700 }}>
+                    {user?.username ? `@${user.username}` : '—'}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={Boolean(busy)}
+                    onClick={() => {
+                      setUsernameInput(user?.username || '');
+                      setEditingUsername(true);
+                    }}
+                  >
+                    {user?.username ? 'Değiştir' : 'Belirle'}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
 
           {guestMode && onOpenAuth && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', paddingTop: 'var(--space-1)' }}>

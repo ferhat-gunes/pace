@@ -22,18 +22,23 @@ import { InlineFeedback, Button, LoadingState, ErrorState } from './components/u
 
 // Code splitting for secondary routes
 const ProgressView = lazy(() => import('./components/ProgressView.jsx'));
-const GroupsView = lazy(() => import('./components/GroupsView.jsx'));
 const SettingsView = lazy(() => import('./components/SettingsView.jsx'));
 const DiscoverView = lazy(() => import('./components/DiscoverView.jsx'));
 const AuthModal = lazy(() => import('./components/AuthModal.jsx'));
+const UsernamePromptModal = lazy(() => import('./components/UsernamePromptModal.jsx'));
+const HabitInviteModal = lazy(() => import('./components/HabitInviteModal.jsx'));
+const InvitePreviewModal = lazy(() => import('./components/InvitePreviewModal.jsx'));
 
 export default function App() {
   useDialogAccessibility();
-  const [currentView, setView] = useNavigation(); // 'today' | 'habits' | 'progress' | 'groups' | 'settings' | 'habit-form' | 'habit-detail'
+  const [currentView, setView] = useNavigation(); // 'today' | 'habits' | 'progress' | 'settings' | 'habit-form' | 'habit-detail'
   const [detailHabitId, setDetailHabitId] = useState(null);
   const [formReturnView, setFormReturnView] = useState('today');
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
   const [inviteToken, setInviteToken] = useState(null);
+  const [previewInvite, setPreviewInvite] = useState(null);
+  const [inviteModalHabit, setInviteModalHabit] = useState(null);
+  const [usernamePrompt, setUsernamePrompt] = useState(null);
   const [editingHabit, setEditingHabit] = useState(null);
   const [signOutError, setSignOutError] = useState('');
   const [signingOut, setSigningOut] = useState(false);
@@ -49,8 +54,9 @@ export default function App() {
   const {
     habits,
     checkins,
-    groups,
-    groupsError,
+    participantCheckins,
+    inviteInbox,
+    refreshInviteInbox,
     user,
     guestMode, guestBackup, serverGamification, confirmedCheckins, guestDraftCount, migrateGuestToCloud, setAuthRequired,
     setUser,
@@ -71,13 +77,16 @@ export default function App() {
     addHabit,
     archiveHabit,
     restoreHabit,
+    deleteHabit,
+    leaveHabit,
+    removeParticipant,
+    updateUsername,
     lastArchivedHabit,
     setLastArchivedHabit,
     importBackup,
     loadData,
   } = useHabits();
 
-  const [targetGroupId, setTargetGroupId] = useState(null);
   const inboxOwner=useRef(null);inboxOwner.current=api.isDemo()?'demo-user':user?.id;
   const confirmed = confirmedCheckins || checkins.filter(c => !c.sync_status || c.sync_status === 'saved');
   const gamification = useGamification(confirmed, habits, serverGamification, Boolean(user && !api.isDemo()), user?.id || (api.isDemo() ? 'demo-user' : 'guest'), weekStart);
@@ -89,7 +98,7 @@ export default function App() {
     if(!id){setSocialInbox([]);return;}
     const items=await fetchSocialInbox(id);if(inboxOwner.current===id)setSocialInbox(items);
   }, [user?.id]);
-  useEffect(()=>{let active=true;const refresh=async()=>{if(active)await refreshInbox()};void refresh();const timer=setInterval(refresh,30000);return()=>{active=false;clearInterval(timer)}},[refreshInbox]);
+  useEffect(()=>{let active=true;const refresh=async()=>{if(active){await refreshInbox();await refreshInviteInbox();}};void refresh();const timer=setInterval(refresh,30000);return()=>{active=false;clearInterval(timer)}},[refreshInbox,refreshInviteInbox]);
   const dismissInbox = id => { dismissNudge(id);setSocialInbox(items=>items.filter(item=>item.id!==id)); };
   useEffect(()=>{
     const today=localDateIso();
@@ -110,11 +119,11 @@ export default function App() {
       const token = params.get('join') || params.get('invite');
       if (['login','register'].includes(params.get('auth'))) {setAuthMode(params.get('auth'));setAuthModalOpen(true);}
       const requestedView=params.get('view');
-      if(!location.hash&&['today','habits','discover','progress','groups','settings'].includes(requestedView))setView(requestedView);
+      if(!location.hash&&['today','habits','discover','progress','settings'].includes(requestedView))setView(requestedView);
       if(params.get('preset')){setHighlightedPresetId(params.get('preset'));if(!location.hash)setView('discover');}
       if (token) {
         setInviteToken(token);
-        setView('groups');
+        setPreviewInvite({ token, item: null });
       }
     } catch (e) {}
   }, []);
@@ -174,6 +183,22 @@ export default function App() {
     finally{setSigningOut(false)}
   };
 
+  const openInviteForHabit = (habit) => {
+    if (!habit?.id || guestMode) return;
+    if (!user && !api.isDemo()) {
+      openAuth('login');
+      return;
+    }
+    if (!user?.username && !api.isDemo()) {
+      setUsernamePrompt({
+        reason: 'Arkadaş davet etmek için önce benzersiz bir @kullanıcıadı belirlemelisin.',
+        onDone: () => setInviteModalHabit(habit),
+      });
+      return;
+    }
+    setInviteModalHabit(habit);
+  };
+
   return (
     <div id="app" onKeyDown={handleCompositeKeys} className="app-shell">
       <a href="#main-content" className="skip-link">
@@ -190,7 +215,9 @@ export default function App() {
           syncState={syncState}
           socialInbox={socialInbox}
           onDismissInbox={dismissInbox}
+          inviteInbox={inviteInbox}
           inviteToken={inviteToken}
+          onOpenInvite={(token, item) => setPreviewInvite({ token, item })}
           streak={gamification.streak} streakFreezes={gamification.streakFreezes} isStreakFrozenToday={gamification.isStreakFrozenToday} buyStreakFreeze={gamification.buyStreakFreeze} gems={gamification.gems} level={gamification.level} xp={gamification.xp}
         />
 
@@ -274,12 +301,8 @@ export default function App() {
                   todayHabits={todayHabits}
                   habits={habits}
                   checkins={checkins}
-                  groups={groups}
+                  participantCheckins={participantCheckins}
                   user={user}
-                  onOpenGroup={(groupId) => {
-                    if (groupId) setTargetGroupId(groupId);
-                    setView('groups');
-                  }}
                   logCheckin={logCheckin}
                   gamification={gamification} socialInbox={socialInbox} onDismissInbox={dismissInbox}
                   onAddStarterHabits={addStarterHabits} guestMode={guestMode&&!api.demoMode} onOpenAuth={openAuth}
@@ -309,9 +332,19 @@ export default function App() {
                 <HabitDetailView
                   habit={habits.find((h) => h.id === detailHabitId) || null}
                   checkins={checkins}
+                  participantCheckins={participantCheckins}
+                  user={user}
+                  guestMode={guestMode && !api.demoMode}
                   weekStart={weekStart}
                   onBack={() => setView(formReturnView === 'habit-detail' || formReturnView === 'habit-form' ? 'today' : formReturnView)}
                   onEdit={(h) => openEditHabit(h, 'habit-detail')}
+                  onTogglePause={togglePause}
+                  onArchiveHabit={archiveHabit}
+                  onRestoreHabit={restoreHabit}
+                  onDeleteHabit={deleteHabit}
+                  onLeaveHabit={leaveHabit}
+                  onRemoveParticipant={removeParticipant}
+                  onInviteHabit={openInviteForHabit}
                 />
               )}
 
@@ -319,12 +352,15 @@ export default function App() {
                 <HabitFormView
                   habit={editingHabit ? (habits.find((h) => h.id === editingHabit.id) || editingHabit) : null}
                   initialDate={selectedDate}
+                  user={user}
+                  guestMode={guestMode && !api.demoMode}
                   onBack={(target) => setView(typeof target === 'string' ? target : (formReturnView || 'today'))}
                   onUpdateHabit={updateHabit}
                   onAddHabit={addHabit}
                   onTogglePause={togglePause}
                   onArchiveHabit={archiveHabit}
                   onRestoreHabit={restoreHabit}
+                  onInviteHabit={openInviteForHabit}
                 />
               )}
 
@@ -334,10 +370,6 @@ export default function App() {
                   <ProgressView habits={habits} checkins={checkins} weekStart={weekStart} gamification={gamification} />
                 )}
 
-                {currentView === 'groups' && (
-                  <GroupsView gamification={gamification} socialInbox={socialInbox} onSocialRefresh={refreshInbox} onDismissInbox={dismissInbox} guestMode={guestMode} onOpenAuth={openAuth} weekStart={weekStart} onRequireAuth={openAuth} loadGroupsError={groupsError} groups={groups} user={user} loadData={loadData} initialInviteToken={inviteToken} onClearInviteToken={() => {setInviteToken(null);clearInviteQuery();}} initialSelectedGroupId={targetGroupId} onClearInitialGroup={() => setTargetGroupId(null)} />
-                )}
-
                 {currentView === 'settings' && (
                   <SettingsView
                     user={user} setUser={setUser} guestMode={guestMode} guestBackup={guestBackup} onOpenAuth={openAuth} pushEnabled={capabilities.push_enabled}
@@ -345,8 +377,9 @@ export default function App() {
                     checkins={checkins}
                     weekStart={weekStart}
                     updateWeekStart={updateWeekStart}
+                    updateUsername={updateUsername}
                     importBackup={importBackup}
-                    groups={groups} pendingEntries={pendingEntries} syncState={syncState}
+                    pendingEntries={pendingEntries} syncState={syncState}
                     onClearLocalData={clearLocalData} signingOut={signingOut}
                     onSignOut={handleSignOut}
                   />
@@ -373,6 +406,85 @@ export default function App() {
               if(pendingAction==='createHabit'){setPendingAction(null);setEditingHabit(null);setFormReturnView('today');setView('habit-form');}
               else if(pendingAction?.type==='presets'){const presets=pendingAction.presets;setPendingAction(null);await addStarterHabits(presets,{authorized:true});}
               void refreshInbox();
+              void refreshInviteInbox();
+            }}
+          />
+        )}
+
+        {usernamePrompt && (
+          <UsernamePromptModal
+            open={Boolean(usernamePrompt)}
+            reason={usernamePrompt.reason}
+            onClose={() => setUsernamePrompt(null)}
+            onSaveUsername={async (nextUsername) => {
+              await updateUsername(nextUsername);
+              const done = usernamePrompt.onDone;
+              setUsernamePrompt(null);
+              done?.();
+            }}
+          />
+        )}
+
+        {inviteModalHabit && (
+          <HabitInviteModal
+            open={Boolean(inviteModalHabit)}
+            habit={inviteModalHabit}
+            onClose={() => setInviteModalHabit(null)}
+            onRequireUsername={() => {
+              const target = inviteModalHabit;
+              setInviteModalHabit(null);
+              setUsernamePrompt({
+                reason: 'Arkadaş davet etmek için önce benzersiz bir @kullanıcıadı belirlemelisin.',
+                onDone: () => setInviteModalHabit(target),
+              });
+            }}
+          />
+        )}
+
+        {previewInvite && (
+          <InvitePreviewModal
+            open={Boolean(previewInvite)}
+            token={previewInvite.token}
+            initialInvite={previewInvite.item}
+            user={user}
+            onClose={() => {
+              setPreviewInvite(null);
+              if (inviteToken && previewInvite.token === inviteToken) {
+                setInviteToken(null);
+                clearInviteQuery();
+              }
+            }}
+            onRequireAuth={() => {
+              setAuthMode('login');
+              setAuthModalOpen(true);
+            }}
+            onRequireUsername={() => {
+              const current = previewInvite;
+              setPreviewInvite(null);
+              setUsernamePrompt({
+                reason: 'Daveti kabul etmek için önce benzersiz bir @kullanıcıadı belirlemelisin.',
+                onDone: () => setPreviewInvite(current),
+              });
+            }}
+            onAccepted={async (res) => {
+              setPreviewInvite(null);
+              setInviteToken(null);
+              clearInviteQuery();
+              await loadData();
+              await refreshInviteInbox();
+              if (res?.habit_id) {
+                setDetailHabitId(res.habit_id);
+                setFormReturnView('today');
+                setView('habit-detail');
+              }
+            }}
+            onDeclined={async () => {
+              setPreviewInvite(null);
+              if (inviteToken && previewInvite.token === inviteToken) {
+                setInviteToken(null);
+                clearInviteQuery();
+              }
+              await refreshInviteInbox();
             }}
           />
         )}

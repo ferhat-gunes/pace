@@ -80,8 +80,8 @@ try {
   await formPage.route('**/api/**', async route => {
     if(await fulfillFeatureRequest(route))return;
     const req = route.request(), path = new URL(req.url()).pathname;
-    if (path === '/api/habits' && req.method() === 'GET') return route.fulfill({ json: { user: { id: 'editor-test', email: 'editor@example.test' }, habits: savedHabits, checkins: [] } });
-    if (path === '/api/groups' && req.method() === 'GET') return route.fulfill({ json: { groups: [] } });
+    if (path === '/api/habits' && req.method() === 'GET') return route.fulfill({ json: { user: { id: 'editor-test', email: 'editor@example.test', username: 'editor.test' }, habits: savedHabits, checkins: [], participant_checkins: [] } });
+    if (path === '/api/invites/inbox' && req.method() === 'GET') return route.fulfill({ json: { ok: true, invites: [] } });
     if (path === '/api/habits' && req.method() === 'POST') {
       attempts++;
       if (attempts === 1) {

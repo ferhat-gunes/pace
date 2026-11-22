@@ -1,5 +1,5 @@
 import React from 'react';
-import { CalendarDays, ListChecks, Compass, ChartNoAxesColumnIncreasing, Users, Settings, LogIn, UserCheck } from 'lucide-react';
+import { CalendarDays, ListChecks, Compass, ChartNoAxesColumnIncreasing, Settings, LogIn, UserCheck } from 'lucide-react';
 import * as api from '../../lib/api';
 import { isFeatureEnabled } from '../../lib/telemetry';
 import { Button } from '../ui/index.js';
@@ -10,7 +10,6 @@ export default function Sidebar({ currentView = 'today', setView, syncState = 'B
     { id: 'habits', label: 'Alışkanlıklar', icon: ListChecks },
     ...(isFeatureEnabled('discover_rhythm_trials') ? [{ id: 'discover', label: 'Keşfet', icon: Compass }] : []),
     { id: 'progress', label: 'İlerleme', icon: ChartNoAxesColumnIncreasing },
-    { id: 'groups', label: 'Gruplar', icon: Users },
   ];
 
   const isDemo = api.isDemo();
@@ -72,14 +71,14 @@ export default function Sidebar({ currentView = 'today', setView, syncState = 'B
             type="button"
             className="nav-item"
             onClick={() => setView?.('settings')}
-            title={user.email}
+            title={user.username ? `@${user.username} (${user.email})` : user.email}
             style={{ marginBottom: 'var(--space-1)', color: 'var(--fg)' }}
           >
             <span className="nav-icon" style={{ color: 'var(--signal-text)' }}>
               <UserCheck size={18} strokeWidth={1.5} aria-hidden="true" />
             </span>
             <span className="mono" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '12px' }}>
-              {user.email}
+              {user.username ? `@${user.username}` : user.email}
             </span>
           </button>
         )}

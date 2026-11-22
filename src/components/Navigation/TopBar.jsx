@@ -11,16 +11,18 @@ export default function TopBar({
   streak = 0,
   socialInbox = [],
   onDismissInbox,
+  inviteInbox = [],
   inviteToken = null,
+  onOpenInvite,
 }) {
   const [notifOpen, setNotifOpen] = useState(false);
-  const initial = user?.email ? user.email[0].toLocaleUpperCase('tr-TR') : 'P';
+  const initial = user?.username ? user.username[0].toLocaleUpperCase('tr-TR') : user?.email ? user.email[0].toLocaleUpperCase('tr-TR') : 'P';
   const isDemo = api.demoMode;
   const isError = /Hata|Çakışma|kurulamadı|Kaydedilmemiş/i.test(syncState || '');
   const isPending = /Kaydediliyor|Yükleniyor/i.test(syncState || '');
   const SyncIcon = isError ? AlertTriangle : isPending ? RefreshCw : CloudCheck;
   const syncLabel = syncState || 'Senkronize';
-  const unreadCount = socialInbox.length + (inviteToken ? 1 : 0);
+  const unreadCount = socialInbox.length + inviteInbox.length + (inviteToken ? 1 : 0);
 
   return (
     <header className="topbar" role="banner">
@@ -152,10 +154,10 @@ export default function TopBar({
             >
               <div>
                 <strong className="mono" style={{ fontSize: '12px', textTransform: 'uppercase' }}>
-                  Bekleyen Grup Daveti
+                  Bekleyen Alışkanlık Daveti
                 </strong>
                 <p style={{ fontSize: '13px', color: 'var(--fg-muted)', marginTop: 'var(--space-1)' }}>
-                  Bir gruba katılman için davet bağlantın hazır.
+                  Ortak bir alışkanlığa katılman için davet bağlantın hazır.
                 </p>
               </div>
               <Button
@@ -163,7 +165,7 @@ export default function TopBar({
                 size="sm"
                 onClick={() => {
                   setNotifOpen(false);
-                  setView?.('groups');
+                  onOpenInvite?.(inviteToken, null);
                 }}
               >
                 Daveti gör
@@ -171,10 +173,45 @@ export default function TopBar({
             </div>
           )}
 
+          {inviteInbox.map((inv) => (
+            <div
+              key={inv.id || inv.token}
+              style={{
+                border: '1px solid var(--signal)',
+                background: 'var(--surface-1)',
+                padding: 'var(--space-3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 'var(--space-3)',
+                flexWrap: 'wrap',
+              }}
+            >
+              <div>
+                <strong className="mono" style={{ fontSize: '12px' }}>
+                  @{inv.inviter_username || 'arkadas'} seni davet etti
+                </strong>
+                <p style={{ fontSize: '13px', color: 'var(--fg-muted)', marginTop: 'var(--space-1)', marginBottom: 0 }}>
+                  {inv.habit_name}
+                </p>
+              </div>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => {
+                  setNotifOpen(false);
+                  onOpenInvite?.(inv.token, inv);
+                }}
+              >
+                İncele
+              </Button>
+            </div>
+          ))}
+
           {socialInbox.map((item) => (
             <div key={item.id} style={{ border: '1px solid var(--border)', background: 'var(--surface-1)' }}>
               <ActivityItem
-                actor={item.sender_display || item.senderDisplayName || 'Grup Üyesi'}
+                actor={item.sender_display || item.senderDisplayName || 'Katılımcı'}
                 summary={item.message}
               >
                 <Button variant="secondary" size="sm" onClick={() => onDismissInbox?.(item.id)}>
@@ -184,7 +221,7 @@ export default function TopBar({
             </div>
           ))}
 
-          {!inviteToken && socialInbox.length === 0 && (
+          {!inviteToken && inviteInbox.length === 0 && socialInbox.length === 0 && (
             <p className="mono" style={{ fontSize: '13px', color: 'var(--fg-muted)', margin: 0 }}>
               Yeni bildirim yok.
             </p>

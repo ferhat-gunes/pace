@@ -1,15 +1,14 @@
 import React from 'react';
-import { CalendarDays, ListChecks, ChartNoAxesColumnIncreasing, Users } from 'lucide-react';
+import { CalendarDays, ListChecks, ChartNoAxesColumnIncreasing } from 'lucide-react';
 
 export default function MobileNav({ currentView = 'today', activeParentView = 'today', setView }) {
   const items = [
     { id: 'today', label: 'Bugün', icon: CalendarDays },
     { id: 'habits', label: 'Alışkanlıklar', icon: ListChecks },
     { id: 'progress', label: 'İlerleme', icon: ChartNoAxesColumnIncreasing },
-    { id: 'groups', label: 'Gruplar', icon: Users },
   ];
 
-  const resolvedParent = ['today', 'habits', 'progress', 'groups'].includes(activeParentView)
+  const resolvedParent = ['today', 'habits', 'progress'].includes(activeParentView)
     ? activeParentView
     : 'habits';
 
