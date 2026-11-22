@@ -169,6 +169,60 @@ export async function ensureExtendedSchema(db) {
         } catch {
           // Ignore if index creation is unsupported on mock DB
         }
+        // Idempotent data backfill for existing personal habits & legacy group_habits/group_members/group_checkins
+        const backfillStatements = [
+          `INSERT OR IGNORE INTO habit_participants (id, habit_id, user_id, role, joined_at)
+           SELECT 'hp_' || h.id || '_' || h.user_id, h.id, h.user_id, 'owner', h.created_at FROM habits h`,
+          `INSERT OR IGNORE INTO habits (
+             id, user_id, name, tracking, direction, unit, target,
+             schedule_type, schedule_days, start_date, paused, archived_at, created_at, updated_at
+           )
+           SELECT
+             gh.id, g.owner_id, gh.name, gh.tracking, gh.direction, gh.unit, gh.target,
+             'daily', '[]', substr(gh.created_at, 1, 10), 0, gh.archived_at, gh.created_at, gh.updated_at
+           FROM group_habits gh
+           JOIN groups g ON g.id = gh.group_id`,
+          `INSERT OR IGNORE INTO habit_versions (id, habit_id, user_id, effective_from, settings_json, created_at)
+           SELECT
+             'hv_' || gh.id,
+             gh.id,
+             g.owner_id,
+             substr(gh.created_at, 1, 10),
+             json_object(
+               'name', gh.name,
+               'tracking', gh.tracking,
+               'direction', gh.direction,
+               'unit', gh.unit,
+               'target', gh.target,
+               'schedule', json_object('type', 'daily', 'days', json('[]'), 'times_per_week', NULL),
+               'progression', json_object('enabled', json('false'), 'step', 0, 'cap', NULL),
+               'debt', json_object('enabled', json('false'), 'cap', NULL),
+               'paused', json('false'),
+               'archived_at', gh.archived_at
+             ),
+             gh.created_at
+           FROM group_habits gh
+           JOIN groups g ON g.id = gh.group_id`,
+          `INSERT OR IGNORE INTO habit_participants (id, habit_id, user_id, role, joined_at)
+           SELECT 'hp_' || gh.id || '_' || gm.user_id, gh.id, gm.user_id, gm.role, gm.joined_at
+           FROM group_habits gh
+           JOIN group_members gm ON gm.group_id = gh.group_id`,
+          `INSERT OR IGNORE INTO checkins (
+             id, user_id, habit_id, habit_date, value, revision, note, idempotency_key, deleted, created_at, updated_at
+           )
+           SELECT
+             gc.id, gc.user_id, gc.group_habit_id, gc.habit_date, gc.value, gc.revision, gc.note,
+             'gm_' || gc.idempotency_key, gc.deleted, gc.created_at, gc.updated_at
+           FROM group_checkins gc`,
+        ];
+        for (const sql of backfillStatements) {
+          try {
+            const stmt = db.prepare(sql);
+            if (typeof stmt.run === 'function') await stmt.run();
+          } catch {
+            // Ignore on mock DBs that do not implement full SQLite INSERT...SELECT
+          }
+        }
         return true;
       })
       .catch(err => {

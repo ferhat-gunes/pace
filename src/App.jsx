@@ -244,6 +244,28 @@ export default function App() {
               <strong>Misafir olarak deniyorsun</strong> — Rutinlerin bu cihazda saklanır. Hesabına aktarım için girişten sonra ayrıca onayın alınır.
             </InlineFeedback>
           )}
+          {user && !api.demoMode && !user.username && (
+            <InlineFeedback
+              tone="neutral"
+              role="status"
+              action={
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() =>
+                    setUsernamePrompt({
+                      reason: 'Arkadaşlarınla ortak alışkanlık takibi ve davetler için bir @kullaniciadi belirle.',
+                      onDone: null,
+                    })
+                  }
+                >
+                  Kullanıcı Adı Oluştur
+                </Button>
+              }
+            >
+              <strong>Kullanıcı adını henüz belirlemedin</strong> — Arkadaşlarını davet etmek ve listelerde e-postan yerine <code>@kullaniciadi</code> ile görünmek için hemen oluştur.
+            </InlineFeedback>
+          )}
           {migrationRequest && (
             <InlineFeedback
               tone="neutral"
