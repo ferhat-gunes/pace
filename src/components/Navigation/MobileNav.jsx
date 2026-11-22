@@ -1,14 +1,15 @@
 import React from 'react';
-import { CalendarDays, ListChecks, ChartNoAxesColumnIncreasing } from 'lucide-react';
+import { CalendarDays, ListChecks, ChartNoAxesColumnIncreasing, Settings } from 'lucide-react';
 
 export default function MobileNav({ currentView = 'today', activeParentView = 'today', setView }) {
   const items = [
     { id: 'today', label: 'Bugün', icon: CalendarDays },
     { id: 'habits', label: 'Alışkanlıklar', icon: ListChecks },
     { id: 'progress', label: 'İlerleme', icon: ChartNoAxesColumnIncreasing },
+    { id: 'settings', label: 'Ayarlar', icon: Settings },
   ];
 
-  const resolvedParent = ['today', 'habits', 'progress'].includes(activeParentView)
+  const resolvedParent = ['today', 'habits', 'progress', 'settings'].includes(activeParentView)
     ? activeParentView
     : 'habits';
 
@@ -22,7 +23,6 @@ export default function MobileNav({ currentView = 'today', activeParentView = 't
         const isSubView = currentView === 'habit-detail' || currentView === 'habit-form';
         const isActive =
           currentView === id ||
-          (id === 'habits' && currentView === 'discover') ||
           (isSubView && resolvedParent === id);
         return (
           <button

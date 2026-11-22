@@ -13,7 +13,6 @@ import {
   Header,
   InlineFeedback,
   Select,
-  StatBlock,
   TextInput,
 } from './ui/index.js';
 
@@ -47,7 +46,6 @@ export default function SettingsView({
   const authorized = Boolean(user?.id) && !isDemo && !guestMode;
   const personalAvailable = authorized || isDemo || guestMode;
   const pendingCount = pendingEntries.length;
-  const sharedCount = habits.filter((h) => (h.participants?.length || 0) > 1).length;
   const inform = (message, error = false) => setNotice({ message, error });
 
   const handleExport = async () => {
@@ -199,11 +197,12 @@ export default function SettingsView({
           />
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 'var(--space-2)' }}>
-          <StatBlock label="Alışkanlık" value={habits.length} />
-          <StatBlock label="Ortak" value={sharedCount} />
-          <StatBlock label="Bekleyen" value={pendingCount} highlight={pendingCount > 0} />
-        </div>
+        {pendingCount > 0 && (
+          <InlineFeedback
+            message={`${pendingCount} bekleyen kayıt eşitleme bekliyor.`}
+            tone="neutral"
+          />
+        )}
 
         {/* 1. Görünüm & Takvim */}
         <section style={sectionStyle}>
@@ -216,21 +215,20 @@ export default function SettingsView({
               </p>
             </div>
             <div style={{ minWidth: '160px' }}>
-              <FormField label="Tema" htmlFor="theme-select">
-                <Select
-                  id="theme-select"
-                  value={preference}
-                  onChange={(e) => {
-                    setPreference(e.target.value);
-                    inform('Tema tercihi güncellendi.');
-                  }}
-                  options={[
-                    { value: 'light', label: 'Açık' },
-                    { value: 'dark', label: 'Koyu' },
-                    { value: 'system', label: 'Sistem' },
-                  ]}
-                />
-              </FormField>
+              <Select
+                id="theme-select"
+                aria-label="Görünüm teması"
+                value={preference}
+                onChange={(e) => {
+                  setPreference(e.target.value);
+                  inform('Tema tercihi güncellendi.');
+                }}
+                options={[
+                  { value: 'light', label: 'Açık' },
+                  { value: 'dark', label: 'Koyu' },
+                  { value: 'system', label: 'Sistem' },
+                ]}
+              />
             </div>
           </div>
 
@@ -242,18 +240,17 @@ export default function SettingsView({
               </p>
             </div>
             <div style={{ minWidth: '160px' }}>
-              <FormField label="Gün" htmlFor="week-start-select">
-                <Select
-                  id="week-start-select"
-                  value={weekStart}
-                  disabled={Boolean(busy) || !personalAvailable}
-                  onChange={(e) => saveWeekStart(e.target.value)}
-                  options={[
-                    { value: '1', label: 'Pazartesi' },
-                    { value: '0', label: 'Pazar' },
-                  ]}
-                />
-              </FormField>
+              <Select
+                id="week-start-select"
+                aria-label="Haftanın ilk günü"
+                value={weekStart}
+                disabled={Boolean(busy) || !personalAvailable}
+                onChange={(e) => saveWeekStart(e.target.value)}
+                options={[
+                  { value: '1', label: 'Pazartesi' },
+                  { value: '0', label: 'Pazar' },
+                ]}
+              />
             </div>
           </div>
 
@@ -289,7 +286,7 @@ export default function SettingsView({
                 {isDemo
                   ? 'Demo verileri yalnızca bu tarayıcıda tutulur.'
                   : guestMode
-                    ? 'Rutinlerini cihazlar arasında eşitlemek için hesap oluşturabilir veya giriş yapabilirsin.'
+                    ? 'Alışkanlıklarını cihazlar arasında eşitlemek için hesap oluşturabilir veya giriş yapabilirsin.'
                     : authorized
                       ? 'Verilerin hesabında güvenle eşitlenir.'
                       : 'Kayıtlarını eşitlemek için giriş yap.'}
@@ -395,6 +392,8 @@ export default function SettingsView({
             </div>
           )}
 
+          {authorized && <AccountSecuritySettings user={user} setUser={setUser} embedded />}
+
           {guestMode && onOpenAuth && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', paddingTop: 'var(--space-1)' }}>
               <Button variant="primary" onClick={() => onOpenAuth('register')}>
@@ -406,8 +405,6 @@ export default function SettingsView({
             </div>
           )}
         </section>
-
-        {authorized && <AccountSecuritySettings user={user} setUser={setUser} />}
 
         {/* 4. Veri, Yedekleme & Gelişmiş */}
         <section style={sectionStyle}>
@@ -526,7 +523,7 @@ export default function SettingsView({
                   <div style={{ flex: 1, minWidth: '220px' }}>
                     <strong style={{ fontSize: '14px', color: 'var(--danger)' }}>Hesabı kalıcı olarak sil</strong>
                     <p style={{ fontSize: '12px', color: 'var(--fg-muted)', marginTop: 'var(--space-1)' }}>
-                      Tüm kişisel alışkanlıkların, kayıtların ve lideri olduğun gruplar geri döndürülemez şekilde silinir.
+                      Tüm kişisel alışkanlıkların, kayıtların ve sahibi olduğun ortak alışkanlıklar geri döndürülemez şekilde silinir.
                     </p>
                   </div>
                   {!confirmDelete && (

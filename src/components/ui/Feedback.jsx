@@ -52,7 +52,7 @@ export function InlineFeedback({ message, children, action, tone = 'neutral', ro
   );
 }
 
-export function Modal({ open, title, onClose, closeDisabled = false, closeLabel = 'Kapat', children, footer }) {
+export function Modal({ open, title, description, onClose, closeDisabled = false, closeLabel = 'Kapat', children, footer }) {
   useEffect(() => {
     if (!open || !onClose || closeDisabled) return;
     const onKeyDown = (e) => {
@@ -97,8 +97,15 @@ export function Modal({ open, title, onClose, closeDisabled = false, closeLabel 
           border: '1px solid var(--border-strong)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-3) var(--space-4)', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-          <h2 style={{ fontSize: '16px' }}>{title}</h2>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-3)', padding: 'var(--space-3) var(--space-4)', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+          <div style={{ minWidth: 0 }}>
+            <h2 style={{ fontSize: '16px', margin: 0 }}>{title}</h2>
+            {description ? (
+              <p style={{ fontSize: '13px', color: 'var(--fg-muted)', marginTop: 'var(--space-1)', marginBottom: 0 }}>
+                {description}
+              </p>
+            ) : null}
+          </div>
           {onClose ? <IconButton icon={X} label={closeLabel} disabled={closeDisabled} onClick={onClose} /> : null}
         </div>
         <div style={{ padding: 'var(--space-4)', overflowY: 'auto', flex: '1 1 auto', minHeight: 0 }}>{children}</div>

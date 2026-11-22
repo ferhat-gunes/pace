@@ -101,31 +101,6 @@ export function HabitRow({ title, meta, status = 'missed', streak = 0, onToggle,
   );
 }
 
-export function GroupMemberRow({ name, role, status = 'missed', isCurrentUser = false, streak = 0 }) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: 'var(--space-3) var(--space-4)',
-        borderBottom: '1px solid var(--border)',
-        backgroundColor: isCurrentUser ? 'var(--surface-2)' : 'var(--surface-1)',
-        borderLeft: isCurrentUser ? '2px solid var(--signal)' : '2px solid transparent',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-        <StatusMarker status={status} />
-        <div>
-          <div style={{ fontWeight: 600, color: isCurrentUser ? 'var(--signal-text)' : 'var(--fg)' }}>{name}</div>
-          {role ? <div className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)' }}>{role}</div> : null}
-        </div>
-      </div>
-      <StreakBadge count={streak} />
-    </div>
-  );
-}
-
 export function ActivityRow({ actor, action, timestamp, status = 'done' }) {
   return (
     <div

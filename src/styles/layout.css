@@ -286,17 +286,6 @@ html {
   border-collapse: collapse;
 }
 
-.groups-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-@media (min-width: 641px) {
-  .groups-table {
-    min-width: 680px;
-  }
-}
-
 .table-standard th,
 .table-standard td {
   padding: var(--space-3);
@@ -606,8 +595,7 @@ html {
 }
 
 @media (max-width: 640px) {
-  #progress-table thead,
-  .groups-table thead {
+  #progress-table thead {
     display: none;
   }
 
@@ -660,68 +648,5 @@ html {
     letter-spacing: 0.04em;
     color: var(--fg-muted);
     text-align: left;
-  }
-
-  .groups-table,
-  .groups-table tbody {
-    display: block;
-    width: 100%;
-    min-width: 0 !important;
-  }
-
-  .groups-table tr {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(44px, 1fr));
-    gap: var(--space-1);
-    padding: var(--space-3);
-    border-bottom: var(--border-hairline) solid var(--border);
-  }
-
-  .groups-table tr:last-child {
-    border-bottom: none;
-  }
-
-  .groups-table th[scope="row"] {
-    position: static;
-    grid-column: 1 / -1;
-    padding: 0 !important;
-    background-color: transparent;
-  }
-
-  .groups-table td.group-habit-cell {
-    grid-column: 1 / -1;
-    padding: 0 0 var(--space-2) !important;
-  }
-
-  .groups-table td.group-day-cell {
-    padding: 0 !important;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-  }
-
-  .groups-table td.group-day-cell::before {
-    content: attr(data-day);
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--fg-muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
-  }
-
-  .groups-table td.group-day-cell > button,
-  .groups-table td.group-day-cell > span {
-    min-width: 44px;
-    width: 100%;
-    min-height: 44px !important;
-  }
-
-  .groups-table td.group-rate-cell {
-    grid-column: 1 / -1;
-    text-align: left !important;
-    padding: var(--space-2) 0 0 !important;
   }
 }

@@ -1,52 +1,12 @@
 import React, { useState } from 'react';
 import { Plus } from 'lucide-react';
+import { DISCOVER_PRESETS } from '../lib/discoverCatalog.js';
 import { Button, StatusMarker } from './ui/index.js';
 
-const STARTER_PRESETS = [
-  {
-    id: 'preset-water',
-    name: 'Su iç',
-    subtitle: 'Günde 6 bardak',
-    tracking: 'quantity',
-    direction: 'at_least',
-    unit: 'bardak',
-    target: 6,
-    schedule: { type: 'daily' },
-  },
-  {
-    id: 'preset-read',
-    name: 'Kitap oku',
-    subtitle: 'Günde 15 dakika',
-    tracking: 'quantity',
-    direction: 'at_least',
-    unit: 'dakika',
-    target: 15,
-    schedule: { type: 'daily' },
-  },
-  {
-    id: 'preset-walk',
-    name: 'Yürüyüş yap',
-    subtitle: 'Haftada 3 gün',
-    tracking: 'check',
-    direction: 'at_least',
-    unit: '',
-    target: 1,
-    schedule: { type: 'weekly_quota', times_per_week: 3 },
-  },
-  {
-    id: 'preset-focus',
-    name: 'Nefes & Odak',
-    subtitle: 'Günde 5 dakika',
-    tracking: 'quantity',
-    direction: 'at_least',
-    unit: 'dakika',
-    target: 5,
-    schedule: { type: 'daily' },
-  },
-];
+const STARTER_PRESETS = DISCOVER_PRESETS.slice(0, 4);
 
 export default function OnboardingStarter({ onAddStarterHabits, onOpenCustomModal }) {
-  const [selectedIds, setSelectedIds] = useState(['preset-water', 'preset-read']);
+  const [selectedIds, setSelectedIds] = useState(() => STARTER_PRESETS.slice(0, 2).map((p) => p.id));
   const [submitting, setSubmitting] = useState(false);
 
   const togglePreset = (id) => {
@@ -98,13 +58,13 @@ export default function OnboardingStarter({ onAddStarterHabits, onOpenCustomModa
           Günlük düzenini 30 saniyede kur
         </h2>
         <p style={{ color: 'var(--fg-muted)', fontSize: '13px', margin: 0, lineHeight: 1.4 }}>
-          En fazla 3 rutin seç; bugün ilk adımını hemen işaretle.
+          En fazla 3 alışkanlık seç; bugün ilk adımını hemen işaretle.
         </p>
       </div>
 
       <div
         role="group"
-        aria-label="Başlangıç rutinleri"
+        aria-label="Başlangıç alışkanlıkları"
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
@@ -139,7 +99,7 @@ export default function OnboardingStarter({ onAddStarterHabits, onOpenCustomModa
                   {preset.name}
                 </div>
                 <div className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)', marginTop: '2px' }}>
-                  {preset.subtitle}
+                  {preset.durationLabel}
                 </div>
               </div>
               <StatusMarker status={isSelected ? 'done' : 'missed'} size={14} />

@@ -3,7 +3,6 @@ import { useNavigation, clearInviteQuery } from './state/useNavigation.js';
 import { useGamification } from './state/useGamification.js';
 import { localDateIso } from './lib/date.js';
 import { checkAndTriggerDailyReminder, updateAppBadge, fetchSocialInbox, dismissNudge } from './lib/notifications.js';
-import { isFeatureEnabled } from './lib/telemetry.js';
 import { stateFor, isPlannedOn } from './lib/rules.js';
 import { useHabits } from './state/useHabits.js';
 import * as api from './lib/api.js';
@@ -23,7 +22,6 @@ import { InlineFeedback, Button, LoadingState, ErrorState } from './components/u
 // Code splitting for secondary routes
 const ProgressView = lazy(() => import('./components/ProgressView.jsx'));
 const SettingsView = lazy(() => import('./components/SettingsView.jsx'));
-const DiscoverView = lazy(() => import('./components/DiscoverView.jsx'));
 const AuthModal = lazy(() => import('./components/AuthModal.jsx'));
 const UsernamePromptModal = lazy(() => import('./components/UsernamePromptModal.jsx'));
 const HabitInviteModal = lazy(() => import('./components/HabitInviteModal.jsx'));
@@ -46,7 +44,7 @@ export default function App() {
   const [authMode,setAuthMode] = useState('login');
   const [capabilities,setCapabilities] = useState({email_code_enabled:false,push_enabled:false});
   const [socialInbox,setSocialInbox] = useState([]);
-  const [highlightedPresetId,setHighlightedPresetId] = useState(null);
+  const [createdHabitToast, setCreatedHabitToast] = useState(null);
   const [migrationRequest,setMigrationRequest] = useState(null);
   const [migrationBusy,setMigrationBusy] = useState(false);
   const [migrationError,setMigrationError] = useState('');
@@ -119,14 +117,19 @@ export default function App() {
       const token = params.get('join') || params.get('invite');
       if (['login','register'].includes(params.get('auth'))) {setAuthMode(params.get('auth'));setAuthModalOpen(true);}
       const requestedView=params.get('view');
-      if(!location.hash&&['today','habits','discover','progress','settings'].includes(requestedView))setView(requestedView);
-      if(params.get('preset')){setHighlightedPresetId(params.get('preset'));if(!location.hash)setView('discover');}
+      if(!location.hash&&['today','habits','progress','settings'].includes(requestedView))setView(requestedView);
       if (token) {
         setInviteToken(token);
         setPreviewInvite({ token, item: null });
       }
     } catch (e) {}
   }, []);
+
+  useEffect(() => {
+    if (!createdHabitToast) return;
+    const timer = setTimeout(() => setCreatedHabitToast(null), 5000);
+    return () => clearTimeout(timer);
+  }, [createdHabitToast]);
 
   const handleCompositeKeys = e => {
     if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) return;
@@ -166,6 +169,13 @@ export default function App() {
     if(!authorized&&!api.demoMode&&!user&&!guestMode){setPendingAction({type:'presets',presets});openAuth();return;}
     for(const preset of presets)await addHabit({name:preset.name,tracking:preset.tracking||'check',direction:preset.direction||'at_least',unit:preset.unit||'',target:preset.target||1,schedule:preset.schedule||{type:'daily'},progression:preset.progression||{enabled:false,step:0,cap:null},debt:preset.debt||{enabled:false,cap:null},start_date:selectedDate});
   };
+  const handleAddHabit = async (payload) => {
+    const created = await addHabit(payload);
+    if (created && user && !guestMode && !api.demoMode) {
+      setCreatedHabitToast(created);
+    }
+    return created;
+  };
   const confirmGuestMigration=async()=>{if(migrationBusy)return;setMigrationBusy(true);setMigrationError('');try{const result=await migrateGuestToCloud?.({confirmed:true});if(result?.success===false)throw new Error(result.error||'Yerel kayıtlar aktarılamadı.');setMigrationRequest(null);await loadData();}catch(error){setMigrationError(error.message)}finally{setMigrationBusy(false)}};
 
   const handleSignOut = async ({accountDeleted=false} = {}) => {
@@ -199,6 +209,27 @@ export default function App() {
     setInviteModalHabit(habit);
   };
 
+  const hasPendingEntries = Boolean(pendingEntries?.length > 0);
+  const hasSyncWarning = /kaydedilemedi|Arşivlenemedi|Geri yüklenemedi|Kayıt değişti|Cihazda bekliyor/.test(syncState);
+  const hasMigrationRequest = Boolean(migrationRequest);
+  const hasMissingUsername = Boolean(user && !api.demoMode && !user.username);
+  const hasDemoMode = Boolean(api.demoMode);
+  const hasGuestMode = Boolean(guestMode && !api.demoMode);
+
+  const activeNonErrorBanner = hasPendingEntries
+    ? 'pending'
+    : hasSyncWarning
+      ? 'sync'
+      : hasMigrationRequest
+        ? 'migration'
+        : hasMissingUsername
+          ? 'username'
+          : hasDemoMode
+            ? 'demo'
+            : hasGuestMode
+              ? 'guest'
+              : 'pwa';
+
   return (
     <div id="app" onKeyDown={handleCompositeKeys} className="app-shell">
       <a href="#main-content" className="skip-link">
@@ -223,28 +254,48 @@ export default function App() {
 
         <main id="main-content" className="content-wrap" tabIndex={-1}>
           <ErrorBoundary key={currentView}>
-          <PwaInstallBanner />
-          <UpdateBanner blocked={currentView === 'habit-form' || isAuthModalOpen || Boolean(pendingEntries?.length)} />
-          {api.demoMode && (
-            <InlineFeedback
-              tone="neutral"
-              action={<Button variant="tertiary" size="md" onClick={api.exitDemo}>Kendi hesabıma geç</Button>}
-            >
-              <strong>Örnek görünüm</strong> — Kayıtlar yalnızca bu tarayıcıda saklanır.
+          {storageError && <InlineFeedback tone="error" role="alert">{storageError}</InlineFeedback>}
+          {signOutError && <InlineFeedback tone="error" role="alert">{signOutError}</InlineFeedback>}
+          {activeNonErrorBanner === 'pending' && (
+            <InlineFeedback tone="neutral">
+              <strong>{pendingEntries.length} kayıt eşitleme bekliyor</strong>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
+                {pendingEntries.map(e => (
+                  <div className="pending-entry" key={JSON.stringify([e.id, e.day])}>
+                    <span className="mono">{habits.find(h => h.id === e.id)?.name || 'Alışkanlık'} · {e.day}: {e.value} — {e.status === 'conflict' ? 'Başka cihazda değişti' : e.error || 'Kaydediliyor…'}</span>
+                    {['error', 'conflict'].includes(e.status) && (
+                      <Button variant="tertiary" size="sm" onClick={() => retryEntry(e.id, e.day)}>Taslağı yeniden gönder</Button>
+                    )}
+                  </div>
+                ))}
+              </div>
             </InlineFeedback>
           )}
-          {/kaydedilemedi|Arşivlenemedi|Geri yüklenemedi|Kayıt değişti|Cihazda bekliyor/.test(syncState) && (
+          {activeNonErrorBanner === 'sync' && (
             <InlineFeedback tone="neutral" role="status">{syncState}</InlineFeedback>
           )}
-          {guestMode && !api.demoMode && (
+          {activeNonErrorBanner === 'migration' && (
             <InlineFeedback
               tone="neutral"
-              action={<Button variant="tertiary" size="sm" onClick={() => openAuth('register')}>Hesap oluştur</Button>}
+              action={
+                <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+                  <Button variant="primary" size="sm" disabled={migrationBusy} onClick={confirmGuestMigration}>
+                    {migrationBusy ? 'Aktarılıyor…' : 'Onayla ve hesabıma aktar'}
+                  </Button>
+                  <Button variant="tertiary" size="sm" disabled={migrationBusy} onClick={() => setMigrationRequest(null)}>
+                    Şimdilik cihazda tut
+                  </Button>
+                </div>
+              }
             >
-              <strong>Misafir olarak deniyorsun</strong> — Rutinlerin bu cihazda saklanır. Hesabına aktarım için girişten sonra ayrıca onayın alınır.
+              <strong>{migrationRequest.count || guestDraftCount} yerel alışkanlığı hesabına aktarmak ister misin?</strong> Aktarım onaylanana kadar misafir kayıtların bu cihazda korunur.
+              {migrationError && <div role="alert" style={{ marginTop: 'var(--space-1)' }}>{migrationError}</div>}
             </InlineFeedback>
           )}
-          {user && !api.demoMode && !user.username && (
+          {!(hasPendingEntries || hasSyncWarning || hasMigrationRequest) && (
+            <UpdateBanner blocked={currentView === 'habit-form' || isAuthModalOpen || hasPendingEntries} />
+          )}
+          {activeNonErrorBanner === 'username' && (
             <InlineFeedback
               tone="neutral"
               role="status"
@@ -266,39 +317,47 @@ export default function App() {
               <strong>Kullanıcı adını henüz belirlemedin</strong> — Arkadaşlarını davet etmek ve listelerde e-postan yerine <code>@kullaniciadi</code> ile görünmek için hemen oluştur.
             </InlineFeedback>
           )}
-          {migrationRequest && (
+          {activeNonErrorBanner === 'demo' && (
             <InlineFeedback
               tone="neutral"
+              action={<Button variant="tertiary" size="md" onClick={api.exitDemo}>Kendi hesabıma geç</Button>}
+            >
+              <strong>Örnek görünüm</strong> — Kayıtlar yalnızca bu tarayıcıda saklanır.
+            </InlineFeedback>
+          )}
+          {activeNonErrorBanner === 'guest' && (
+            <InlineFeedback
+              tone="neutral"
+              action={<Button variant="tertiary" size="sm" onClick={() => openAuth('register')}>Hesap oluştur</Button>}
+            >
+              <strong>Misafir olarak deniyorsun</strong> — Alışkanlıkların bu cihazda saklanır. Hesabına aktarım için girişten sonra ayrıca onayın alınır.
+            </InlineFeedback>
+          )}
+          {activeNonErrorBanner === 'pwa' && <PwaInstallBanner />}
+          {createdHabitToast && (
+            <InlineFeedback
+              tone="signal"
+              role="status"
               action={
                 <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-                  <Button variant="primary" size="sm" disabled={migrationBusy} onClick={confirmGuestMigration}>
-                    {migrationBusy ? 'Aktarılıyor…' : 'Onayla ve hesabıma aktar'}
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => {
+                      const target = createdHabitToast;
+                      setCreatedHabitToast(null);
+                      openInviteForHabit(target);
+                    }}
+                  >
+                    Arkadaş Davet Et
                   </Button>
-                  <Button variant="tertiary" size="sm" disabled={migrationBusy} onClick={() => setMigrationRequest(null)}>
-                    Şimdilik cihazda tut
+                  <Button variant="tertiary" size="sm" onClick={() => setCreatedHabitToast(null)}>
+                    Kapat
                   </Button>
                 </div>
               }
             >
-              <strong>{migrationRequest.count || guestDraftCount} yerel alışkanlığı hesabına aktarmak ister misin?</strong> Aktarım onaylanana kadar misafir kayıtların bu cihazda korunur.
-              {migrationError && <div role="alert" style={{ marginTop: 'var(--space-1)' }}>{migrationError}</div>}
-            </InlineFeedback>
-          )}
-          {storageError && <InlineFeedback tone="error" role="alert">{storageError}</InlineFeedback>}
-          {signOutError && <InlineFeedback tone="error" role="alert">{signOutError}</InlineFeedback>}
-          {pendingEntries?.length > 0 && (
-            <InlineFeedback tone="neutral">
-              <strong>{pendingEntries.length} kayıt eşitleme bekliyor</strong>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
-                {pendingEntries.map(e => (
-                  <div className="pending-entry" key={JSON.stringify([e.id, e.day])}>
-                    <span className="mono">{habits.find(h => h.id === e.id)?.name || 'Alışkanlık'} · {e.day}: {e.value} — {e.status === 'conflict' ? 'Başka cihazda değişti' : e.error || 'Kaydediliyor…'}</span>
-                    {['error', 'conflict'].includes(e.status) && (
-                      <Button variant="tertiary" size="sm" onClick={() => retryEntry(e.id, e.day)}>Taslağı yeniden gönder</Button>
-                    )}
-                  </div>
-                ))}
-              </div>
+              <strong>{createdHabitToast.name}</strong> eklendi. İstersen arkadaşını davet edip birlikte takip edebilirsin.
             </InlineFeedback>
           )}
           {loadError && (
@@ -326,7 +385,7 @@ export default function App() {
                   participantCheckins={participantCheckins}
                   user={user}
                   logCheckin={logCheckin}
-                  gamification={gamification} socialInbox={socialInbox} onDismissInbox={dismissInbox}
+                  gamification={gamification}
                   onAddStarterHabits={addStarterHabits} guestMode={guestMode&&!api.demoMode} onOpenAuth={openAuth}
                   entryStates={entryStates} retryEntry={retryEntry} undoEntry={undoEntry}
                   completionStats={completionStats}
@@ -342,7 +401,6 @@ export default function App() {
                 <HabitsView
                   habits={habits}
                   onOpenAddModal={openCreateHabit}
-                  onOpenDiscover={isFeatureEnabled('discover_rhythm_trials') ? () => setView('discover') : undefined}
                   onOpenHabitDetail={openHabitDetail}
                   restoreHabit={restoreHabit}
                   lastArchivedHabit={lastArchivedHabit}
@@ -378,7 +436,7 @@ export default function App() {
                   guestMode={guestMode && !api.demoMode}
                   onBack={(target) => setView(typeof target === 'string' ? target : (formReturnView || 'today'))}
                   onUpdateHabit={updateHabit}
-                  onAddHabit={addHabit}
+                  onAddHabit={handleAddHabit}
                   onTogglePause={togglePause}
                   onArchiveHabit={archiveHabit}
                   onRestoreHabit={restoreHabit}
@@ -387,7 +445,6 @@ export default function App() {
               )}
 
               <Suspense fallback={<LoadingState label="Yükleniyor…" />}>
-                {currentView === 'discover' && (isFeatureEnabled('discover_rhythm_trials') ? <DiscoverView habits={habits} onAddPreset={preset=>addStarterHabits([preset])} highlightedPresetId={highlightedPresetId} onClearHighlight={()=>setHighlightedPresetId(null)} onGoToday={()=>setView('today')} /> : <section id="view-discover" className="page-view"><h1>Keşfet</h1><p>Rutin şablonları şu an kapalı.</p></section>)}
                 {currentView === 'progress' && (
                   <ProgressView habits={habits} checkins={checkins} weekStart={weekStart} gamification={gamification} />
                 )}

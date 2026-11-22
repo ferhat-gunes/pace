@@ -1,5 +1,5 @@
 /**
- * Non-judgmental "Rutin Şablonları" (Discover) catalog.
+ * Non-judgmental "Alışkanlık Şablonları" catalog.
  * Framed around calm experimentation and friend sharing rather than streaks or leaderboards.
  */
 

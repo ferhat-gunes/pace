@@ -1,17 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Pause, Play, Archive, RotateCcw, UserPlus } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { describeHabitRules } from '../lib/habit-form.js';
-import { dateKey, settingsAt } from '../lib/rules.js';
+import { dateKey } from '../lib/rules.js';
+import { DISCOVER_PRESETS } from '../lib/discoverCatalog.js';
 import { buildHabitPayload, initialHabitValues } from './habit-form-model.js';
 import { Button, TextInput, Select, Checkbox, InlineFeedback } from './ui/index.js';
 import './HabitForm.css';
 
-const PRESETS = [
-  { name: 'Kitap oku', tracking: 'quantity', target: '20', unit: 'sayfa' },
-  { name: 'Su iç', tracking: 'quantity', target: '8', unit: 'bardak' },
-  { name: 'Yürüyüş yap', tracking: 'quantity', target: '30', unit: 'dakika' },
-  { name: 'Meditasyon', tracking: 'check', target: '1', unit: '' },
-];
 const DAYS = [
   [1, 'Pzt'],
   [2, 'Sal'],
@@ -26,12 +21,6 @@ export default function HabitFormView({
   onBack,
   onAddHabit,
   onUpdateHabit,
-  onTogglePause,
-  onArchiveHabit,
-  onRestoreHabit,
-  onInviteHabit,
-  user = null,
-  guestMode = false,
   habit = null,
   initialDate = dateKey(),
 }) {
@@ -40,19 +29,10 @@ export default function HabitFormView({
   const [error, setError] = useState(null);
   const [confirmClose, setConfirmClose] = useState(false);
   const [dirty, setDirty] = useState(false);
-  const [confirmArchive, setConfirmArchive] = useState(false);
-  const [actionBusy, setActionBusy] = useState(false);
-  const [actionError, setActionError] = useState('');
-  const [createdHabit, setCreatedHabit] = useState(null);
   const formRef = useRef(null);
   const closePromptRef = useRef(null);
   const submitLock = useRef(false);
   const editing = Boolean(habit?.id);
-
-  const effectiveHabit = useMemo(
-    () => (editing ? { ...settingsAt(habit, dateKey()), id: habit.id, versions: habit.versions } : null),
-    [editing, habit]
-  );
 
   useEffect(() => {
     setValues(initialHabitValues(habit, initialDate));
@@ -60,16 +40,12 @@ export default function HabitFormView({
     setError(null);
     setConfirmClose(false);
     setDirty(false);
-    setConfirmArchive(false);
-    setActionBusy(false);
-    setActionError('');
-    setCreatedHabit(null);
     submitLock.current = false;
   }, [habit?.id, initialDate]);
 
   const requestBack = () => {
-    if (submitLock.current || actionBusy) return;
-    if (dirty && !createdHabit) setConfirmClose(true);
+    if (submitLock.current) return;
+    if (dirty) setConfirmClose(true);
     else onBack?.();
   };
 
@@ -78,10 +54,27 @@ export default function HabitFormView({
   }, [confirmClose]);
 
   const change = (field, value, controlId = '') => {
-    if (submitLock.current || actionBusy) return;
+    if (submitLock.current) return;
     setValues((prev) => ({ ...prev, [field]: value }));
     setDirty(true);
     if (error?.field === controlId || !error?.field) setError(null);
+  };
+
+  const applyPreset = (preset) => {
+    if (submitLock.current) return;
+    setValues((prev) => ({
+      ...initialHabitValues(null, prev.date),
+      name: preset.name,
+      tracking: preset.tracking || 'check',
+      direction: preset.direction || 'at_least',
+      target: String(preset.target ?? 1),
+      unit: preset.unit || '',
+      scheduleType: preset.schedule?.type || 'daily',
+      days: preset.schedule?.days?.length ? preset.schedule.days : [1, 2, 3, 4, 5],
+      quota: String(preset.schedule?.times_per_week || 3),
+    }));
+    setDirty(true);
+    setError(null);
   };
 
   const summary = useMemo(() => {
@@ -100,7 +93,7 @@ export default function HabitFormView({
 
   const submit = async (e) => {
     e.preventDefault();
-    if (submitLock.current || actionBusy) return;
+    if (submitLock.current) return;
     setError(null);
     let payload;
     try {
@@ -121,11 +114,7 @@ export default function HabitFormView({
       const result = editing ? await save(habit.id, payload) : await save(payload);
       if (result === false || result?.success === false) throw new Error(result?.error || 'Alışkanlık kaydedilemedi.');
       setDirty(false);
-      if (!editing && result?.id && user && !guestMode && typeof onInviteHabit === 'function') {
-        setCreatedHabit(result);
-      } else {
-        onBack?.();
-      }
+      onBack?.();
     } catch (err) {
       setError({ message: err.message || 'Alışkanlık kaydedilemedi. Lütfen yeniden dene.' });
     } finally {
@@ -133,52 +122,6 @@ export default function HabitFormView({
       setSaving(false);
     }
   };
-
-  const runLifecycleAction = async (fn, fallbackMessage) => {
-    if (actionBusy || submitLock.current) return;
-    setActionBusy(true);
-    setActionError('');
-    try {
-      if (typeof fn !== 'function') throw new Error('Bu işlem şu anda kullanılamıyor.');
-      const result = await fn();
-      if (result === false || result?.success === false) {
-        throw new Error(result?.error || fallbackMessage);
-      }
-      onBack?.('habits');
-    } catch (err) {
-      setActionError(err.message || fallbackMessage);
-    } finally {
-      setActionBusy(false);
-    }
-  };
-
-  if (createdHabit) {
-    return (
-      <section className="page-view" id="view-habit-form" aria-labelledby="habit-form-title">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', maxWidth: 520 }}>
-          <h1 id="habit-form-title" style={{ margin: 0 }}>
-            Alışkanlık oluşturuldu
-          </h1>
-          <InlineFeedback tone="neutral">
-            <strong>{createdHabit.name}</strong> planına eklendi. İstersen arkadaşlarını davet ederek birlikte takip edebilirsin.
-          </InlineFeedback>
-          <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-            <Button
-              type="button"
-              variant="primary"
-              onClick={() => onInviteHabit?.(createdHabit)}
-            >
-              <UserPlus size={16} strokeWidth={1.5} aria-hidden="true" />
-              <span>Arkadaş Davet Et</span>
-            </Button>
-            <Button type="button" variant="secondary" onClick={() => onBack?.()}>
-              Tek Başına Devam Et
-            </Button>
-          </div>
-        </div>
-      </section>
-    );
-  }
 
   return (
     <section className="page-view" id="view-habit-form" aria-labelledby="habit-form-title">
@@ -195,7 +138,7 @@ export default function HabitFormView({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-          <Button type="button" variant="tertiary" disabled={saving || actionBusy} onClick={requestBack}>
+          <Button type="button" variant="tertiary" disabled={saving} onClick={requestBack}>
             <ArrowLeft size={16} strokeWidth={1.5} aria-hidden="true" />
             <span>Geri</span>
           </Button>
@@ -237,29 +180,28 @@ export default function HabitFormView({
         )}
 
         {!editing && (
-          <div>
-            <p className="form-help" style={{ margin: '0 0 var(--space-2)' }}>
-              Küçük bir rutin seç veya hazır bir başlangıç kullan.
+          <details style={{ border: '1px solid var(--border)', padding: 'var(--space-3)', background: 'var(--surface-1)' }}>
+            <summary className="mono" style={{ cursor: 'pointer', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase' }}>
+              Şablonlardan Seç
+            </summary>
+            <p className="form-help" style={{ margin: 'var(--space-2) 0' }}>
+              Küçük bir alışkanlık seç veya hazır bir başlangıç kullan.
             </p>
             <div className="form-presets" aria-label="Hızlı şablonlar" style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-              {PRESETS.map((preset) => (
+              {DISCOVER_PRESETS.map((preset) => (
                 <Button
-                  key={preset.name}
+                  key={preset.id}
+                  type="button"
                   variant="secondary"
                   size="sm"
                   disabled={saving}
-                  onClick={() => {
-                    if (submitLock.current) return;
-                    setValues((prev) => ({ ...initialHabitValues(null, prev.date), ...preset }));
-                    setDirty(true);
-                    setError(null);
-                  }}
+                  onClick={() => applyPreset(preset)}
                 >
                   + {preset.name}
                 </Button>
               ))}
             </div>
-          </div>
+          </details>
         )}
 
         <form ref={formRef} aria-busy={saving} onSubmit={submit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
@@ -269,7 +211,7 @@ export default function HabitFormView({
             </InlineFeedback>
           )}
 
-          <fieldset className="habit-form-fields" disabled={saving || actionBusy} style={{ border: 0, padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <fieldset className="habit-form-fields" disabled={saving} style={{ border: 0, padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
             <TextInput
               {...fieldProps('habit-name')}
               label="Alışkanlık Adı"
@@ -305,16 +247,6 @@ export default function HabitFormView({
 
             {values.tracking === 'quantity' && (
               <>
-                <Select
-                  id="habit-direction"
-                  label="Hedef yönü"
-                  value={values.direction}
-                  onChange={(e) => change('direction', e.target.value)}
-                >
-                  <option value="at_least">En az bu miktara ulaş</option>
-                  <option value="at_most">En fazla bu miktarda kal</option>
-                </Select>
-
                 <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 'var(--space-3)' }}>
                   <TextInput
                     {...fieldProps('habit-target')}
@@ -400,33 +332,51 @@ export default function HabitFormView({
               />
             )}
 
-            <TextInput
-              {...fieldProps('habit-date')}
-              label={editing ? 'Değişikliklerin geçerli olacağı tarih' : 'Başlangıç tarihi'}
-              type="date"
-              min={editing ? habit.start_date : undefined}
-              value={values.date}
-              onChange={(e) => change('date', e.target.value, 'habit-date')}
-              required
-              aria-describedby={error?.field === 'habit-date' ? 'habit-validation habit-date-help' : 'habit-date-help'}
-              help={
-                editing
-                  ? `Yeni kurallar seçtiğin tarihten itibaren geçerli olur; önceki tarihlerdeki hedefler korunur. Alışkanlığın başlangıcı: ${habit.start_date || '—'}.`
-                  : 'Rutin bu tarihten itibaren planlanır. Geçmiş veya gelecek bir gün seçebilirsin.'
-              }
-            />
-
             <details
               className="advanced-rules"
-              open={values.progressionEnabled || values.debtEnabled ? true : undefined}
+              open={
+                values.progressionEnabled ||
+                values.debtEnabled ||
+                (values.tracking === 'quantity' && values.direction === 'at_most') ||
+                error?.field === 'habit-date' ||
+                error?.field === 'habit-direction'
+                  ? true
+                  : undefined
+              }
               style={{ border: '1px solid var(--border)', padding: 'var(--space-3)' }}
             >
               <summary className="mono" style={{ cursor: 'pointer', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase' }}>
                 Gelişmiş kurallar
               </summary>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', marginTop: 'var(--space-3)' }}>
+                <TextInput
+                  {...fieldProps('habit-date')}
+                  label={editing ? 'Değişikliklerin geçerli olacağı tarih' : 'Başlangıç tarihi'}
+                  type="date"
+                  min={editing ? habit.start_date : undefined}
+                  value={values.date}
+                  onChange={(e) => change('date', e.target.value, 'habit-date')}
+                  required
+                  aria-describedby={error?.field === 'habit-date' ? 'habit-validation habit-date-help' : 'habit-date-help'}
+                  help={
+                    editing
+                      ? `Yeni kurallar seçtiğin tarihten itibaren geçerli olur; önceki tarihlerdeki hedefler korunur. Alışkanlığın başlangıcı: ${habit.start_date || '—'}.`
+                      : 'Alışkanlık bu tarihten itibaren planlanır. Geçmiş veya gelecek bir gün seçebilirsin.'
+                  }
+                />
+
                 {values.tracking === 'quantity' && (
                   <>
+                    <Select
+                      id="habit-direction"
+                      label="Hedef yönü"
+                      value={values.direction}
+                      onChange={(e) => change('direction', e.target.value)}
+                    >
+                      <option value="at_least">En az bu miktara ulaş</option>
+                      <option value="at_most">En fazla bu miktarda kal</option>
+                    </Select>
+
                     <Checkbox
                       label="Hedefi zamanla artır"
                       checked={values.progressionEnabled}
@@ -456,7 +406,7 @@ export default function HabitFormView({
                 )}
 
                 {(values.tracking === 'quantity' || values.scheduleType === 'weekly_quota') &&
-                (values.tracking === 'check' || values.direction !== 'at_most') ? (
+                (values.tracking === 'check' || values.direction !== 'at_most') && (
                   <>
                     <Checkbox
                       label={
@@ -483,12 +433,6 @@ export default function HabitFormView({
                       />
                     )}
                   </>
-                ) : (
-                  <p className="form-help" style={{ margin: 0 }}>
-                    {values.tracking !== 'check' && values.direction === 'at_most'
-                      ? 'Üst sınır hedeflerinde eksik miktar taşıma uygulanmaz.'
-                      : 'Miktar takibi veya haftalık gün hedefi seçtiğinde ek kuralları açabilirsin.'}
-                  </p>
                 )}
               </div>
             </details>
@@ -512,110 +456,14 @@ export default function HabitFormView({
           )}
 
           <div className="form-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
-            <Button type="button" variant="tertiary" disabled={saving || actionBusy} onClick={requestBack}>
+            <Button type="button" variant="tertiary" disabled={saving} onClick={requestBack}>
               İptal
             </Button>
-            <Button type="submit" variant="primary" disabled={saving || actionBusy} loading={saving}>
+            <Button type="submit" variant="primary" disabled={saving} loading={saving}>
               {saving ? 'Kaydediliyor…' : editing ? 'Değişiklikleri Kaydet' : 'Alışkanlığı Kaydet'}
             </Button>
           </div>
         </form>
-
-        {editing && effectiveHabit && (
-          <section
-            aria-label="Duraklatma ve arşiv işlemleri"
-            style={{
-              border: '1px solid var(--border)',
-              background: 'var(--surface-1)',
-              padding: 'var(--space-4)',
-              marginTop: 'var(--space-3)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 'var(--space-3)',
-            }}
-          >
-            <strong className="mono" style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Durum ve Arşiv
-            </strong>
-
-            {actionError && (
-              <InlineFeedback tone="error" role="alert">
-                {actionError}
-              </InlineFeedback>
-            )}
-
-            {effectiveHabit.archived_at ? (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '13px', color: 'var(--fg-muted)' }}>
-                  Bu alışkanlık şu an arşivde. Yeniden planlamak için arşivden çıkarabilirsin.
-                </span>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  disabled={actionBusy || saving}
-                  onClick={() => runLifecycleAction(() => onRestoreHabit?.(habit.id), 'Alışkanlık arşivden çıkarılamadı.')}
-                >
-                  <RotateCcw size={14} strokeWidth={1.5} aria-hidden="true" />
-                  <span>{actionBusy ? 'İşleniyor…' : 'Arşivden çıkar'}</span>
-                </Button>
-              </div>
-            ) : confirmArchive ? (
-              <InlineFeedback
-                tone="neutral"
-                action={
-                  <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-                    <Button type="button" variant="tertiary" size="sm" disabled={actionBusy} onClick={() => setConfirmArchive(false)}>
-                      Vazgeç
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      disabled={actionBusy}
-                      onClick={() => runLifecycleAction(() => onArchiveHabit?.(habit.id), 'Alışkanlık arşivlenemedi.')}
-                    >
-                      {actionBusy ? 'Arşivleniyor…' : 'Evet, Arşivle'}
-                    </Button>
-                  </div>
-                }
-              >
-                <strong>{effectiveHabit.name}</strong> arşive kaldırılsın mı? Geçmiş kayıtların korunur; istediğinde arşivden çıkarabilirsin.
-              </InlineFeedback>
-            ) : (
-              <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  disabled={actionBusy || saving}
-                  onClick={() =>
-                    runLifecycleAction(
-                      () => onTogglePause?.(effectiveHabit),
-                      effectiveHabit.paused ? 'Alışkanlık devam ettirilemedi.' : 'Alışkanlık duraklatılamadı.'
-                    )
-                  }
-                >
-                  {effectiveHabit.paused ? <Play size={14} strokeWidth={1.5} aria-hidden="true" /> : <Pause size={14} strokeWidth={1.5} aria-hidden="true" />}
-                  <span>{actionBusy ? 'İşleniyor…' : effectiveHabit.paused ? 'Devam et' : 'Duraklat'}</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  disabled={actionBusy || saving}
-                  onClick={() => {
-                    setActionError('');
-                    setConfirmArchive(true);
-                  }}
-                >
-                  <Archive size={14} strokeWidth={1.5} aria-hidden="true" />
-                  <span>Arşivle</span>
-                </Button>
-              </div>
-            )}
-          </section>
-        )}
       </div>
     </section>
   );

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { Plus, Minus, ChevronLeft, ChevronRight, RotateCcw, Check, Users } from 'lucide-react';
-import { addDays, formatNumber, formatTarget, latestCheckins, recordFor, settingsAt, goalFor, stateFor, weekDays as calendarWeek } from '../lib/rules';
+import { addDays, formatNumber, formatTarget, isPlannedOn, latestCheckins, recordFor, settingsAt, goalFor, stateFor, weekDays as calendarWeek } from '../lib/rules';
 import { dailyCompletion } from '../lib/statistics.js';
 import { resolveRolloverSelection, useLocalDate } from '../lib/local-date.js';
 import { parseEntryAmount } from '../lib/numeric-entry.js';
@@ -28,8 +28,6 @@ export default function TodayView({
   onOpenAddModal,
   onAddStarterHabits,
   gamification,
-  socialInbox = [],
-  onDismissInbox,
   weekStart = 1,
   entryStates = {},
   retryEntry,
@@ -70,6 +68,16 @@ export default function TodayView({
   const days = calendarWeek(selectedDate, weekStart);
   const isAllDone = completionStats.total > 0 && completionStats.completed === completionStats.total;
   const hasHabits = habits.some((h) => !settingsAt(h, selectedDate).archived_at);
+  const showFilterToggle = useMemo(() => {
+    if (filterMode !== 'planned') return true;
+    const activeHabits = habits.filter((h) => {
+      const s = settingsAt(h, selectedDate);
+      return !s.archived_at && !s.paused;
+    });
+    if (activeHabits.length === 0) return false;
+    const allPlanned = activeHabits.every((h) => isPlannedOn(h, selectedDate, normalized, weekStart));
+    return !allPlanned;
+  }, [habits, selectedDate, normalized, weekStart, filterMode]);
   const orderedHabits = useMemo(() => {
     const pending = [];
     const completed = [];
@@ -143,78 +151,75 @@ export default function TodayView({
                 : 'Bu tarih için planlanan alışkanlık yok'}
             </span>
           </div>
+          {selectedDate !== todayIso && (
+            <Button variant="tertiary" size="sm" onClick={() => setSelectedDate?.(todayIso)}>
+              <RotateCcw size={14} strokeWidth={1.5} aria-hidden="true" />
+              <span>Bugün</span>
+            </Button>
+          )}
         </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-          <IconButton label="Önceki hafta" onClick={() => setSelectedDate?.(addDays(selectedDate, -7))}>
-            <ChevronLeft size={18} strokeWidth={1.5} aria-hidden="true" />
-          </IconButton>
-          <span className="mono" style={{ fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Haftalık takvim
-          </span>
-          <IconButton label="Sonraki hafta" onClick={() => setSelectedDate?.(addDays(selectedDate, 7))}>
-            <ChevronRight size={18} strokeWidth={1.5} aria-hidden="true" />
-          </IconButton>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', marginBottom: 'var(--space-4)' }}>
+        <IconButton label="Önceki hafta" onClick={() => setSelectedDate?.(addDays(selectedDate, -7))}>
+          <ChevronLeft size={18} strokeWidth={1.5} aria-hidden="true" />
+        </IconButton>
+        <div
+          className="week-strip"
+          id="week-strip"
+          role="group"
+          aria-label="Kayıt gününü seç"
+          style={{ flex: 1, marginBottom: 0 }}
+        >
+          {days.map((day, index) => {
+            const hasCheckin = normalized.some((c) => !c.deleted && c.habit_date === day);
+            return (
+              <button
+                key={day}
+                type="button"
+                className={`week-day ${day === selectedDate ? 'is-selected' : ''}`}
+                aria-pressed={day === selectedDate}
+                aria-current={day === todayIso ? 'date' : undefined}
+                aria-label={`${longDate(day)}${day === todayIso ? ', Bugün' : ''}`}
+                onClick={() => setSelectedDate?.(day)}
+                onKeyDown={(e) => selectKey(e, days, index, setSelectedDate)}
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <span className="week-day-name mono" style={{ fontSize: '11px' }}>
+                  {shortDay(day)}
+                </span>
+                <strong className="week-day-num mono">{Number(day.slice(-2))}</strong>
+                {hasCheckin && (
+                  <span
+                    aria-hidden="true"
+                    style={{ width: 6, height: 6, marginTop: 3, background: 'currentColor' }}
+                  />
+                )}
+              </button>
+            );
+          })}
         </div>
-        {selectedDate !== todayIso && (
-          <Button variant="tertiary" size="sm" onClick={() => setSelectedDate?.(todayIso)}>
-            <RotateCcw size={14} strokeWidth={1.5} aria-hidden="true" />
-            <span>Bugün</span>
-          </Button>
-        )}
+        <IconButton label="Sonraki hafta" onClick={() => setSelectedDate?.(addDays(selectedDate, 7))}>
+          <ChevronRight size={18} strokeWidth={1.5} aria-hidden="true" />
+        </IconButton>
       </div>
 
-      <div
-        className="week-strip"
-        id="week-strip"
-        role="group"
-        aria-label="Kayıt gününü seç"
-      >
-        {days.map((day, index) => {
-          const hasCheckin = normalized.some((c) => !c.deleted && c.habit_date === day);
-          return (
+      {showFilterToggle && (
+        <div className="segmented-control" role="group" aria-label="Alışkanlık filtreleme" style={{ marginBottom: 'var(--space-3)' }}>
+          {['planned', 'all'].map((filter, index) => (
             <button
-              key={day}
+              key={filter}
               type="button"
-              className={`week-day ${day === selectedDate ? 'is-selected' : ''}`}
-              aria-pressed={day === selectedDate}
-              aria-current={day === todayIso ? 'date' : undefined}
-              aria-label={`${longDate(day)}${day === todayIso ? ', Bugün' : ''}`}
-              onClick={() => setSelectedDate?.(day)}
-              onKeyDown={(e) => selectKey(e, days, index, setSelectedDate)}
-              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
+              className={`segmented-item ${filterMode === filter ? 'is-selected' : ''}`}
+              aria-pressed={filterMode === filter}
+              onClick={() => setFilterMode?.(filter)}
+              onKeyDown={(e) => selectKey(e, ['planned', 'all'], index, setFilterMode)}
             >
-              <span className="week-day-name mono" style={{ fontSize: '11px' }}>
-                {shortDay(day)}
-              </span>
-              <strong className="week-day-num mono">{Number(day.slice(-2))}</strong>
-              {hasCheckin && (
-                <span
-                  aria-hidden="true"
-                  style={{ width: 6, height: 6, marginTop: 3, background: 'currentColor' }}
-                />
-              )}
+              {filter === 'planned' ? 'Planlı' : 'Tümü'}
             </button>
-          );
-        })}
-      </div>
-
-      <div className="segmented-control" role="group" aria-label="Alışkanlık filtreleme" style={{ marginBottom: 'var(--space-3)' }}>
-        {['planned', 'all'].map((filter, index) => (
-          <button
-            key={filter}
-            type="button"
-            className={`segmented-item ${filterMode === filter ? 'is-selected' : ''}`}
-            aria-pressed={filterMode === filter}
-            onClick={() => setFilterMode?.(filter)}
-            onKeyDown={(e) => selectKey(e, ['planned', 'all'], index, setFilterMode)}
-          >
-            {filter === 'planned' ? 'Planlı' : 'Tümü'}
-          </button>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {future && (
         <InlineFeedback tone="neutral" role="status">
@@ -229,7 +234,7 @@ export default function TodayView({
       )}
 
       {!hasHabits && onAddStarterHabits ? (
-        <Suspense fallback={<LoadingState label="Başlangıç rutinleri yükleniyor…" />}>
+        <Suspense fallback={<LoadingState label="Başlangıç alışkanlıkları yükleniyor…" />}>
           <OnboardingStarter onAddStarterHabits={onAddStarterHabits} onOpenCustomModal={onOpenAddModal} />
         </Suspense>
       ) : orderedHabits.length === 0 ? (
@@ -273,9 +278,9 @@ export default function TodayView({
             const progressPct = Math.round(displayProgress * 100);
             const smartSteps =
               !isDone && h.direction !== 'at_most'
-                ? (target >= 100 ? [10, 25] : target >= 20 ? [5, 10] : target >= 10 ? [5] : []).filter(
-                    (step) => value + step < target
-                  )
+                ? (target >= 100 ? [10, 25] : target >= 20 ? [5, 10] : target >= 10 ? [5] : [])
+                    .filter((step) => value + step < target)
+                    .slice(0, 1)
                 : [];
 
             return (
@@ -313,7 +318,7 @@ export default function TodayView({
                         alignItems: 'center',
                       }}
                     >
-                      <strong className="habit-name" style={{ display: 'block', overflowWrap: 'anywhere', textDecoration: 'underline', textUnderlineOffset: '3px', textDecorationColor: 'var(--border)' }}>
+                      <strong className="habit-name" style={{ display: 'block', overflowWrap: 'anywhere' }}>
                         {h.name}
                       </strong>
                     </button>
@@ -371,17 +376,11 @@ export default function TodayView({
                     });
                     const doneCount = statuses.filter((s) => s.done).length;
                     return (
-                      <div
-                        className="shared-participants-inline"
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          flexWrap: 'wrap',
-                          gap: 'var(--space-2)',
-                          marginTop: 'var(--space-2)',
-                        }}
-                      >
-                        <span
+                      <div className="shared-participants-inline" style={{ marginTop: 'var(--space-2)' }}>
+                        <button
+                          type="button"
+                          onClick={() => onOpenHabitDetail?.(habit)}
+                          aria-label={`${h.name} katılımcıları: ${doneCount}/${statuses.length} tamamlandı, detayları aç`}
                           className="mono"
                           style={{
                             display: 'inline-flex',
@@ -389,35 +388,16 @@ export default function TodayView({
                             gap: 4,
                             fontSize: '11px',
                             fontWeight: 700,
-                            padding: '2px 6px',
+                            padding: '2px 8px',
                             border: '1px solid var(--border)',
                             background: 'var(--surface-2)',
                             color: doneCount === statuses.length ? 'var(--signal-text)' : 'var(--fg)',
+                            cursor: 'pointer',
                           }}
                         >
-                          <Users size={11} strokeWidth={1.75} aria-hidden="true" />
-                          {doneCount}/{statuses.length} tamamlandı
-                        </span>
-                        {statuses.slice(0, 5).map((p) => (
-                          <span
-                            key={p.user_id}
-                            className="mono"
-                            style={{
-                              fontSize: '11px',
-                              padding: '1px 6px',
-                              border: '1px solid var(--border)',
-                              background: p.done ? 'var(--surface-2)' : 'transparent',
-                              color: p.done ? 'var(--signal-text)' : 'var(--fg-muted)',
-                            }}
-                          >
-                            {p.done ? '✓ ' : ''}@{p.username || 'uye'}
-                          </span>
-                        ))}
-                        {statuses.length > 5 && (
-                          <span className="mono" style={{ fontSize: '11px', color: 'var(--fg-muted)' }}>
-                            +{statuses.length - 5}
-                          </span>
-                        )}
+                          <Users size={12} strokeWidth={1.75} aria-hidden="true" />
+                          {doneCount}/{statuses.length}
+                        </button>
                       </div>
                     );
                   })()}
@@ -621,8 +601,6 @@ export default function TodayView({
         <DailyEngagement
           gamification={gamification}
           checkins={normalized}
-          socialInbox={socialInbox}
-          onDismissInbox={onDismissInbox}
         />
       </div>
     </section>

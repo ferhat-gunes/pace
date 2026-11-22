@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as api from '../../lib/api.js';
 import { Button, FormField, InlineFeedback, Modal, TextInput, Textarea } from '../ui/index.js';
 
-export default function AccountSecuritySettings({ user, setUser }) {
+export default function AccountSecuritySettings({ user, setUser, embedded = false }) {
   const [mode, setMode] = useState('');
   const [busy, setBusy] = useState(false);
   const [current, setCurrent] = useState('');
@@ -97,23 +97,36 @@ export default function AccountSecuritySettings({ user, setUser }) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
+  const Wrapper = embedded ? 'div' : 'section';
+  const Heading = embedded ? 'h3' : 'h2';
+
   return (
-    <section
+    <Wrapper
       aria-labelledby="account-security-title"
-      style={{
-        border: '1px solid var(--border)',
-        backgroundColor: 'var(--surface-1)',
-        padding: 'var(--space-4)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 'var(--space-3)',
-      }}
+      style={
+        embedded
+          ? {
+              borderTop: '1px solid var(--border)',
+              paddingTop: 'var(--space-3)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--space-3)',
+            }
+          : {
+              border: '1px solid var(--border)',
+              backgroundColor: 'var(--surface-1)',
+              padding: 'var(--space-4)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--space-3)',
+            }
+      }
     >
       <div>
-        <h2 id="account-security-title" style={{ fontSize: '16px', fontWeight: 700 }}>
+        <Heading id="account-security-title" style={{ fontSize: embedded ? '14px' : '16px', fontWeight: 700, margin: 0 }}>
           Parola ve kurtarma
-        </h2>
-        <p style={{ fontSize: '13px', color: 'var(--fg-muted)', marginTop: 'var(--space-1)' }}>
+        </Heading>
+        <p style={{ fontSize: '12px', color: 'var(--fg-muted)', marginTop: 'var(--space-1)' }}>
           Parolanı güncelle veya kaybettiğin kurtarma kodunu yenile. Yeni kod oluşturulduğunda eskisi geçersiz olur.
         </p>
       </div>
@@ -249,6 +262,6 @@ export default function AccountSecuritySettings({ user, setUser }) {
           </FormField>
         </div>
       </Modal>
-    </section>
+    </Wrapper>
   );
 }

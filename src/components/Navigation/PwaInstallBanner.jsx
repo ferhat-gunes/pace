@@ -43,7 +43,13 @@ export default function PwaInstallBanner() {
     window.addEventListener('appinstalled', installed);
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
 
-    if (iosDevice) {
+    let visitCount = 1;
+    try {
+      visitCount = (Number(localStorage.getItem('pace_visit_count')) || 0) + 1;
+      localStorage.setItem('pace_visit_count', String(visitCount));
+    } catch {}
+
+    if (iosDevice && visitCount >= 2) {
       setDismissed(false);
     }
 

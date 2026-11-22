@@ -1,20 +1,21 @@
 import React from 'react';
-import { CalendarDays, ListChecks, Compass, ChartNoAxesColumnIncreasing, Settings, LogIn, UserCheck } from 'lucide-react';
+import { CalendarDays, ListChecks, ChartNoAxesColumnIncreasing, Settings, LogIn } from 'lucide-react';
 import * as api from '../../lib/api';
-import { isFeatureEnabled } from '../../lib/telemetry';
 import { Button } from '../ui/index.js';
 
 export default function Sidebar({ currentView = 'today', setView, syncState = 'Bağlantı hazır', user = null, onOpenAuth }) {
   const items = [
     { id: 'today', label: 'Bugün', icon: CalendarDays },
     { id: 'habits', label: 'Alışkanlıklar', icon: ListChecks },
-    ...(isFeatureEnabled('discover_rhythm_trials') ? [{ id: 'discover', label: 'Keşfet', icon: Compass }] : []),
     { id: 'progress', label: 'İlerleme', icon: ChartNoAxesColumnIncreasing },
   ];
 
   const isDemo = api.isDemo();
   const isAuthenticated = Boolean(user && !isDemo);
-  const syncAttr = syncState === 'Kaydedildi' ? 'saved' : syncState === 'Hata' || syncState === 'Çakışma' ? 'error' : 'local';
+  const isError = /Hata|Çakışma|kurulamadı|Kaydedilmemiş|kaydedilemedi|Arşivlenemedi|Geri yüklenemedi|Kayıt değişti|Cihazda bekliyor/i.test(syncState || '');
+  const isPending = /Kaydediliyor|Yükleniyor/i.test(syncState || '');
+  const showSync = isError || isPending;
+  const syncAttr = isError ? 'error' : 'local';
 
   return (
     <aside className="sidebar" aria-label="Ana gezinme">
@@ -49,10 +50,12 @@ export default function Sidebar({ currentView = 'today', setView, syncState = 'B
       </nav>
 
       <div className="sidebar-bottom">
-        <span className="sync-indicator mono" id="sync-indicator" data-state={syncAttr}>
-          <i aria-hidden="true" />
-          <span>{syncState}</span>
-        </span>
+        {showSync && (
+          <span className="sync-indicator mono" id="sync-indicator" data-state={syncAttr}>
+            <i aria-hidden="true" />
+            <span>{syncState}</span>
+          </span>
+        )}
 
         {!isAuthenticated && (
           <Button
@@ -64,23 +67,6 @@ export default function Sidebar({ currentView = 'today', setView, syncState = 'B
             <LogIn size={16} strokeWidth={1.5} aria-hidden="true" />
             <span>{isDemo ? 'Demo’dan Çık & Giriş Yap' : 'Giriş Yap / Kayıt Ol'}</span>
           </Button>
-        )}
-
-        {isAuthenticated && (
-          <button
-            type="button"
-            className="nav-item"
-            onClick={() => setView?.('settings')}
-            title={user.username ? `@${user.username} (${user.email})` : user.email}
-            style={{ marginBottom: 'var(--space-1)', color: 'var(--fg)' }}
-          >
-            <span className="nav-icon" style={{ color: 'var(--signal-text)' }}>
-              <UserCheck size={18} strokeWidth={1.5} aria-hidden="true" />
-            </span>
-            <span className="mono" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '12px' }}>
-              {user.username ? `@${user.username}` : user.email}
-            </span>
-          </button>
         )}
 
         <button

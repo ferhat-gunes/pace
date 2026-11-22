@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CloudCheck, RefreshCw, AlertTriangle, Bell } from 'lucide-react';
+import { RefreshCw, AlertTriangle, Bell } from 'lucide-react';
 import * as api from '../../lib/api.js';
 import { ActivityItem, Button, Modal } from '../ui/index.js';
 
@@ -8,7 +8,6 @@ export default function TopBar({
   user,
   onOpenAuth,
   syncState,
-  streak = 0,
   socialInbox = [],
   onDismissInbox,
   inviteInbox = [],
@@ -18,9 +17,10 @@ export default function TopBar({
   const [notifOpen, setNotifOpen] = useState(false);
   const initial = user?.username ? user.username[0].toLocaleUpperCase('tr-TR') : user?.email ? user.email[0].toLocaleUpperCase('tr-TR') : 'P';
   const isDemo = api.demoMode;
-  const isError = /Hata|Çakışma|kurulamadı|Kaydedilmemiş/i.test(syncState || '');
+  const isError = /Hata|Çakışma|kurulamadı|Kaydedilmemiş|kaydedilemedi|Arşivlenemedi|Geri yüklenemedi|Kayıt değişti|Cihazda bekliyor/i.test(syncState || '');
   const isPending = /Kaydediliyor|Yükleniyor/i.test(syncState || '');
-  const SyncIcon = isError ? AlertTriangle : isPending ? RefreshCw : CloudCheck;
+  const showSync = isError || isPending;
+  const SyncIcon = isError ? AlertTriangle : RefreshCw;
   const syncLabel = syncState || 'Senkronize';
   const unreadCount = socialInbox.length + inviteInbox.length + (inviteToken ? 1 : 0);
 
@@ -36,42 +36,33 @@ export default function TopBar({
         <span>PACE</span>
       </button>
 
-      <span className="topbar-note mono">
-        {streak > 0 ? (
-          <>
-            SERİ: <strong style={{ color: 'var(--signal-text)' }}>{streak}</strong> GÜN
-          </>
-        ) : (
-          'GÜNLÜK TAKİP'
-        )}
-      </span>
-
       <div className="topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-        <span
-          className="mobile-sync-badge"
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-          aria-label={syncLabel}
-          title={syncLabel}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '32px',
-            height: '32px',
-            border: '1px solid var(--border)',
-            background: 'var(--surface-1)',
-            color: isError ? 'var(--danger)' : isPending ? 'var(--fg-muted)' : 'var(--signal-text)',
-          }}
-        >
-          <SyncIcon
-            size={16}
-            strokeWidth={1.75}
-            aria-hidden="true"
-            className={isPending ? 'db-spin' : undefined}
-          />
-        </span>
+        {showSync && (
+          <span
+            className="mobile-sync-badge"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            aria-label={syncLabel}
+            title={syncLabel}
+            style={{
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '32px',
+              height: '32px',
+              border: '1px solid var(--border)',
+              background: 'var(--surface-1)',
+              color: isError ? 'var(--danger)' : 'var(--fg-muted)',
+            }}
+          >
+            <SyncIcon
+              size={16}
+              strokeWidth={1.75}
+              aria-hidden="true"
+              className={isPending ? 'db-spin' : undefined}
+            />
+          </span>
+        )}
 
         <button
           type="button"

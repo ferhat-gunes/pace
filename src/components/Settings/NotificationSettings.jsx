@@ -178,14 +178,14 @@ export default function NotificationSettings({ authorized = false, pushEnabled =
         )}
       </div>
 
-      <fieldset disabled={busy} style={{ border: 0, padding: 0, minWidth: 0 }}>
-        <legend className="sr-only">Hatırlatma saatleri</legend>
-        <div style={rowStyle}>
-          <div>
-            <strong style={{ fontSize: '14px' }}>Hatırlatma saati</strong>
-          </div>
-          <div style={{ minWidth: '156px', width: 'auto', maxWidth: '100%' }}>
-            <FormField label="Saat" htmlFor="reminder-time-input">
+      {settings.permission === 'granted' && settings.enabled && (
+        <fieldset disabled={busy} style={{ border: 0, padding: 0, minWidth: 0 }}>
+          <legend className="sr-only">Hatırlatma saatleri</legend>
+          <div style={rowStyle}>
+            <div>
+              <strong style={{ fontSize: '14px' }}>Hatırlatma saati</strong>
+            </div>
+            <div style={{ minWidth: '156px', width: 'auto', maxWidth: '100%' }}>
               <DateTimePicker
                 id="reminder-time-input"
                 type="time"
@@ -194,49 +194,49 @@ export default function NotificationSettings({ authorized = false, pushEnabled =
                 value={settings.reminderTime}
                 onChange={(e) => run(() => update({ reminderTime: e.target.value }))}
               />
-            </FormField>
+            </div>
           </div>
-        </div>
 
-        <div style={rowStyle}>
-          <div>
-            <strong style={{ fontSize: '14px' }}>Sessiz saatler</strong>
-            <p style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>
-              Bu aralıkta hatırlatma gösterilmez.
-            </p>
-          </div>
-          <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', maxWidth: '100%' }}>
-            <div style={{ minWidth: '156px', width: 'auto', maxWidth: '100%' }}>
-              <FormField label="Başlangıç" htmlFor="quiet-start-input">
-                <DateTimePicker
-                  id="quiet-start-input"
-                  type="time"
-                  aria-label="Sessiz saat başlangıcı"
-                  style={{ width: '100%', minWidth: '148px' }}
-                  value={settings.quietStart}
-                  onChange={(e) => run(() => update({ quietStart: e.target.value }))}
-                />
-              </FormField>
+          <div style={rowStyle}>
+            <div>
+              <strong style={{ fontSize: '14px' }}>Sessiz saatler</strong>
+              <p style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>
+                Bu aralıkta hatırlatma gösterilmez.
+              </p>
             </div>
-            <div style={{ minWidth: '156px', width: 'auto', maxWidth: '100%' }}>
-              <FormField label="Bitiş" htmlFor="quiet-end-input">
-                <DateTimePicker
-                  id="quiet-end-input"
-                  type="time"
-                  aria-label="Sessiz saat bitişi"
-                  style={{ width: '100%', minWidth: '148px' }}
-                  value={settings.quietEnd}
-                  onChange={(e) => run(() => update({ quietEnd: e.target.value }))}
-                />
-              </FormField>
+            <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', maxWidth: '100%' }}>
+              <div style={{ minWidth: '156px', width: 'auto', maxWidth: '100%' }}>
+                <FormField label="Başlangıç" htmlFor="quiet-start-input">
+                  <DateTimePicker
+                    id="quiet-start-input"
+                    type="time"
+                    aria-label="Sessiz saat başlangıcı"
+                    style={{ width: '100%', minWidth: '148px' }}
+                    value={settings.quietStart}
+                    onChange={(e) => run(() => update({ quietStart: e.target.value }))}
+                  />
+                </FormField>
+              </div>
+              <div style={{ minWidth: '156px', width: 'auto', maxWidth: '100%' }}>
+                <FormField label="Bitiş" htmlFor="quiet-end-input">
+                  <DateTimePicker
+                    id="quiet-end-input"
+                    type="time"
+                    aria-label="Sessiz saat bitişi"
+                    style={{ width: '100%', minWidth: '148px' }}
+                    value={settings.quietEnd}
+                    onChange={(e) => run(() => update({ quietEnd: e.target.value }))}
+                  />
+                </FormField>
+              </div>
             </div>
           </div>
-        </div>
-      </fieldset>
+        </fieldset>
+      )}
 
       <div style={rowStyle}>
         <div>
-          <strong style={{ fontSize: '14px' }}>Grup bildirimleri</strong>
+          <strong style={{ fontSize: '14px' }}>Ortak alışkanlık bildirimleri</strong>
           <p style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>
             Tebrik ve nazik yoklama bildirimleri.
           </p>
@@ -249,28 +249,33 @@ export default function NotificationSettings({ authorized = false, pushEnabled =
         />
       </div>
 
-      <div style={rowStyle}>
-        <div>
-          <strong style={{ fontSize: '14px' }}>Arka plan Web Push</strong>
-          <p style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>
-            {!authorized
-              ? 'Gerçek hesabına giriş yapman gerekir.'
-              : !pushEnabled
-                ? 'Sunucuda push yapılandırması etkin değil.'
-                : !isPushSupported()
-                  ? 'Tarayıcın bu özelliği desteklemiyor.'
-                  : 'Uygulama kapalıyken de bildirim alabilirsin.'}
-          </p>
+      <details style={{ borderTop: '1px solid var(--border)', paddingTop: 'var(--space-3)' }}>
+        <summary className="mono" style={{ cursor: 'pointer', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', color: 'var(--fg-muted)' }}>
+          Gelişmiş
+        </summary>
+        <div style={{ ...rowStyle, borderTop: 0, paddingTop: 'var(--space-3)' }}>
+          <div>
+            <strong style={{ fontSize: '14px' }}>Arka plan Web Push</strong>
+            <p style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>
+              {!authorized
+                ? 'Gerçek hesabına giriş yapman gerekir.'
+                : !pushEnabled
+                  ? 'Sunucuda push yapılandırması etkin değil.'
+                  : !isPushSupported()
+                    ? 'Tarayıcın bu özelliği desteklemiyor.'
+                    : 'Uygulama kapalıyken de bildirim alabilirsin.'}
+            </p>
+          </div>
+          <Toggle
+            label={subscribed ? 'Açık' : 'Kapalı'}
+            checked={subscribed}
+            disabled={busy || !authorized || !pushEnabled || !isPushSupported()}
+            onChange={push}
+          />
         </div>
-        <Toggle
-          label={subscribed ? 'Açık' : 'Kapalı'}
-          checked={subscribed}
-          disabled={busy || !authorized || !pushEnabled || !isPushSupported()}
-          onChange={push}
-        />
-      </div>
+      </details>
 
-      {settings.permission === 'granted' && (
+      {settings.permission === 'granted' && settings.enabled && (
         <div style={{ paddingTop: 'var(--space-2)' }}>
           <Button
             variant="secondary"

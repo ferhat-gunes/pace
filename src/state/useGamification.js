@@ -232,16 +232,26 @@ export function useGamification(
       });
     } catch {}
 
-    setData((prev) => ({
-      ...prev,
-      xp: prev.xp + 40,
-      gems: (prev.gems || 0) + 10,
-      claimedDates: {
-        ...prev.claimedDates,
-        [todayStr]: true,
-      },
-    }));
+    setData((prev) => {
+      if (prev.claimedDates?.[todayStr]) return prev;
+      return {
+        ...prev,
+        xp: prev.xp + 40,
+        gems: (prev.gems || 0) + 10,
+        claimedDates: {
+          ...prev.claimedDates,
+          [todayStr]: true,
+        },
+      };
+    });
   }, [isQuestCompleted, isQuestClaimed, todayStr]);
+
+  useEffect(() => {
+    if (loadedKey !== storageKey) return;
+    if (isQuestCompleted && !isQuestClaimed) {
+      claimDailyChest();
+    }
+  }, [loadedKey, storageKey, isQuestCompleted, isQuestClaimed, claimDailyChest]);
 
   const clearLevelCelebration = useCallback(() => {
     setData((prev) => ({ ...prev, levelCelebrationPending: null }));

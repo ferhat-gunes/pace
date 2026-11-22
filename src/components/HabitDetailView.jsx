@@ -221,15 +221,9 @@ export default function HabitDetailView({
               </span>
             </div>
           </div>
-          {isOwner && (
-            <Button type="button" variant="secondary" size="sm" onClick={() => onEdit?.(habit)}>
-              <Pencil size={14} strokeWidth={1.5} aria-hidden="true" />
-              <span>Düzenle</span>
-            </Button>
-          )}
         </section>
 
-        {(participants.length > 0 || canInvite) && (
+        {participants.length > 1 ? (
           <section
             aria-label="Katılımcılar"
             style={{
@@ -244,7 +238,7 @@ export default function HabitDetailView({
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
               <div className="mono" style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 <Users size={14} strokeWidth={1.75} aria-hidden="true" />
-                <span>Katılımcılar ({participants.length || 1})</span>
+                <span>Katılımcılar ({participants.length})</span>
               </div>
               {canInvite && (
                 <Button type="button" variant="secondary" size="sm" disabled={Boolean(busy)} onClick={() => onInviteHabit?.(habit)}>
@@ -254,82 +248,103 @@ export default function HabitDetailView({
               )}
             </div>
 
-            {participants.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                {participants.map((p) => {
-                  const isMe = Boolean(p.is_me || (user?.id && p.user_id === user.id));
-                  let pDone = false;
-                  let pLabel = 'Bekliyor';
-                  if (isMe) {
-                    pDone = todayState.status === 'done';
-                    pLabel = pDone ? 'Tamamlandı' : 'Bekliyor';
-                  } else {
-                    const pc = participantCheckins.find(
-                      (c) => c.habit_id === habit.id && c.user_id === p.user_id && c.habit_date === todayIso
-                    );
-                    const pVal = Number(pc?.value || 0);
-                    const target = Number(effective.target || 1);
-                    pDone = effective.tracking === 'check'
-                      ? pVal >= 1
-                      : effective.direction === 'at_most'
-                        ? Boolean(pc) && pVal <= target
-                        : pVal >= target;
-                    pLabel = pDone
-                      ? 'Tamamlandı'
-                      : effective.tracking === 'quantity' && pc
-                        ? `${formatNumber(pVal)} / ${formatNumber(target)} ${effective.unit || ''}`.trim()
-                        : 'Bekliyor';
-                  }
-
-                  return (
-                    <div
-                      key={p.user_id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: 'var(--space-2)',
-                        padding: 'var(--space-2) var(--space-3)',
-                        border: '1px solid var(--border)',
-                        background: 'var(--bg)',
-                        flexWrap: 'wrap',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-                        <StatusMarker status={pDone ? 'done' : 'missed'} size={10} />
-                        <strong className="mono" style={{ fontSize: '13px' }}>
-                          @{p.username || 'uye'}{isMe ? ' (Sen)' : ''}
-                        </strong>
-                        {p.role === 'owner' && (
-                          <span className="mono" style={{ fontSize: '10px', padding: '1px 5px', border: '1px solid var(--border)', color: 'var(--fg-muted)', textTransform: 'uppercase' }}>
-                            Sahip
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                        <span className="mono" style={{ fontSize: '12px', color: pDone ? 'var(--signal-text)' : 'var(--fg-muted)' }}>
-                          {pLabel}
-                        </span>
-                        {isOwner && !isMe && (
-                          <Button
-                            type="button"
-                            variant="tertiary"
-                            size="sm"
-                            disabled={Boolean(busy)}
-                            onClick={() => setRemoveTarget(p)}
-                          >
-                            <UserMinus size={14} strokeWidth={1.5} aria-hidden="true" />
-                            <span>Çıkar</span>
-                          </Button>
-                        )}
-                      </div>
-                    </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+              {participants.map((p) => {
+                const isMe = Boolean(p.is_me || (user?.id && p.user_id === user.id));
+                let pDone = false;
+                let pLabel = 'Bekliyor';
+                if (isMe) {
+                  pDone = todayState.status === 'done';
+                  pLabel = pDone ? 'Tamamlandı' : 'Bekliyor';
+                } else {
+                  const pc = participantCheckins.find(
+                    (c) => c.habit_id === habit.id && c.user_id === p.user_id && c.habit_date === todayIso
                   );
-                })}
-              </div>
-            )}
+                  const pVal = Number(pc?.value || 0);
+                  const target = Number(effective.target || 1);
+                  pDone = effective.tracking === 'check'
+                    ? pVal >= 1
+                    : effective.direction === 'at_most'
+                      ? Boolean(pc) && pVal <= target
+                      : pVal >= target;
+                  pLabel = pDone
+                    ? 'Tamamlandı'
+                    : effective.tracking === 'quantity' && pc
+                      ? `${formatNumber(pVal)} / ${formatNumber(target)} ${effective.unit || ''}`.trim()
+                      : 'Bekliyor';
+                }
+
+                return (
+                  <div
+                    key={p.user_id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 'var(--space-2)',
+                      padding: 'var(--space-2) var(--space-3)',
+                      border: '1px solid var(--border)',
+                      background: 'var(--bg)',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+                      <StatusMarker status={pDone ? 'done' : 'missed'} size={10} />
+                      <strong className="mono" style={{ fontSize: '13px' }}>
+                        @{p.username || 'uye'}{isMe ? ' (Sen)' : ''}
+                      </strong>
+                      {p.role === 'owner' && (
+                        <span className="mono" style={{ fontSize: '10px', padding: '1px 5px', border: '1px solid var(--border)', color: 'var(--fg-muted)', textTransform: 'uppercase' }}>
+                          Sahip
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                      <span className="mono" style={{ fontSize: '12px', color: pDone ? 'var(--signal-text)' : 'var(--fg-muted)' }}>
+                        {pLabel}
+                      </span>
+                      {isOwner && !isMe && (
+                        <Button
+                          type="button"
+                          variant="tertiary"
+                          size="sm"
+                          disabled={Boolean(busy)}
+                          onClick={() => setRemoveTarget(p)}
+                        >
+                          <UserMinus size={14} strokeWidth={1.5} aria-hidden="true" />
+                          <span>Çıkar</span>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </section>
-        )}
+        ) : canInvite ? (
+          <section
+            aria-label="Arkadaş davet et"
+            style={{
+              border: '1px solid var(--border)',
+              background: 'var(--surface-1)',
+              padding: 'var(--space-3) var(--space-4)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 'var(--space-3)',
+              flexWrap: 'wrap',
+            }}
+          >
+            <span style={{ fontSize: '13px', color: 'var(--fg-muted)', display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              <Users size={14} strokeWidth={1.75} aria-hidden="true" />
+              <span>Bir arkadaşınla birlikte takip et</span>
+            </span>
+            <Button type="button" variant="secondary" size="sm" disabled={Boolean(busy)} onClick={() => onInviteHabit?.(habit)}>
+              <UserPlus size={14} strokeWidth={1.5} aria-hidden="true" />
+              <span>Arkadaş Davet Et</span>
+            </Button>
+          </section>
+        ) : null}
 
         <section
           aria-label="Son 14 gün"
@@ -437,19 +452,13 @@ export default function HabitDetailView({
               </Button>
             )}
 
-            {user && !guestMode && onLeaveHabit && (
+            {user && !guestMode && onLeaveHabit && !(isSoleParticipant && isOwner) && (
               <Button
                 type="button"
                 variant="secondary"
                 size="sm"
                 disabled={Boolean(busy)}
-                onClick={() => {
-                  if (isSoleParticipant && isOwner) {
-                    setConfirmDelete(true);
-                  } else {
-                    setConfirmLeave(true);
-                  }
-                }}
+                onClick={() => setConfirmLeave(true)}
               >
                 <LogOut size={14} strokeWidth={1.5} aria-hidden="true" />
                 <span>Alışkanlıktan Ayrıl</span>

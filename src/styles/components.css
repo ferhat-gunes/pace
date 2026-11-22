@@ -8,11 +8,11 @@
   min-height: 44px;
   padding: 0 var(--space-4);
   border: var(--border-hairline) solid var(--border);
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  text-transform: none;
+  letter-spacing: 0.01em;
   transition: background-color var(--duration-fast) var(--ease-sharp),
               color var(--duration-fast) var(--ease-sharp),
               border-color var(--duration-fast) var(--ease-sharp),
@@ -341,7 +341,7 @@
 #today-list .habit-row {
   position: relative;
   padding: var(--space-4);
-  border: var(--border-hairline) solid var(--border);
+  border: var(--border-hairline) solid transparent;
   background-color: var(--surface-1);
 }
 
