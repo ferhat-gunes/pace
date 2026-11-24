@@ -3,6 +3,11 @@
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+:root:not([data-theme^="playful"]) *,
+:root:not([data-theme^="playful"]) *::before,
+:root:not([data-theme^="playful"]) *::after {
   border-radius: 0 !important;
   box-shadow: none !important;
 }
