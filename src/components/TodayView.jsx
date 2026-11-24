@@ -6,6 +6,7 @@ import { resolveRolloverSelection, useLocalDate } from '../lib/local-date.js';
 import { parseEntryAmount } from '../lib/numeric-entry.js';
 import DailyEngagement from './DailyEngagement.jsx';
 import { Button, IconButton, StatusMarker, ProgressBar, InlineFeedback, EmptyState, LoadingState } from './ui/index.js';
+import { triggerHaptic, triggerPlayfulSparkBurst } from '../lib/celebration.js';
 
 const OnboardingStarter = lazy(() => import('./OnboardingStarter.jsx'));
 
@@ -114,8 +115,17 @@ export default function TodayView({
     }
   };
 
-  const quickStep = (h, delta) => {
-    logCheckin?.(h.id, (previous) => Math.max(0, Math.min(1000000, Number(previous) + delta)));
+  const quickStep = (h, delta, targetEl, currentVal = 0, targetGoal = 1) => {
+    const nextVal = Math.max(0, Math.min(1000000, Number(currentVal) + delta));
+    logCheckin?.(h.id, () => nextVal);
+    if (delta > 0) {
+      if (currentVal < targetGoal && nextVal >= targetGoal) {
+        triggerHaptic('success');
+        triggerPlayfulSparkBurst(targetEl);
+      } else {
+        triggerHaptic('light');
+      }
+    }
     setAnnouncement(`${h.name}: miktar güncellendi.`);
   };
 
@@ -411,7 +421,13 @@ export default function TodayView({
                       disabled={future}
                       aria-pressed={isDone}
                       aria-label={isDone ? `${h.name} tamamlandı, geri almak için tıkla` : `${h.name} tamamlandı olarak işaretle`}
-                      onClick={() => {
+                      onClick={(e) => {
+                        if (!isDone) {
+                          triggerHaptic('success');
+                          triggerPlayfulSparkBurst(e.currentTarget);
+                        } else {
+                          triggerHaptic('light');
+                        }
                         logCheckin?.(h.id, (previous) => (Number(previous) >= 1 ? 0 : 1));
                         setAnnouncement(`${h.name}: seçili günün kaydı güncellendi.`);
                       }}
@@ -489,7 +505,7 @@ export default function TodayView({
                           className="quantity-stepper__btn"
                           aria-label={`${h.name} miktarını 1 azalt`}
                           disabled={future || value <= 0}
-                          onClick={() => quickStep(h, -1)}
+                          onClick={(e) => quickStep(h, -1, e.currentTarget, value, target)}
                         >
                           <Minus size={16} strokeWidth={1.75} aria-hidden="true" />
                         </button>
@@ -512,7 +528,7 @@ export default function TodayView({
                           className="quantity-stepper__btn quantity-stepper__btn--plus"
                           aria-label={`${h.name} miktarını 1 artır`}
                           disabled={future || value >= 1000000}
-                          onClick={() => quickStep(h, 1)}
+                          onClick={(e) => quickStep(h, 1, e.currentTarget, value, target)}
                         >
                           <Plus size={16} strokeWidth={2.25} aria-hidden="true" />
                         </button>
@@ -527,7 +543,7 @@ export default function TodayView({
                               size="md"
                               disabled={future}
                               aria-label={`${h.name} miktarını ${step} artır`}
-                              onClick={() => quickStep(h, step)}
+                              onClick={(e) => quickStep(h, step, e.currentTarget, value, target)}
                               className="mono"
                             >
                               +{formatNumber(step)}
@@ -539,7 +555,11 @@ export default function TodayView({
                               size="md"
                               disabled={future}
                               title={`Kalan ${formatNumber(target - value)} ${h.unit || ''} tamamla`}
-                              onClick={() => logCheckin?.(h.id, target)}
+                              onClick={(e) => {
+                                triggerHaptic('success');
+                                triggerPlayfulSparkBurst(e.currentTarget);
+                                logCheckin?.(h.id, target);
+                              }}
                             >
                               Tamamla
                             </Button>

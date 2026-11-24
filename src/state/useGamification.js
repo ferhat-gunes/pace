@@ -7,7 +7,7 @@ import { isPlannedOn } from '../lib/rules.js';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { playFanfare, playChestOpen, playSuccess } from '../lib/soundFx';
-import { triggerHaptic } from '../lib/celebration';
+import { triggerHaptic, getCelebrationColors } from '../lib/celebration';
 import { localDateIso, addDaysIso } from '../lib/date';
 import * as api from '../lib/api';
 import rawConfetti from 'canvas-confetti';
@@ -228,7 +228,7 @@ export function useGamification(
         particleCount: 60,
         spread: 80,
         origin: { y: 0.5 },
-        colors: ['#C8FF2E', '#F2F0EA', '#9A9891'],
+        colors: getCelebrationColors(),
       });
     } catch {}
 
@@ -270,7 +270,7 @@ export function useGamification(
         particleCount: 40,
         spread: 60,
         origin: { y: 0.6 },
-        colors: ['#C8FF2E', '#F2F0EA', '#9A9891'],
+        colors: getCelebrationColors(),
       });
     } catch {}
 
@@ -292,7 +292,7 @@ export function useGamification(
         particleCount: 55,
         spread: 75,
         origin: { y: 0.5 },
-        colors: ['#C8FF2E', '#F2F0EA', '#9A9891'],
+        colors: getCelebrationColors(),
       });
     } catch {}
 

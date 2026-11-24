@@ -619,6 +619,239 @@
   animation: playful-pulse-dot 2.2s ease-in-out infinite;
 }
 
+/* ==========================================================================
+   Playful Premium Motion Choreography (60fps Spring, Jelly, Shimmer & Pops)
+   ========================================================================== */
+
+@keyframes playful-page-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes playful-card-cascade {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.008);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes playful-card-celebrate {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: translateY(-5px) scale(1.022);
+  }
+  70% {
+    transform: translateY(1px) scale(0.994);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes playful-sheen-sweep {
+  0% {
+    transform: translateX(-130%) skewX(-22deg);
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.65;
+  }
+  100% {
+    transform: translateX(230%) skewX(-22deg);
+    opacity: 0;
+  }
+}
+
+@keyframes playful-candy-stripes {
+  from {
+    background-position: 0 0, 0 0;
+  }
+  to {
+    background-position: 28px 0, 0 0;
+  }
+}
+
+@keyframes playful-sticker-float {
+  0%, 100% {
+    transform: rotate(-2deg) translateY(0);
+  }
+  50% {
+    transform: rotate(-0.5deg) translateY(-2px);
+  }
+}
+
+@keyframes playful-icon-wiggle {
+  0%, 100% {
+    transform: rotate(0deg) scale(1);
+  }
+  25% {
+    transform: rotate(-12deg) scale(1.1);
+  }
+  50% {
+    transform: rotate(10deg) scale(1.12);
+  }
+  75% {
+    transform: rotate(-6deg) scale(1.06);
+  }
+}
+
+@keyframes playful-tile-pop {
+  0% {
+    transform: translateY(0) scale(0.92);
+  }
+  55% {
+    transform: translateY(-4px) scale(1.06);
+  }
+  100% {
+    transform: translateY(-2px) scale(1);
+  }
+}
+
+@keyframes playful-nav-bounce {
+  0% {
+    transform: scale(0.86);
+  }
+  55% {
+    transform: scale(1.16) translateY(-2px);
+  }
+  100% {
+    transform: scale(1.08) translateY(0);
+  }
+}
+
+/* Page & View Smooth Spring Entrance */
+[data-theme^="playful"] .content-wrap > *,
+[data-theme^="playful"] .page-view {
+  animation: playful-page-enter 280ms var(--pp-smooth) both;
+}
+
+/* Gentle Sticker Float on PACE Wordmark */
+[data-theme^="playful"] .brand,
+[data-theme^="playful"] .mobile-brand {
+  animation: playful-sticker-float 4.2s ease-in-out infinite;
+}
+
+/* Staggered Spring Cascade for Habit Cards */
+[data-theme^="playful"] #today-list .habit-row,
+[data-theme^="playful"] .habit-list > .habit-row {
+  animation: playful-card-cascade 380ms var(--pp-spring) both;
+}
+[data-theme^="playful"] #today-list .habit-row:nth-child(1) { animation-delay: 20ms; }
+[data-theme^="playful"] #today-list .habit-row:nth-child(2) { animation-delay: 65ms; }
+[data-theme^="playful"] #today-list .habit-row:nth-child(3) { animation-delay: 110ms; }
+[data-theme^="playful"] #today-list .habit-row:nth-child(4) { animation-delay: 155ms; }
+[data-theme^="playful"] #today-list .habit-row:nth-child(5) { animation-delay: 200ms; }
+[data-theme^="playful"] #today-list .habit-row:nth-child(6) { animation-delay: 245ms; }
+[data-theme^="playful"] #today-list .habit-row:nth-child(n + 7) { animation-delay: 280ms; }
+
+/* Staggered Week Strip Day Tiles & Selection Pop */
+[data-theme^="playful"] .week-day {
+  animation: playful-card-cascade 320ms var(--pp-spring) both;
+}
+[data-theme^="playful"] .week-day:nth-child(1) { animation-delay: 15ms; }
+[data-theme^="playful"] .week-day:nth-child(2) { animation-delay: 40ms; }
+[data-theme^="playful"] .week-day:nth-child(3) { animation-delay: 65ms; }
+[data-theme^="playful"] .week-day:nth-child(4) { animation-delay: 90ms; }
+[data-theme^="playful"] .week-day:nth-child(5) { animation-delay: 115ms; }
+[data-theme^="playful"] .week-day:nth-child(6) { animation-delay: 140ms; }
+[data-theme^="playful"] .week-day:nth-child(7) { animation-delay: 165ms; }
+
+[data-theme^="playful"] .week-day.is-selected,
+[data-theme^="playful"] .week-day[aria-pressed="true"] {
+  animation: playful-tile-pop 300ms var(--pp-spring) both;
+}
+
+/* Staggered Stat Blocks in Progress / Detail Views */
+[data-theme^="playful"] .stat-grid > * {
+  animation: playful-card-cascade 360ms var(--pp-spring) both;
+}
+[data-theme^="playful"] .stat-grid > *:nth-child(2) { animation-delay: 55ms; }
+[data-theme^="playful"] .stat-grid > *:nth-child(3) { animation-delay: 110ms; }
+[data-theme^="playful"] .stat-grid > *:nth-child(4) { animation-delay: 165ms; }
+
+/* Squishy Jelly Press Physics on Buttons & Stepper Controls */
+[data-theme^="playful"] .db-btn:active:not(:disabled) {
+  transform: translateY(2.5px) scaleX(1.04) scaleY(0.93);
+  box-shadow: 0 1px 0 var(--pp-card-border);
+}
+
+[data-theme^="playful"] .quantity-stepper__btn:hover:not(:disabled) {
+  transform: translateY(-1.5px) scale(1.06);
+}
+
+[data-theme^="playful"] .quantity-stepper__btn:active:not(:disabled) {
+  transform: scaleX(1.1) scaleY(0.86);
+}
+
+/* Playful Wiggle on Topbar / Action Icon Buttons */
+[data-theme^="playful"] .db-icon-btn:hover:not(:disabled) svg {
+  animation: playful-icon-wiggle 420ms var(--pp-spring);
+}
+
+/* Active Navigation Tab & Icon Bounce */
+[data-theme^="playful"] .mobile-nav .is-active svg,
+[data-theme^="playful"] .mobile-nav [aria-current="page"] svg,
+[data-theme^="playful"] .nav-item.is-active .nav-icon svg {
+  animation: playful-nav-bounce 340ms var(--pp-spring) both;
+}
+
+/* Celebratory Card Lift & Glossy Sheen Sweep When Habit Completes */
+[data-theme^="playful"] #today-list .habit-row.is-complete {
+  animation: playful-card-celebrate 420ms var(--pp-spring) both;
+}
+
+[data-theme^="playful"] #today-list .habit-row.is-complete::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 45%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.55),
+    transparent
+  );
+  pointer-events: none;
+  animation: playful-sheen-sweep 750ms var(--pp-smooth) 1 both;
+}
+
+/* Animated Candy-Stripe Shimmer on Quantity Progress Bar */
+[data-theme^="playful"] .quantity-bottom-bar__fill {
+  background-image:
+    repeating-linear-gradient(
+      -45deg,
+      rgba(255, 255, 255, 0.26) 0,
+      rgba(255, 255, 255, 0.26) 8px,
+      transparent 8px,
+      transparent 16px
+    ),
+    linear-gradient(90deg, var(--pp-coral), var(--pp-sunflower), var(--pp-mint));
+  background-size: 28px 28px, 100% 100%;
+  animation: playful-candy-stripes 1.4s linear infinite;
+  transition: width 380ms var(--pp-spring);
+}
+
+/* Inline Feedback & Celebration Banners Bounce In */
+[data-theme^="playful"] [role="status"] {
+  animation: playful-card-cascade 320ms var(--pp-spring) both;
+}
+
 /* --- Reduced Motion Compliance --- */
 @media (prefers-reduced-motion: reduce) {
   [data-theme^="playful"] *,
