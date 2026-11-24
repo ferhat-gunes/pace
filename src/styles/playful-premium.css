@@ -476,6 +476,78 @@
   border-radius: 12px;
 }
 
+/* --- Week Day Indicator Dot & Completion Summary --- */
+[data-theme^="playful"] .week-day > span[aria-hidden="true"] {
+  border-radius: 999px;
+}
+
+[data-theme^="playful"] .completion-summary {
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--fg-muted);
+  background-color: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 12px;
+  box-shadow: var(--pp-shadow-sm);
+}
+
+/* --- Quantity Stepper (- 0 +) --- */
+[data-theme^="playful"] .quantity-stepper {
+  border-radius: 14px;
+  border: 1.5px solid var(--border);
+  background-color: var(--surface-2);
+  padding: 3px;
+  gap: 4px;
+  box-shadow: var(--pp-shadow-sm);
+  overflow: hidden;
+}
+
+[data-theme^="playful"] .quantity-stepper__btn {
+  border-radius: 11px;
+  border: none;
+  background-color: var(--surface-1);
+  transition: transform 180ms var(--pp-spring),
+              background-color 180ms var(--pp-smooth),
+              box-shadow 180ms var(--pp-smooth);
+}
+
+[data-theme^="playful"] .quantity-stepper__btn:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+[data-theme^="playful"] .quantity-stepper__btn--value {
+  background-color: transparent;
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+[data-theme^="playful"] .quantity-stepper__btn--plus {
+  background: linear-gradient(135deg, var(--signal), var(--signal-hover));
+  color: var(--signal-fg);
+  box-shadow: 0 2px 6px rgba(255, 148, 112, 0.3);
+}
+
+/* --- Shared Participants Inline Pill (0/5) --- */
+[data-theme^="playful"] .shared-participants-inline,
+[data-theme^="playful"] .shared-participants-inline > *,
+[data-theme^="playful"] .shared-participants-inline button {
+  border-radius: 999px;
+}
+
+[data-theme^="playful"] .shared-participants-inline > span,
+[data-theme^="playful"] .shared-participants-inline > button {
+  border: 1px solid var(--border);
+  background-color: var(--pp-sunflower-soft);
+  padding: 3px 10px;
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
 /* --- Badges & Progress Bars --- */
 [data-theme^="playful"] .db-badge,
 [data-theme^="playful"] .badge {
