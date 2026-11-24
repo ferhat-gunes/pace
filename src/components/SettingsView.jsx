@@ -226,6 +226,8 @@ export default function SettingsView({
                 options={[
                   { value: 'light', label: 'Açık' },
                   { value: 'dark', label: 'Koyu' },
+                  { value: 'playful', label: 'Playful Premium (Açık)' },
+                  { value: 'playful-dark', label: 'Playful Premium (Koyu)' },
                   { value: 'system', label: 'Sistem' },
                 ]}
               />

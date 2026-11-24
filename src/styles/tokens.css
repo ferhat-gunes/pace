@@ -78,3 +78,60 @@
   --danger-fg: #F2F0EA;
   --warning: #B88600;
 }
+
+/* Playful Premium Theme — Warm Cream & Coral/Mint/Sunflower */
+[data-theme="playful"] {
+  color-scheme: light;
+
+  --bg: #FFF4D6;
+  --fg: #29221E;
+  --fg-muted: #6B5F56;
+  --surface-1: #FFFDF7;
+  --surface-2: #F7E8C2;
+  --border: #E5D4AE;
+  --border-strong: #29221E;
+
+  --signal: #FF9470;
+  --signal-fg: #29221E;
+  --signal-hover: #FF7E54;
+  --signal-text: #C4461E;
+
+  --danger: #E14949;
+  --danger-fg: #FFFDF7;
+  --warning: #D99B00;
+
+  --radius: 14px;
+  --border-hairline: 1.5px;
+  --border-major: 2px;
+  --ease-sharp: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 140ms;
+  --duration-base: 200ms;
+}
+
+[data-theme="playful-dark"] {
+  color-scheme: dark;
+
+  --bg: #1C1917;
+  --fg: #FFF8E7;
+  --fg-muted: #B8ABA0;
+  --surface-1: #262220;
+  --surface-2: #332D29;
+  --border: #443C36;
+  --border-strong: #6A5F56;
+
+  --signal: #FF9470;
+  --signal-fg: #1C1917;
+  --signal-hover: #FFA88A;
+  --signal-text: #FF9470;
+
+  --danger: #FF6B6B;
+  --danger-fg: #1C1917;
+  --warning: #FFD457;
+
+  --radius: 14px;
+  --border-hairline: 1.5px;
+  --border-major: 2px;
+  --ease-sharp: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 140ms;
+  --duration-base: 200ms;
+}

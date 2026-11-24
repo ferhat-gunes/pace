@@ -7,10 +7,12 @@ import '../styles/components.css';
 
 const ThemeContext = createContext(null);
 
+const EXPLICIT_THEMES = ['light', 'dark', 'playful', 'playful-dark'];
+
 const browserPreference = () => {
   try {
     const stored = readThemePreference(window.localStorage);
-    return stored === 'light' || stored === 'dark' ? stored : 'dark';
+    return EXPLICIT_THEMES.includes(stored) ? stored : 'dark';
   } catch {
     return 'dark';
   }
@@ -24,11 +26,11 @@ export function useTheme() {
 
 export default function ThemeProvider({ children }) {
   const [preference, setPreferenceState] = useState(browserPreference);
-  const mode = preference === 'light' ? 'light' : 'dark';
+  const mode = EXPLICIT_THEMES.includes(preference) ? preference : 'dark';
 
   const setPreference = useCallback((value) => {
     const next = normalizeThemePreference(value);
-    const resolved = next === 'light' ? 'light' : 'dark';
+    const resolved = EXPLICIT_THEMES.includes(next) ? next : 'dark';
     try {
       localStorage.setItem(THEME_STORAGE_KEY, resolved);
     } catch {
@@ -49,7 +51,7 @@ export default function ThemeProvider({ children }) {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', mode);
-    document.documentElement.style.colorScheme = mode === 'dark' ? 'dark' : 'light';
+    document.documentElement.style.colorScheme = mode === 'dark' || mode === 'playful-dark' ? 'dark' : 'light';
   }, [mode]);
 
   const value = useMemo(() => ({ preference, mode, setPreference }), [preference, mode, setPreference]);
