@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { THEME_STORAGE_KEY, normalizeThemePreference, readThemePreference } from './theme-state.js';
+import '../styles/scrapbook-fonts.css';
 import '../styles/tokens.css';
 import '../styles/base.css';
 import '../styles/layout.css';
