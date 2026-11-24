@@ -61,6 +61,20 @@ function localClockForTz(tz){
     const d=new Date();return {date:d.toISOString().slice(0,10),hhmm:d.toISOString().slice(11,16)};
   }
 }
+export async function sendExpoPush(expoPushToken,payload){
+  try{
+    const res=await fetch('https://exp.host/--/api/v2/push/send',{
+      method:'POST',
+      headers:{'Accept':'application/json','Content-Type':'application/json'},
+      body:JSON.stringify({to:expoPushToken,title:payload.title,body:payload.body,data:{tag:payload.tag,url:payload.url},sound:'default'}),
+    });
+    if(!res.ok)return {sent:false,expired:res.status===404||res.status===410};
+    const jsonBody=await res.json().catch(()=>({}));
+    const errCode=jsonBody?.data?.details?.error;
+    if(errCode==='DeviceNotRegistered')return {sent:false,expired:true};
+    return {sent:true,expired:false};
+  }catch{return {sent:false,expired:false}}
+}
 export async function dispatchDueDailyPushes(env){
   try{await ensureExtendedSchema(env.DB)}catch{}
   let rows;
@@ -78,6 +92,27 @@ export async function dispatchDueDailyPushes(env){
     else if(res?.sent){await env.DB.prepare('UPDATE push_subscriptions SET last_sent_date=?,updated_at=? WHERE id=?').bind(date,nowIso(),sub.id).run().catch(()=>{});sent++}
     else{skipped++}
   }
+  try{
+    const nativeUsers=await env.DB.prepare('SELECT np.user_id,np.timezone,np.reminder_time,np.quiet_start,np.quiet_end,np.last_sent_date FROM notification_preferences np WHERE np.daily_enabled=1 AND EXISTS(SELECT 1 FROM native_push_tokens npt WHERE npt.user_id=np.user_id)').all();
+    for(const pref of nativeUsers.results||[]){
+      const {date,hhmm}=localClockForTz(pref.timezone);
+      if(pref.last_sent_date===date||hhmm<pref.reminder_time||isWithinQuietHours(hhmm,pref.quiet_start,pref.quiet_end)){skipped++;continue}
+      const incomplete=await env.DB.prepare('SELECT DISTINCT h.id,h.name FROM habits h LEFT JOIN habit_participants hp ON hp.habit_id=h.id AND hp.user_id=? WHERE (hp.user_id=? OR h.user_id=?) AND h.paused=0 AND h.archived_at IS NULL AND NOT EXISTS(SELECT 1 FROM checkins c WHERE c.habit_id=h.id AND c.user_id=? AND c.habit_date=? AND c.deleted=0 AND c.value>0)').bind(pref.user_id,pref.user_id,pref.user_id,pref.user_id,date).all();
+      const cnt=(incomplete.results||[]).length;
+      if(!cnt){skipped++;continue}
+      const body=cnt===1?`"${incomplete.results[0].name}" bugün seni bekliyor. Küçük bir adım yeterli.`:`${cnt} rutinin bugün seni bekliyor. Kendi ritminde devam et!`;
+      const tokens=await env.DB.prepare('SELECT id,expo_push_token FROM native_push_tokens WHERE user_id=?').bind(pref.user_id).all();
+      let userSent=false;
+      for(const t of tokens.results||[]){
+        const res=await sendExpoPush(t.expo_push_token,{title:'🎯 PACE Günlük Ritim',body,tag:'pace-daily-reminder',url:'pace://today'});
+        if(res?.expired){await env.DB.prepare('DELETE FROM native_push_tokens WHERE id=?').bind(t.id).run().catch(()=>{})}
+        else if(res?.sent){userSent=true;sent++}
+      }
+      if(userSent){
+        await env.DB.prepare('UPDATE notification_preferences SET last_sent_date=?,updated_at=? WHERE user_id=?').bind(date,nowIso(),pref.user_id).run().catch(()=>{});
+      }
+    }
+  }catch{}
   return {sent,skipped};
 }
 async function subscribePush(request,user,env){
@@ -85,7 +120,7 @@ async function subscribePush(request,user,env){
   const sub=body.subscription||body;
   const endpoint=String(sub.endpoint||'').trim(),p256dh=String(sub.keys?.p256dh||sub.p256dh||'').trim(),auth=String(sub.keys?.auth||sub.auth||'').trim();
   if(!endpoint||!p256dh||!auth)return error('Geçersiz push aboneliği.');
-  const tz=String(body.timezone||'Europe/Istanbul').slice(0,60);
+  const tz=String(body.timezone||user.timezone||'Europe/Istanbul').slice(0,60);
   const reminderTime=validTimeHHMM(body.reminder_time)?body.reminder_time:'20:00';
   const quietStart=validTimeHHMM(body.quiet_start)?body.quiet_start:'22:00';
   const quietEnd=validTimeHHMM(body.quiet_end)?body.quiet_end:'08:30';
@@ -93,19 +128,69 @@ async function subscribePush(request,user,env){
   const socialEnabled=body.social_enabled===false?0:1;
   const now=nowIso();
   await env.DB.prepare('INSERT INTO push_subscriptions(id,user_id,endpoint,p256dh,auth,timezone,reminder_time,quiet_start,quiet_end,daily_enabled,social_enabled,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(endpoint) DO UPDATE SET user_id=excluded.user_id,p256dh=excluded.p256dh,auth=excluded.auth,timezone=excluded.timezone,reminder_time=excluded.reminder_time,quiet_start=excluded.quiet_start,quiet_end=excluded.quiet_end,daily_enabled=excluded.daily_enabled,social_enabled=excluded.social_enabled,updated_at=excluded.updated_at').bind(crypto.randomUUID(),user.id,endpoint,p256dh,auth,tz,reminderTime,quietStart,quietEnd,dailyEnabled,socialEnabled,now,now).run();
+  try{
+    await env.DB.prepare('INSERT INTO notification_preferences(user_id,timezone,reminder_time,quiet_start,quiet_end,daily_enabled,social_enabled,updated_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET timezone=excluded.timezone,reminder_time=excluded.reminder_time,quiet_start=excluded.quiet_start,quiet_end=excluded.quiet_end,daily_enabled=excluded.daily_enabled,social_enabled=excluded.social_enabled,updated_at=excluded.updated_at').bind(user.id,tz,reminderTime,quietStart,quietEnd,dailyEnabled,socialEnabled,now).run();
+  }catch{}
   return json({ok:true});
+}
+async function readUserPushPrefs(user,env){
+  try{
+    const row=await env.DB.prepare('SELECT timezone,reminder_time,quiet_start,quiet_end,daily_enabled,social_enabled FROM notification_preferences WHERE user_id=?').bind(user.id).first();
+    if(row)return {timezone:row.timezone,reminder_time:row.reminder_time,quiet_start:row.quiet_start,quiet_end:row.quiet_end,daily_enabled:Boolean(row.daily_enabled),social_enabled:Boolean(row.social_enabled)};
+  }catch{}
+  try{
+    const sub=await env.DB.prepare('SELECT timezone,reminder_time,quiet_start,quiet_end,daily_enabled,social_enabled FROM push_subscriptions WHERE user_id=? ORDER BY updated_at DESC LIMIT 1').bind(user.id).first();
+    if(sub)return {timezone:sub.timezone,reminder_time:sub.reminder_time,quiet_start:sub.quiet_start,quiet_end:sub.quiet_end,daily_enabled:Boolean(sub.daily_enabled),social_enabled:Boolean(sub.social_enabled)};
+  }catch{}
+  return {timezone:user.timezone||'Europe/Istanbul',reminder_time:'20:00',quiet_start:'22:00',quiet_end:'08:30',daily_enabled:true,social_enabled:true};
+}
+async function getPushPrefs(user,env){
+  const preferences=await readUserPushPrefs(user,env);
+  return json({ok:true,preferences,...preferences});
 }
 async function updatePushPrefs(request,user,env){
   let body;try{body=await readJson(request)}catch(e){return error(e.message)}
-  const tz=String(body.timezone||'Europe/Istanbul').slice(0,60);
-  const reminderTime=validTimeHHMM(body.reminder_time)?body.reminder_time:'20:00';
-  const quietStart=validTimeHHMM(body.quiet_start)?body.quiet_start:'22:00';
-  const quietEnd=validTimeHHMM(body.quiet_end)?body.quiet_end:'08:30';
-  const dailyEnabled=body.daily_enabled===false?0:1;
-  const socialEnabled=body.social_enabled===false?0:1;
+  if(body.reminder_time!==undefined&&!validTimeHHMM(body.reminder_time))return error('Hatırlatma saati geçersiz (SS:DD olmalı).',400);
+  if(body.quiet_start!==undefined&&body.quiet_start!==null&&!validTimeHHMM(body.quiet_start))return error('Sessiz saat başlangıcı geçersiz (SS:DD olmalı).',400);
+  if(body.quiet_end!==undefined&&body.quiet_end!==null&&!validTimeHHMM(body.quiet_end))return error('Sessiz saat bitişi geçersiz (SS:DD olmalı).',400);
+  const current=await readUserPushPrefs(user,env);
+  const tz=body.timezone!==undefined?String(body.timezone||'Europe/Istanbul').trim().slice(0,60):current.timezone;
+  if(!tz)return error('Saat dilimi geçersiz.',400);
+  const reminderTime=body.reminder_time!==undefined?body.reminder_time:current.reminder_time;
+  const quietStart=body.quiet_start!==undefined?(body.quiet_start||current.quiet_start):current.quiet_start;
+  const quietEnd=body.quiet_end!==undefined?(body.quiet_end||current.quiet_end):current.quiet_end;
+  const dailyEnabled=body.daily_enabled!==undefined?(body.daily_enabled===false?0:1):(current.daily_enabled?1:0);
+  const socialEnabled=body.social_enabled!==undefined?(body.social_enabled===false?0:1):(current.social_enabled?1:0);
+  const now=nowIso();
   try{
-    await env.DB.prepare('UPDATE push_subscriptions SET timezone=?,reminder_time=?,quiet_start=?,quiet_end=?,daily_enabled=?,social_enabled=?,updated_at=? WHERE user_id=?').bind(tz,reminderTime,quietStart,quietEnd,dailyEnabled,socialEnabled,nowIso(),user.id).run();
+    await env.DB.prepare('INSERT INTO notification_preferences(user_id,timezone,reminder_time,quiet_start,quiet_end,daily_enabled,social_enabled,updated_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET timezone=excluded.timezone,reminder_time=excluded.reminder_time,quiet_start=excluded.quiet_start,quiet_end=excluded.quiet_end,daily_enabled=excluded.daily_enabled,social_enabled=excluded.social_enabled,updated_at=excluded.updated_at').bind(user.id,tz,reminderTime,quietStart,quietEnd,dailyEnabled,socialEnabled,now).run();
   }catch{}
+  try{
+    await env.DB.prepare('UPDATE push_subscriptions SET timezone=?,reminder_time=?,quiet_start=?,quiet_end=?,daily_enabled=?,social_enabled=?,updated_at=? WHERE user_id=?').bind(tz,reminderTime,quietStart,quietEnd,dailyEnabled,socialEnabled,now,user.id).run();
+  }catch{}
+  const preferences={timezone:tz,reminder_time:reminderTime,quiet_start:quietStart,quiet_end:quietEnd,daily_enabled:Boolean(dailyEnabled),social_enabled:Boolean(socialEnabled)};
+  return json({ok:true,preferences,...preferences});
+}
+async function registerNativePushToken(request,user,env){
+  let body;try{body=await readJson(request)}catch(e){return error(e.message)}
+  const expoPushToken=typeof body.expo_push_token==='string'?body.expo_push_token.trim():'';
+  if(!expoPushToken||expoPushToken.length>256)return error('Geçerli bir bildirim anahtarı (expo_push_token) gerekli.',400);
+  const platform=body.platform;
+  if(platform!=='ios'&&platform!=='android')return error('Platform yalnızca ios veya android olabilir.',400);
+  const deviceId=typeof body.device_id==='string'?body.device_id.trim().slice(0,120):'';
+  const now=nowIso();
+  const id=crypto.randomUUID();
+  await env.DB.prepare('INSERT INTO native_push_tokens(id,user_id,expo_push_token,platform,device_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(expo_push_token) DO UPDATE SET user_id=excluded.user_id,platform=excluded.platform,device_id=excluded.device_id,updated_at=excluded.updated_at').bind(id,user.id,expoPushToken,platform,deviceId,now,now).run();
+  return json({ok:true,token:{expo_push_token:expoPushToken,platform,device_id:deviceId,updated_at:now}},201);
+}
+async function unregisterNativePushToken(request,user,env){
+  let body={};try{body=await readJson(request)}catch{}
+  const expoPushToken=typeof body.expo_push_token==='string'?body.expo_push_token.trim():'';
+  if(expoPushToken){
+    await env.DB.prepare('DELETE FROM native_push_tokens WHERE user_id=? AND expo_push_token=?').bind(user.id,expoPushToken).run();
+  }else{
+    await env.DB.prepare('DELETE FROM native_push_tokens WHERE user_id=?').bind(user.id).run();
+  }
   return json({ok:true});
 }
 import { sendWebPush } from '../lib/webpush.js';
@@ -384,6 +469,9 @@ if(path==='social/inbox'&&request.method==='GET')return listSocialInbox(user,env
 const inboxRead=path.match(/^social\/inbox\/([^/]+)\/read$/);if(inboxRead&&request.method==='POST')return markInboxRead(user,env,decodeURIComponent(inboxRead[1]));
 if(path==='push/subscribe'&&request.method==='POST')return subscribePush(request,user,env);
 if(path==='push/subscribe'&&request.method==='DELETE'){let b={};try{b=await readJson(request)}catch{}try{if(b.endpoint)await env.DB.prepare('DELETE FROM push_subscriptions WHERE user_id=? AND endpoint=?').bind(user.id,b.endpoint).run();else await env.DB.prepare('DELETE FROM push_subscriptions WHERE user_id=?').bind(user.id).run()}catch{}return json({ok:true})}
+if(path==='push/native-token'&&request.method==='POST')return registerNativePushToken(request,user,env);
+if(path==='push/native-token'&&request.method==='DELETE')return unregisterNativePushToken(request,user,env);
+if(path==='push/preferences'&&request.method==='GET')return getPushPrefs(user,env);
 if(path==='push/preferences'&&request.method==='PATCH')return updatePushPrefs(request,user,env);
 if(path==='export'&&request.method==='GET')return json(await stateFor(user,env));if(path==='import'&&request.method==='POST')return importData(request,user,env);if(path==='account/preferences'&&request.method==='PATCH'){let body;try{body=await readJson(request)}catch(e){return error(e.message)}const start=Number(body.week_start)===0?0:1;await env.DB.prepare('UPDATE users SET week_start=?,updated_at=? WHERE id=?').bind(start,nowIso(),user.id).run();return json({ok:true,week_start:start})}
 if(path==='account/username'&&request.method==='PATCH')return updateUsername(request,user,env);
@@ -410,6 +498,8 @@ if(path==='account'&&request.method==='DELETE'){
       env.DB.prepare('DELETE FROM group_reactions WHERE sender_user_id=? OR target_user_id=? OR group_id IN (SELECT id FROM groups WHERE owner_id=?)').bind(user.id,user.id,user.id),
       env.DB.prepare('DELETE FROM user_gamification WHERE user_id=?').bind(user.id),
       env.DB.prepare('DELETE FROM push_subscriptions WHERE user_id=?').bind(user.id),
+      env.DB.prepare('DELETE FROM native_push_tokens WHERE user_id=?').bind(user.id),
+      env.DB.prepare('DELETE FROM notification_preferences WHERE user_id=?').bind(user.id),
       ...baseStmts,
     ]);
   }catch{await env.DB.batch(baseStmts)}
