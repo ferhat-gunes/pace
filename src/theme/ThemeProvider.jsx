@@ -53,6 +53,16 @@ export default function ThemeProvider({ children }) {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', mode);
     document.documentElement.style.colorScheme = mode === 'dark' || mode === 'playful-dark' ? 'dark' : 'light';
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (metaTheme) {
+      const colors = {
+        dark: '#0E0E0E',
+        light: '#F2F0EA',
+        playful: '#FFF4D6',
+        'playful-dark': '#1C1917',
+      };
+      metaTheme.setAttribute('content', colors[mode] || '#0E0E0E');
+    }
   }, [mode]);
 
   const value = useMemo(() => ({ preference, mode, setPreference }), [preference, mode, setPreference]);

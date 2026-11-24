@@ -350,6 +350,132 @@
   animation: playful-fade-up 240ms var(--pp-spring) both;
 }
 
+/* --- Topbar, Avatar, Mobile Bottom Nav & Banners --- */
+[data-theme^="playful"] .topbar {
+  background-color: var(--surface-1);
+  border-bottom: 1.5px solid var(--border);
+  box-shadow: var(--pp-shadow-sm);
+}
+
+[data-theme^="playful"] .avatar-button {
+  border-radius: 999px;
+  border: 2px solid var(--border-strong);
+  background: linear-gradient(135deg, var(--pp-sunflower), var(--signal));
+  color: #29221E;
+  box-shadow: var(--pp-shadow-sm);
+  transition: transform 200ms var(--pp-spring), box-shadow 200ms var(--pp-smooth);
+}
+
+[data-theme^="playful"] .avatar-button:hover {
+  transform: scale(1.06) rotate(-3deg);
+  box-shadow: var(--pp-shadow-md);
+}
+
+[data-theme^="playful"] .mobile-nav {
+  background-color: var(--surface-1);
+  border-top: 1.5px solid var(--border);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.08);
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+  gap: 4px;
+}
+
+[data-theme^="playful"] .mobile-nav .nav-item,
+[data-theme^="playful"] .mobile-nav button,
+[data-theme^="playful"] .mobile-nav a {
+  border-radius: 14px;
+}
+
+[data-theme^="playful"] .settings-link {
+  border-radius: 14px;
+}
+
+/* --- Week Strip & Day Tiles --- */
+[data-theme^="playful"] .week-strip {
+  gap: 8px;
+  border: none;
+  background: transparent;
+}
+
+[data-theme^="playful"] .week-day {
+  border-radius: 14px;
+  border: 1.5px solid var(--border);
+  background-color: var(--surface-1);
+  box-shadow: var(--pp-shadow-sm);
+  transition: transform 200ms var(--pp-spring),
+              background-color 180ms var(--pp-smooth),
+              border-color 180ms var(--pp-smooth),
+              box-shadow 180ms var(--pp-smooth);
+}
+
+[data-theme^="playful"] .week-day:hover {
+  transform: translateY(-2px);
+  border-color: var(--signal);
+  box-shadow: var(--pp-shadow-md);
+}
+
+[data-theme^="playful"] .week-day.is-selected,
+[data-theme^="playful"] .week-day[aria-pressed="true"] {
+  background: linear-gradient(135deg, var(--signal), var(--signal-hover));
+  color: var(--signal-fg);
+  border-color: var(--border-strong);
+  box-shadow: var(--pp-shadow-btn);
+  transform: translateY(-2px);
+}
+
+/* --- Segmented Controls --- */
+[data-theme^="playful"] .segmented-control {
+  border-radius: 999px;
+  padding: 4px;
+  gap: 4px;
+  background-color: var(--surface-2);
+  border: 1.5px solid var(--border);
+}
+
+[data-theme^="playful"] .segmented-item {
+  border-radius: 999px;
+  border: none;
+  transition: transform 180ms var(--pp-spring),
+              background-color 180ms var(--pp-smooth),
+              box-shadow 180ms var(--pp-smooth);
+}
+
+[data-theme^="playful"] .segmented-item.is-active,
+[data-theme^="playful"] .segmented-item.is-selected,
+[data-theme^="playful"] .segmented-item[aria-pressed="true"] {
+  background-color: var(--surface-1);
+  color: var(--fg);
+  box-shadow: var(--pp-shadow-sm);
+  font-weight: 700;
+}
+
+/* --- Stat Grid, Tables, Banners & Pending Entries --- */
+[data-theme^="playful"] .stat-grid > * {
+  border-radius: 18px;
+  border: 1.5px solid var(--border);
+  background-color: var(--surface-1);
+  box-shadow: var(--pp-shadow-sm);
+}
+
+[data-theme^="playful"] .table-container {
+  border-radius: 18px;
+  border: 1.5px solid var(--border);
+  background-color: var(--surface-1);
+  box-shadow: var(--pp-shadow-sm);
+  overflow: hidden;
+}
+
+[data-theme^="playful"] .pwa-install-banner,
+[data-theme^="playful"] .context-banner,
+[data-theme^="playful"] .pending-entry {
+  border-radius: 16px;
+  border: 1.5px solid var(--border);
+  box-shadow: var(--pp-shadow-sm);
+}
+
+[data-theme^="playful"] .pwa-banner-icon {
+  border-radius: 12px;
+}
+
 /* --- Badges & Progress Bars --- */
 [data-theme^="playful"] .db-badge,
 [data-theme^="playful"] .badge {
